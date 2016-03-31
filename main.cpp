@@ -4,6 +4,7 @@
   Programmed by    Nate Howard
   Networking by    Nate Howard / Todd Selaku
   C++, SDL, OpenGL, SDL_net (originally winsock2, but ported for Linux)
+  3/31/2016 setup in Visual Studio
 */
 
 #include <cstdio>

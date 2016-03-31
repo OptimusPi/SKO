@@ -26,3 +26,7 @@
 *.exe
 *.out
 *.app
+
+
+#C:/Users/midnite/Source/Repos/SKO/StickKnightsOnline.VC.opendb
+*.opendb
