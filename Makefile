@@ -1,5 +1,5 @@
 CXXFLAGS=-c -Wall -g
-LDLIBS=-framework cocoa -framework OpenGL SDLMain.m -framework SDL -framework SDL_image -framework SDL_mixer -framework SDL_net
+LDLIBS=-lpthreadGC2 -lopengl32 -lmingw32 -lSDLmain -lSDL -lSDL_image -lSDL_mixer -lSDL_net
 SOURCES:=$(wildcard *.cpp)
 OBJECTS:=$(patsubst %.cpp,%.o,$(SOURCES))
 EXECUTABLE=Stick-Knights-Online
