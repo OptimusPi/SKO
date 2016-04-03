@@ -27,6 +27,12 @@
 *.out
 *.app
 
-
-#C:/Users/midnite/Source/Repos/SKO/StickKnightsOnline.VC.opendb
+# C:/Users/midnite/Source/Repos/SKO/StickKnightsOnline.VC.opendb
 *.opendb
+
+# Ignore game resources
+*.png
+*.mp3
+StickKnightsOnline-Client/resources/*
+StickKnightsOnline-Client/IMG
+StickKnightsOnline-Client/SND
