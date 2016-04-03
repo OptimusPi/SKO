@@ -36,3 +36,6 @@
 StickKnightsOnline-Client/resources/*
 StickKnightsOnline-Client/IMG
 StickKnightsOnline-Client/SND
+
+# Ignore dependencies (I Nathanial am using this directory for SDL-VisualStudio Libraries, check lazyfoo tutorials!)
+StickKnightsOnline-Dependencies/*
