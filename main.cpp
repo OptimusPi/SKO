@@ -40,11 +40,6 @@
 #include "INIReader.h"
 #include "OPI_Image.h"
 
-
-//Updating libraries
-#include <curl/curl.h>
-
-
 // Maximum number of clients allowed to connect
 #define MAX_CLIENTS 16
 
@@ -1422,7 +1417,7 @@ void Button::handle_events(int ID)
 
                                         //bank scrolling
                                         btmx += 6*bankScroll;
-										
+
 
                                        // printf("ya in the bank bitch and btmx=%d\n", btmx);
 
@@ -1657,7 +1652,7 @@ void Button::handle_events(int ID)
                                                int xOffset = (Player[i].Nick.length() * 9)/2;
                                                Message[89].pos_x = 325 - xOffset;
 
-                                              
+
                                                popup_gui_menu = 2;
                                                return;
                                             }
