@@ -1,0 +1,9 @@
+All game resources to be placed in this folder.
+This includes all images and sound resources for example that are not included
+in the git repository.
+
+The game resources are available for download here:-
+https://www.dropbox.com/sh/qs360zx4w6rgzut/AAAliI0-tv2iBlOrP5TPL1cxa?dl=0
+
+Resources to supplement any repository commits can be uploaded here:-
+https://www.dropbox.com/request/9Kgnc1KOSTwwyMQaU8Se
