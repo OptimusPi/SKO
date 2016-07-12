@@ -7,20 +7,20 @@
   3/31/2016 setup in Visual Studio
 */
 
+
+
 #include <cstdio>
 #include <cstring>
 #include <fstream>
 #include <sstream>
-#include <SDL/SDL_opengl.h>
-#include <SDL/SDL.h>
-#include <SDL/SDL_image.h>
-#include <SDL/SDL_opengl.h>
-#include <SDL/SDL_mixer.h>
-#include <SDL/SDL_main.h>
-//#include <SDL/SDLMain.h>
-//#include <SDL/SDL_syswm.h>
+#include "SDL_opengl.h"
+#include "SDL.h"
+#include "SDL_image.h"
+#include "SDL_opengl.h"
+#include "SDL_mixer.h"
+#include "SDL_main.h"
+#include "pthread.h"
 
-#include <pthread.h>
 #include "OPI_Text.h"
 #include "SKO_Player.h"
 #include "SKO_Enemy.h"
@@ -55,6 +55,7 @@ bool DEBUG_FLAG = false;
 
 //loaded yet?
 bool loaded = false;
+bool contentLoaded = false;
 
 //login and out
 std::string username, password;
@@ -71,8 +72,8 @@ const char VERSION_CHECK = 255,
            SERVER_FULL = 253,
            PONG = 252,
            VERSION_MAJOR = 1,
-           VERSION_MINOR = 1,
-           VERSION_PATCH = 5,
+           VERSION_MINOR = 2,
+           VERSION_PATCH = 0,
            VERSION_OS = MY_OS,
            PING = 0,
            CHAT = 1,
@@ -115,7 +116,7 @@ bool networkLock = false;
 
 //maps and stuff ! :)
 const char NUM_MAPS = 6;
-SKO_Map map[NUM_MAPS];
+SKO_Map *map[NUM_MAPS];
 int current_map = 2;
 
 //sprites
@@ -251,7 +252,7 @@ int hoveredShopItemY = -1;
 
 //players
 SKO_Player Player[MAX_CLIENTS];
-int MyID = 0;
+int MyID = -1;
 
 //items
 SKO_Item Item[256];
@@ -1164,7 +1165,7 @@ void Button::handle_events(int ID)
                                        SDL_Delay(2000);
 
                                        //set the first sign
-                                       current_sign = map[current_map].Sign[0];
+                                       current_sign = map[current_map]->Sign[0];
                                        popup_sign = true;
 
                                        PiSock.Data = "";
@@ -1660,12 +1661,12 @@ void Button::handle_events(int ID)
                                         }
                                     }
                                     //check for interaction with NPC
-								   for (int i = 0; i < map[current_map].num_npcs; i++)
+								   for (int i = 0; i < map[current_map]->num_npcs; i++)
 								   {
-										   float x1 = map[current_map].NPC[i].x + 25 - camera_x;
-										   float x2 = map[current_map].NPC[i].x + 38 - camera_x;
-										   float y1 = map[current_map].NPC[i].y + 13 - camera_y;
-										   float y2 = map[current_map].NPC[i].y + 64 - camera_y;
+										   float x1 = map[current_map]->NPC[i].x + 25 - camera_x;
+										   float x2 = map[current_map]->NPC[i].x + 38 - camera_x;
+										   float y1 = map[current_map]->NPC[i].y + 13 - camera_y;
+										   float y2 = map[current_map]->NPC[i].y + 64 - camera_y;
 
 										   //check if you clicked on an NPC
 										   if (x > x1 && x < x2 && y > y1 && y < y2)
@@ -1673,18 +1674,18 @@ void Button::handle_events(int ID)
 											   printf("npc!\n");
 											   popup_menu = 0;
 											   popup_npc = true;
-											   current_npc = map[current_map].NPC[i];
+											   current_npc = map[current_map]->NPC[i];
 											   current_page = 0;
 											   return;
 										   }
 								   }
                                     //check for interaction with a stall
-                                    for (int i = 0; i < map[current_map].num_stalls; i++)
+                                    for (int i = 0; i < map[current_map]->num_stalls; i++)
                                     {
-                                        float x1 = map[current_map].Stall[i].x  - camera_x;
-                                        float x2 = map[current_map].Stall[i].x + map[current_map].Stall[i].w - camera_x;
-                                        float y1 = map[current_map].Stall[i].y - camera_y;
-                                        float y2 = map[current_map].Stall[i].y + map[current_map].Stall[i].h - camera_y;
+                                        float x1 = map[current_map]->Stall[i].x  - camera_x;
+                                        float x2 = map[current_map]->Stall[i].x + map[current_map]->Stall[i].w - camera_x;
+                                        float y1 = map[current_map]->Stall[i].y - camera_y;
+                                        float y2 = map[current_map]->Stall[i].y + map[current_map]->Stall[i].h - camera_y;
 
                                         //check if you clicked on a stall
                                         if (popup_gui_menu != 5 && x > x1 && x < x2 && y > y1 && y < y2)
@@ -1700,12 +1701,12 @@ void Button::handle_events(int ID)
                                         }
                                     }
                                     //check for interaction with a sign
-                                    for (int i = 0; i < map[current_map].num_signs; i++)
+                                    for (int i = 0; i < map[current_map]->num_signs; i++)
 									{
-										float x1 = map[current_map].Sign[i].x  - camera_x;
-										float x2 = map[current_map].Sign[i].x + map[current_map].Sign[i].w - camera_x;
-										float y1 = map[current_map].Sign[i].y - camera_y;
-										float y2 = map[current_map].Sign[i].y + map[current_map].Sign[i].h - camera_y;
+										float x1 = map[current_map]->Sign[i].x  - camera_x;
+										float x2 = map[current_map]->Sign[i].x + map[current_map]->Sign[i].w - camera_x;
+										float y1 = map[current_map]->Sign[i].y - camera_y;
+										float y2 = map[current_map]->Sign[i].y + map[current_map]->Sign[i].h - camera_y;
 
 										//check if you clicked on a sign
 										if (popup_gui_menu != 5 && x > x1 && x < x2 && y > y1 && y < y2)
@@ -1714,7 +1715,7 @@ void Button::handle_events(int ID)
 											popup_menu = 0;
 											popup_sign = true;
 											popup_npc = false;
-											current_sign = map[current_map].Sign[i];
+											current_sign = map[current_map]->Sign[i];
 											return;
 										}
 									}
@@ -2828,7 +2829,12 @@ int getTrophyWalkOffsetY(int frame)
 void
 construct_frame()
 {
-current_map = Player[MyID].current_map;
+	if (!contentLoaded)
+		return;
+
+	if (MyID > -1)
+		current_map = Player[MyID].current_map;
+
 	if (enableBetaWarning)
 	{
 		glClearColor(0.21f, 0.01f, 0.15f, 1.0f);
@@ -2888,19 +2894,19 @@ current_map = Player[MyID].current_map;
 
 	//draw map
 	//draw tiles, only on screen
-	for (int i = 0; i < map[current_map].number_of_tiles; i++)
+	for (int i = 0; i < map[current_map]->number_of_tiles; i++)
 	{
 
-	   int draw_x = (int)(map[current_map].tile_x[i] - tcam_x);
-	   int draw_y = (int)(map[current_map].tile_y[i] - tcam_y);
+	   int draw_x = (int)(map[current_map]->tile_x[i] - tcam_x);
+	   int draw_y = (int)(map[current_map]->tile_y[i] - tcam_y);
 
-	   if (draw_x >= 0-tile_img[map[current_map].tile[i]].w &&
+	   if (draw_x >= 0-tile_img[map[current_map]->tile[i]].w &&
 		  draw_x < 1024 &&
 		  draw_y < 600 &&
-		  draw_y >= 0-tile_img[map[current_map].tile[i]].h)
-	   DrawImage(draw_x, draw_y, tile_img[map[current_map].tile[i]]);
+		  draw_y >= 0-tile_img[map[current_map]->tile[i]].h)
+	   DrawImage(draw_x, draw_y, tile_img[map[current_map]->tile[i]]);
 
-	   //printf("\nDraw_x=%i draw_y=%i tile[i]=%i i=%i\n", draw_x, draw_y, map[current_map].tile[i], i);
+	   //printf("\nDraw_x=%i draw_y=%i tile[i]=%i i=%i\n", draw_x, draw_y, map[current_map]->tile[i], i);
 
 	}
 
@@ -2959,28 +2965,28 @@ current_map = Player[MyID].current_map;
        //Items
        for (int i = 0; i < 256; i++)
        {
-         if (map[current_map].ItemObj[i].status)
+         if (map[current_map]->ItemObj[i].status)
          {
-            DrawImage(map[current_map].ItemObj[i].x - camera_x,
-            		  map[current_map].ItemObj[i].y - camera_y,
-            		  Item_img[(int)map[current_map].ItemObj[i].itemID]);
+            DrawImage(map[current_map]->ItemObj[i].x - camera_x,
+            		  map[current_map]->ItemObj[i].y - camera_y,
+            		  Item_img[(int)map[current_map]->ItemObj[i].itemID]);
          }
        }
 
        	//Targets
-       	for (int i = 0; i < map[current_map].num_targets; i++)
+       	for (int i = 0; i < map[current_map]->num_targets; i++)
        	{
-       		SKO_Target target = map[current_map].Target[i];
+       		SKO_Target target = map[current_map]->Target[i];
 
        		if (target.active)
        			DrawImage(target.x - camera_x, target.y - camera_y, target_img[target.pic]);
        	}
 
         //Enemies
-        for (int i = 0; i < map[current_map].num_enemies; i++)
+        for (int i = 0; i < map[current_map]->num_enemies; i++)
         {
         	//Enemy
-        	SKO_Enemy  enemy = map[current_map].Enemy[i];
+        	SKO_Enemy  enemy = map[current_map]->Enemy[i];
         	SKO_Sprite sprite = EnemySprite[enemy.sprite];
 
 
@@ -3147,10 +3153,10 @@ current_map = Player[MyID].current_map;
 
 
         //NPC's
-		for (int i = 0; i < map[current_map].num_npcs; i++)
+		for (int i = 0; i < map[current_map]->num_npcs; i++)
 		{
 			//NPC
-			SKO_NPC npc = map[current_map].NPC[i];
+			SKO_NPC npc = map[current_map]->NPC[i];
 			SKO_Sprite sprite = NpcSprite[npc.sprite];
 
 
@@ -3469,17 +3475,17 @@ current_map = Player[MyID].current_map;
     	   camera_y = 0;
 
        //draw fringe tiles
-       for (int i = 0; i < map[current_map].number_of_fringe; i++)
+       for (int i = 0; i < map[current_map]->number_of_fringe; i++)
        {
 
-           int draw_x = (int)(map[current_map].fringe_x[i] - tcam_x);
-           int draw_y = (int)(map[current_map].fringe_y[i] - tcam_y);
+           int draw_x = (int)(map[current_map]->fringe_x[i] - tcam_x);
+           int draw_y = (int)(map[current_map]->fringe_y[i] - tcam_y);
 
-           if (draw_x >= 0-tile_img[map[current_map].fringe[i]].w &&
+           if (draw_x >= 0-tile_img[map[current_map]->fringe[i]].w &&
               draw_x < 1024 &&
               draw_y < 600 &&
-              draw_y >= 0-tile_img[map[current_map].fringe[i]].h)
-           DrawImage(draw_x, draw_y, tile_img[map[current_map].fringe[i]]);
+              draw_y >= 0-tile_img[map[current_map]->fringe[i]].h)
+           DrawImage(draw_x, draw_y, tile_img[map[current_map]->fringe[i]]);
            //printf("\nDraw_x=%i draw_y=%i tile[i]=%i i=%i\n", draw_x, draw_y, tile[i], i);
 
        }
@@ -4049,7 +4055,7 @@ current_map = Player[MyID].current_map;
                       //
                       int item;
                       if (shopBuyMode)
-                         item = map[current_map].Shop[currentShop].item[x][y][0];
+                         item = map[current_map]->Shop[currentShop].item[x][y][0];
                       else
                           item = Player[MyID].inventory[selectedInventoryItem][0];
 
@@ -4057,7 +4063,7 @@ current_map = Player[MyID].current_map;
 
                       /* Buy or sell price? */
                       if (shopBuyMode)
-                         price = map[current_map].Shop[currentShop].item[x][y][1];
+                         price = map[current_map]->Shop[currentShop].item[x][y][1];
                       else
                          price = Item[item].price;
 
@@ -4144,12 +4150,12 @@ current_map = Player[MyID].current_map;
 
 bool blocked(float box1_x1, float box1_y1, float box1_x2, float box1_y2)
 {
-     for (int r = 0; r < map[current_map].number_of_rects; r++)
+     for (int r = 0; r < map[current_map]->number_of_rects; r++)
      {
-          float box2_x1 = map[current_map].collision_rect[r].x;
-          float box2_y1 = map[current_map].collision_rect[r].y;
-          float box2_x2 = map[current_map].collision_rect[r].x + map[current_map].collision_rect[r].w;
-          float box2_y2 = map[current_map].collision_rect[r].y + map[current_map].collision_rect[r].h;
+          float box2_x1 = map[current_map]->collision_rect[r].x;
+          float box2_y1 = map[current_map]->collision_rect[r].y;
+          float box2_x2 = map[current_map]->collision_rect[r].x + map[current_map]->collision_rect[r].w;
+          float box2_y2 = map[current_map]->collision_rect[r].y + map[current_map]->collision_rect[r].h;
 
 
           if (box1_x2 > box2_x1 && box1_x1 < box2_x2 && box1_y2 > box2_y1 && box1_y1 < box2_y2)
@@ -4160,14 +4166,14 @@ bool blocked(float box1_x1, float box1_y1, float box1_x2, float box1_y2)
 
           }
      }
-     for (int r = 0; r < map[current_map].num_targets; r++)
+     for (int r = 0; r < map[current_map]->num_targets; r++)
           {
-               if (!map[current_map].Target[r].active)
+               if (!map[current_map]->Target[r].active)
                      continue;
-               float box2_x1 = map[current_map].Target[r].x;
-               float box2_y1 = map[current_map].Target[r].y;
-               float box2_x2 = map[current_map].Target[r].x + map[current_map].Target[r].w;
-               float box2_y2 = map[current_map].Target[r].y + map[current_map].Target[r].h;
+               float box2_x1 = map[current_map]->Target[r].x;
+               float box2_y1 = map[current_map]->Target[r].y;
+               float box2_x2 = map[current_map]->Target[r].x + map[current_map]->Target[r].w;
+               float box2_y2 = map[current_map]->Target[r].y + map[current_map]->Target[r].h;
 
 
                if (box1_x2 > box2_x1 && box1_x1 < box2_x2 && box1_y2 > box2_y1 && box1_y1 < box2_y2)
@@ -5048,7 +5054,7 @@ void HandleUI()
 						std::stringstream ss1, ss2, ss3, ss4;
 
 						//convert btmx to a SKO_Item ID
-						item = map[current_map].Shop[currentShop].item[btmx][btmy][0];
+						item = map[current_map]->Shop[currentShop].item[btmx][btmy][0];
 
 						//get item stats and apply to text objects
 
@@ -5492,18 +5498,18 @@ void* Network(void *arg)
                   ((char*)&temp)[2] = PiSock.Data[6];
                   ((char*)&temp)[3] = PiSock.Data[7];
 
-                  map[cu].Enemy[i].x = temp;
+                  map[cu]->Enemy[i].x = temp;
                   ((char*)&temp)[0] = PiSock.Data[8];
                   ((char*)&temp)[1] = PiSock.Data[9];
                   ((char*)&temp)[2] = PiSock.Data[10];
                   ((char*)&temp)[3] = PiSock.Data[11];
-                  map[cu].Enemy[i].y = temp;
-                  map[cu].Enemy[i].attacking = true;
-                  map[cu].Enemy[i].x_speed = 0;
+                  map[cu]->Enemy[i].y = temp;
+                  map[cu]->Enemy[i].attacking = true;
+                  map[cu]->Enemy[i].x_speed = 0;
 
                   //printf("enemy attack. current map [%i] x:[%i] y:[%i]\n", cu,
-                //		  (int)map[cu].Enemy[i].x,
-                //		  (int)map[cu].Enemy[i].y);
+                //		  (int)map[cu]->Enemy[i].x,
+                //		  (int)map[cu]->Enemy[i].y);
 
               }
               else if (code == ENEMY_MOVE_RIGHT)
@@ -5520,10 +5526,10 @@ void* Network(void *arg)
                    ((char*)&npc_y)[2] = PiSock.Data[10];
                    ((char*)&npc_y)[3] = PiSock.Data[11];
 
-                   map[current_map].Enemy[npc_id].x_speed = 2;
-                   map[current_map].Enemy[npc_id].x = npc_x;
-                   map[current_map].Enemy[npc_id].y = npc_y;
-                   map[current_map].Enemy[npc_id].facing_right = true;
+                   map[current_map]->Enemy[npc_id].x_speed = 2;
+                   map[current_map]->Enemy[npc_id].x = npc_x;
+                   map[current_map]->Enemy[npc_id].y = npc_y;
+                   map[current_map]->Enemy[npc_id].facing_right = true;
 
               }
               else if (code == ENEMY_MOVE_LEFT)
@@ -5540,10 +5546,10 @@ void* Network(void *arg)
                    ((char*)&npc_y)[2] = PiSock.Data[10];
                    ((char*)&npc_y)[3] = PiSock.Data[11];
 
-                   map[current_map].Enemy[npc_id].x_speed = -2;
-                   map[current_map].Enemy[npc_id].x = npc_x;
-                   map[current_map].Enemy[npc_id].y = npc_y;
-                   map[current_map].Enemy[npc_id].facing_right = false;
+                   map[current_map]->Enemy[npc_id].x_speed = -2;
+                   map[current_map]->Enemy[npc_id].x = npc_x;
+                   map[current_map]->Enemy[npc_id].y = npc_y;
+                   map[current_map]->Enemy[npc_id].facing_right = false;
               }
               else if (code == ENEMY_MOVE_STOP)
               {
@@ -5559,10 +5565,10 @@ void* Network(void *arg)
                    ((char*)&npc_y)[2] = PiSock.Data[10];
                    ((char*)&npc_y)[3] = PiSock.Data[11];
 
-                   map[current_map].Enemy[npc_id].x_speed = 0;
-                   map[current_map].Enemy[npc_id].y_speed = 0;
-                   map[current_map].Enemy[npc_id].x = npc_x;
-                   map[current_map].Enemy[npc_id].y = npc_y;
+                   map[current_map]->Enemy[npc_id].x_speed = 0;
+                   map[current_map]->Enemy[npc_id].y_speed = 0;
+                   map[current_map]->Enemy[npc_id].x = npc_x;
+                   map[current_map]->Enemy[npc_id].y = npc_y;
 
                    if (loaded && npc_x == ENEMY_DEAD_X && npc_y == ENEMY_DEAD_Y)
 				   {
@@ -5573,8 +5579,8 @@ void* Network(void *arg)
 //                   printf("ENEMY_MOVE_STOP: map[%i].Enemy[%i] (%i, %i)\n",
 //                		   current_map,
 //						   npc_id,
-//						   (int)map[current_map].Enemy[npc_id].x,
-//						   (int)map[current_map].Enemy[npc_id].x);
+//						   (int)map[current_map]->Enemy[npc_id].x,
+//						   (int)map[current_map]->Enemy[npc_id].x);
               }
               //NPC shit
               else if (code == NPC_TALK)
@@ -5587,18 +5593,18 @@ void* Network(void *arg)
 //					((char*)&temp)[2] = PiSock.Data[6];
 //					((char*)&temp)[3] = PiSock.Data[7];
 //
-//					map[cu].NPC[i].x = temp;
+//					map[cu]->NPC[i].x = temp;
 //					((char*)&temp)[0] = PiSock.Data[8];
 //					((char*)&temp)[1] = PiSock.Data[9];
 //					((char*)&temp)[2] = PiSock.Data[10];
 //					((char*)&temp)[3] = PiSock.Data[11];
-//					map[cu].NPC[i].y = temp;
-//					map[cu].NPC[i].attacking = true;
-//					map[cu].NPC[i].x_speed = 0;
+//					map[cu]->NPC[i].y = temp;
+//					map[cu]->NPC[i].attacking = true;
+//					map[cu]->NPC[i].x_speed = 0;
 //
 //					//printf("npc attack. current map [%i] x:[%i] y:[%i]\n", cu,
-//				  //		  (int)map[cu].NPC[i].x,
-//				  //		  (int)map[cu].NPC[i].y);
+//				  //		  (int)map[cu]->NPC[i].x,
+//				  //		  (int)map[cu]->NPC[i].y);
 
 				}
 				else if (code == NPC_MOVE_RIGHT)
@@ -5615,10 +5621,10 @@ void* Network(void *arg)
 					 ((char*)&npc_y)[2] = PiSock.Data[10];
 					 ((char*)&npc_y)[3] = PiSock.Data[11];
 
-					 map[current_map].NPC[npc_id].x_speed = 2;
-					 map[current_map].NPC[npc_id].x = npc_x;
-					 map[current_map].NPC[npc_id].y = npc_y;
-					 map[current_map].NPC[npc_id].facing_right = true;
+					 map[current_map]->NPC[npc_id].x_speed = 2;
+					 map[current_map]->NPC[npc_id].x = npc_x;
+					 map[current_map]->NPC[npc_id].y = npc_y;
+					 map[current_map]->NPC[npc_id].facing_right = true;
 
 				}
 				else if (code == NPC_MOVE_LEFT)
@@ -5635,10 +5641,10 @@ void* Network(void *arg)
 					 ((char*)&npc_y)[2] = PiSock.Data[10];
 					 ((char*)&npc_y)[3] = PiSock.Data[11];
 
-					 map[current_map].NPC[npc_id].x_speed = -2;
-					 map[current_map].NPC[npc_id].x = npc_x;
-					 map[current_map].NPC[npc_id].y = npc_y;
-					 map[current_map].NPC[npc_id].facing_right = false;
+					 map[current_map]->NPC[npc_id].x_speed = -2;
+					 map[current_map]->NPC[npc_id].x = npc_x;
+					 map[current_map]->NPC[npc_id].y = npc_y;
+					 map[current_map]->NPC[npc_id].facing_right = false;
 				}
 				else if (code == NPC_MOVE_STOP)
 				{
@@ -5654,10 +5660,10 @@ void* Network(void *arg)
 					 ((char*)&npc_y)[2] = PiSock.Data[10];
 					 ((char*)&npc_y)[3] = PiSock.Data[11];
 
-					 map[current_map].NPC[npc_id].x_speed = 0;
-					 map[current_map].NPC[npc_id].y_speed = 0;
-					 map[current_map].NPC[npc_id].x = npc_x;
-					 map[current_map].NPC[npc_id].y = npc_y;
+					 map[current_map]->NPC[npc_id].x_speed = 0;
+					 map[current_map]->NPC[npc_id].y_speed = 0;
+					 map[current_map]->NPC[npc_id].x = npc_x;
+					 map[current_map]->NPC[npc_id].y = npc_y;
 
 				}
               //end NPC shit
@@ -5866,11 +5872,11 @@ void* Network(void *arg)
                    bool inSight = false;
                    if (type == 0) // enemy
                    {
-                       map[current_map].Enemy[id].hit = true;
-                       map[current_map].Enemy[id].hit_ticker = SDL_GetTicks();
-                       map[current_map].Enemy[id].hp_ticker = SDL_GetTicks() + 1500;
-                       float px = map[current_map].Enemy[id].x - camera_x;
-                       float py = map[current_map].Enemy[id].y - camera_y;
+                       map[current_map]->Enemy[id].hit = true;
+                       map[current_map]->Enemy[id].hit_ticker = SDL_GetTicks();
+                       map[current_map]->Enemy[id].hp_ticker = SDL_GetTicks() + 1500;
+                       float px = map[current_map]->Enemy[id].x - camera_x;
+                       float py = map[current_map]->Enemy[id].y - camera_y;
                        if (px > -32 && px < 1024 && py > -32 && py < 600)
                           inSight = true;
                    }
@@ -6229,7 +6235,7 @@ void* Network(void *arg)
                    ((char*)&numys)[2] = PiSock.Data[19];
                    ((char*)&numys)[3] = PiSock.Data[20];
 
-                   map[c_map].ItemObj[current_item] = SKO_ItemObject(spawned_item, numx,numy,numxs,numys);
+                   map[c_map]->ItemObj[current_item] = SKO_ItemObject(spawned_item, numx,numy,numxs,numys);
                    //printf("ItemObj[%i] ITEM_[%i] x:%.2f y:%.2f xs:%.2f ys:%.2f\n", PiSock.Data[2], PiSock.Data[3], numx, numy, numxs, numys);
               }
               else if (code == DESPAWN_ITEM)
@@ -6238,7 +6244,7 @@ void* Network(void *arg)
                    int c_map = PiSock.Data[3];
 
                    if (theItemID >= 0)
-                      map[c_map].ItemObj[theItemID].remove();
+                      map[c_map]->ItemObj[theItemID].remove();
                    else {
                         printf("\n\n ERROR the ItemID is [%i]\n", theItemID);
                         printf("PiSock.Data is:\n");
@@ -6826,8 +6832,8 @@ void* Network(void *arg)
                   int current_map = PiSock.Data[3];
                   int hp = PiSock.Data[4];
 
-                  map[current_map].Enemy[npc].hp_draw = hp;
-                  //printf("map[current_map].Enemy[%i].hp_draw = %i]\n", npc, hp);
+                  map[current_map]->Enemy[npc].hp_draw = hp;
+                  //printf("map[current_map]->Enemy[%i].hp_draw = %i]\n", npc, hp);
 
               }//end npc_hp
               else if (code == INVENTORY)
@@ -6933,13 +6939,13 @@ void* Network(void *arg)
               {
             	  int target = PiSock.Data[2];
             	  int tmap = PiSock.Data[3];
-            	  map[tmap].Target[target].active = true;
+            	  map[tmap]->Target[target].active = true;
               } // end SPAWN_TARGET
               else if (code == DESPAWN_TARGET)
               {
             	  int target = PiSock.Data[2];
 			      int tmap = PiSock.Data[3];
-			      map[tmap].Target[target].active = false;
+			      map[tmap]->Target[target].active = false;
 			  } // end DESPAWN_TARGET
               else if (code == CHAT) //display the chat from the server
               {
@@ -7075,7 +7081,7 @@ void loadContent(){
 
 	    	printf("mapFile: %s\n", mapFile.c_str());
 
-	        map[mp] = SKO_Map(mapConfigLoc, mapFile);   //
+	        map[mp] = new SKO_Map(mapConfigLoc, mapFile);   //
 	    }
 ////
 	    //tile images for the map
@@ -7094,6 +7100,9 @@ void loadContent(){
 	            break;
 	         }
 	    }
+
+		//content is now loaded so draw
+		contentLoaded = true;
 }
 
 #if WINDOWS_OS == MY_OS
@@ -7110,12 +7119,18 @@ int main (int argc, char *argv[])
 
 #endif
 
+	if (SDL_Init(SDL_INIT_EVERYTHING) == -1){
+		SDL_Quit();
+		return 1;
+	}
+
     //Initialize SDL_mixer
     if( Mix_OpenAudio( 48000, MIX_DEFAULT_FORMAT, 2, 1024 ) == -1 )
     {
         printf("ERROR! COULD NOT INIT SOUND!\n");
         enableSND = false;
     }
+
 
 
     std::ifstream optionFile("DAT/options.dat", std::ios::in|std::ios::binary|std::ios::ate);
@@ -7162,10 +7177,7 @@ int main (int argc, char *argv[])
     printf("Connecting to %s:%i\n\n", SERVER_IP.c_str(), SERVER_PORT);
 
 
-    if (SDL_Init( SDL_INIT_EVERYTHING ) == -1){
-         SDL_Quit();
-         return 1;
-    }
+
 
 
     setTitle();
@@ -7870,146 +7882,146 @@ void physics()
 		 return;
 
      //enemies
-     for (int i = 0; i < map[current_map].num_enemies; i++)
+     for (int i = 0; i < map[current_map]->num_enemies; i++)
      {
 
          //turn off flash effect
-         if (map[current_map].Enemy[i].hit && SDL_GetTicks() - map[current_map].Enemy[i].hit_ticker > 100)
+         if (map[current_map]->Enemy[i].hit && SDL_GetTicks() - map[current_map]->Enemy[i].hit_ticker > 100)
          {
-            map[current_map].Enemy[i].hit = false;
+            map[current_map]->Enemy[i].hit = false;
          }
 
          //fall
-         if (map[current_map].Enemy[i].y_speed < 10)
-            map[current_map].Enemy[i].y_speed += GRAVITY;
+         if (map[current_map]->Enemy[i].y_speed < 10)
+            map[current_map]->Enemy[i].y_speed += GRAVITY;
 
-           map[current_map].Enemy[i].ground = true;
+           map[current_map]->Enemy[i].ground = true;
 
          //verical collision detection
              bool block_y = blocked(
-            		 map[current_map].Enemy[i].x +
-            		 EnemySprite[map[current_map].Enemy[i].sprite].x1,
+            		 map[current_map]->Enemy[i].x +
+            		 EnemySprite[map[current_map]->Enemy[i].sprite].x1,
 
-            		 map[current_map].Enemy[i].y+
-            		 map[current_map].Enemy[i].y_speed +
-            		 EnemySprite[map[current_map].Enemy[i].sprite].y1,
+            		 map[current_map]->Enemy[i].y+
+            		 map[current_map]->Enemy[i].y_speed +
+            		 EnemySprite[map[current_map]->Enemy[i].sprite].y1,
 
-            		 map[current_map].Enemy[i].x +
-            		 EnemySprite[map[current_map].Enemy[i].sprite].x2,
+            		 map[current_map]->Enemy[i].x +
+            		 EnemySprite[map[current_map]->Enemy[i].sprite].x2,
 
-            		 map[current_map].Enemy[i].y +
-            		 map[current_map].Enemy[i].y_speed +
-            		 EnemySprite[map[current_map].Enemy[i].sprite].y2);
+            		 map[current_map]->Enemy[i].y +
+            		 map[current_map]->Enemy[i].y_speed +
+            		 EnemySprite[map[current_map]->Enemy[i].sprite].y2);
 
              //vertical movement
              if (!block_y)
              {//not blocked, fall
 
                 //animation
-                map[current_map].Enemy[i].ground = false;
+                map[current_map]->Enemy[i].ground = false;
 
-                map[current_map].Enemy[i].y += map[current_map].Enemy[i].y_speed;
+                map[current_map]->Enemy[i].y += map[current_map]->Enemy[i].y_speed;
 
              }
              else
              {  //blocked, stop
-                if (map[current_map].Enemy[i].y_speed > 0)
+                if (map[current_map]->Enemy[i].y_speed > 0)
                 {
-                    map[current_map].Enemy[i].y_speed = 1;
+                    map[current_map]->Enemy[i].y_speed = 1;
 
                     //todo see if if or while is better
-                    for (int loopVar = 0; loopVar < HIT_LOOPS && (!blocked(map[current_map].Enemy[i].x +
-                    		EnemySprite[map[current_map].Enemy[i].sprite].x1,
-                    		map[current_map].Enemy[i].y+
-                    		map[current_map].Enemy[i].y_speed +
-                    		EnemySprite[map[current_map].Enemy[i].sprite].y1,
-                    		map[current_map].Enemy[i].x +
-                    		EnemySprite[map[current_map].Enemy[i].sprite].x2,
-                    		map[current_map].Enemy[i].y+
-                    		map[current_map].Enemy[i].y_speed +
-                    		EnemySprite[map[current_map].Enemy[i].sprite].y1 +
-                    		EnemySprite[map[current_map].Enemy[i].sprite].y2)) ; loopVar++)
-                            	map[current_map].Enemy[i].y +=
-                            	map[current_map].Enemy[i].y_speed;
+                    for (int loopVar = 0; loopVar < HIT_LOOPS && (!blocked(map[current_map]->Enemy[i].x +
+                    		EnemySprite[map[current_map]->Enemy[i].sprite].x1,
+                    		map[current_map]->Enemy[i].y+
+                    		map[current_map]->Enemy[i].y_speed +
+                    		EnemySprite[map[current_map]->Enemy[i].sprite].y1,
+                    		map[current_map]->Enemy[i].x +
+                    		EnemySprite[map[current_map]->Enemy[i].sprite].x2,
+                    		map[current_map]->Enemy[i].y+
+                    		map[current_map]->Enemy[i].y_speed +
+                    		EnemySprite[map[current_map]->Enemy[i].sprite].y1 +
+                    		EnemySprite[map[current_map]->Enemy[i].sprite].y2)) ; loopVar++)
+                            	map[current_map]->Enemy[i].y +=
+                            	map[current_map]->Enemy[i].y_speed;
 
-                   map[current_map].Enemy[i].y = (int) (map[current_map].Enemy[i].y);
+                   map[current_map]->Enemy[i].y = (int) (map[current_map]->Enemy[i].y);
                 }
-                if (map[current_map].Enemy[i].y_speed < 0)
+                if (map[current_map]->Enemy[i].y_speed < 0)
                 {
-                    map[current_map].Enemy[i].ground = false;
-                    map[current_map].Enemy[i].y_speed = -1;
+                    map[current_map]->Enemy[i].ground = false;
+                    map[current_map]->Enemy[i].y_speed = -1;
 
                     //todo test if while or if is better
-                    for (int loopVar = 0; loopVar < HIT_LOOPS &&  (!blocked(map[current_map].Enemy[i].x +
-                    		EnemySprite[map[current_map].Enemy[i].sprite].x1,
-                    		map[current_map].Enemy[i].y +
-                    		map[current_map].Enemy[i].y_speed +
-                    		EnemySprite[map[current_map].Enemy[i].sprite].y1,
-                    		map[current_map].Enemy[i].x +
-                    		EnemySprite[map[current_map].Enemy[i].sprite].x2,
-                    		map[current_map].Enemy[i].y +
-                    		map[current_map].Enemy[i].y_speed +
-                    		EnemySprite[map[current_map].Enemy[i].sprite].y1 +
-                    		EnemySprite[map[current_map].Enemy[i].sprite].y2)) ; loopVar++)
-                       map[current_map].Enemy[i].y += map[current_map].Enemy[i].y_speed;
+                    for (int loopVar = 0; loopVar < HIT_LOOPS &&  (!blocked(map[current_map]->Enemy[i].x +
+                    		EnemySprite[map[current_map]->Enemy[i].sprite].x1,
+                    		map[current_map]->Enemy[i].y +
+                    		map[current_map]->Enemy[i].y_speed +
+                    		EnemySprite[map[current_map]->Enemy[i].sprite].y1,
+                    		map[current_map]->Enemy[i].x +
+                    		EnemySprite[map[current_map]->Enemy[i].sprite].x2,
+                    		map[current_map]->Enemy[i].y +
+                    		map[current_map]->Enemy[i].y_speed +
+                    		EnemySprite[map[current_map]->Enemy[i].sprite].y1 +
+                    		EnemySprite[map[current_map]->Enemy[i].sprite].y2)) ; loopVar++)
+                       map[current_map]->Enemy[i].y += map[current_map]->Enemy[i].y_speed;
                 }
 
-                map[current_map].Enemy[i].y_speed = 1;
+                map[current_map]->Enemy[i].y_speed = 1;
 
              }
 
              //horizontal collision detection
              bool block_x = blocked(
-            		 map[current_map].Enemy[i].x +
-            		 map[current_map].Enemy[i].x_speed +
-            		 EnemySprite[map[current_map].Enemy[i].sprite].x1,
-            		 map[current_map].Enemy[i].y +
-            		 EnemySprite[map[current_map].Enemy[i].sprite].y1,
-            		 map[current_map].Enemy[i].x +
-            		 map[current_map].Enemy[i].x_speed +
-            		 EnemySprite[map[current_map].Enemy[i].sprite].x2,
-            		 map[current_map].Enemy[i].y +
-            		 EnemySprite[map[current_map].Enemy[i].sprite].y2);
+            		 map[current_map]->Enemy[i].x +
+            		 map[current_map]->Enemy[i].x_speed +
+            		 EnemySprite[map[current_map]->Enemy[i].sprite].x1,
+            		 map[current_map]->Enemy[i].y +
+            		 EnemySprite[map[current_map]->Enemy[i].sprite].y1,
+            		 map[current_map]->Enemy[i].x +
+            		 map[current_map]->Enemy[i].x_speed +
+            		 EnemySprite[map[current_map]->Enemy[i].sprite].x2,
+            		 map[current_map]->Enemy[i].y +
+            		 EnemySprite[map[current_map]->Enemy[i].sprite].y2);
 
              //horizontal movement
              if (!block_x)
              {//not blocked, walk
-                map[current_map].Enemy[i].x += map[current_map].Enemy[i].x_speed;
+                map[current_map]->Enemy[i].x += map[current_map]->Enemy[i].x_speed;
              }else
-            	 map[current_map].Enemy[i].x_speed = 0;
+            	 map[current_map]->Enemy[i].x_speed = 0;
 
 
 
              //enemy animation
-             //animationmap[current_map].Enemy[i]
-             if ((map[current_map].Enemy[i].x_speed != 0 && map[current_map].Enemy[i].ground) || map[current_map].Enemy[i].attacking)
+             //animationmap[current_map]->Enemy[i]
+             if ((map[current_map]->Enemy[i].x_speed != 0 && map[current_map]->Enemy[i].ground) || map[current_map]->Enemy[i].attacking)
              {
                 //if it is time to change the frame
-                if (!map[current_map].Enemy[i].attacking && SDL_GetTicks() - map[current_map].Enemy[i].animation_ticker >= (unsigned int)animation_speed)
+                if (!map[current_map]->Enemy[i].attacking && SDL_GetTicks() - map[current_map]->Enemy[i].animation_ticker >= (unsigned int)animation_speed)
                 {
-                   map[current_map].Enemy[i].current_frame++;
+                   map[current_map]->Enemy[i].current_frame++;
 
-                   if (map[current_map].Enemy[i].current_frame >= 6)
-                      map[current_map].Enemy[i].current_frame = 0;
+                   if (map[current_map]->Enemy[i].current_frame >= 6)
+                      map[current_map]->Enemy[i].current_frame = 0;
 
-                   map[current_map].Enemy[i].animation_ticker = SDL_GetTicks();
+                   map[current_map]->Enemy[i].animation_ticker = SDL_GetTicks();
                 }
                 //if it is time to change the frame
-                if (map[current_map].Enemy[i].attacking && SDL_GetTicks() - map[current_map].Enemy[i].attack_ticker >= attack_speed/2.0)
+                if (map[current_map]->Enemy[i].attacking && SDL_GetTicks() - map[current_map]->Enemy[i].attack_ticker >= attack_speed/2.0)
                 {
-                   map[current_map].Enemy[i].current_frame++;
+                   map[current_map]->Enemy[i].current_frame++;
 
-                   if (map[current_map].Enemy[i].current_frame >= 6)
+                   if (map[current_map]->Enemy[i].current_frame >= 6)
                    {
-                      map[current_map].Enemy[i].current_frame = 0;
-                      if (map[current_map].Enemy[i].attacking)
-                         map[current_map].Enemy[i].attacking = false;
+                      map[current_map]->Enemy[i].current_frame = 0;
+                      if (map[current_map]->Enemy[i].attacking)
+                         map[current_map]->Enemy[i].attacking = false;
                    }
-                   map[current_map].Enemy[i].attack_ticker = SDL_GetTicks();
+                   map[current_map]->Enemy[i].attack_ticker = SDL_GetTicks();
                 }
              }
              else
-                map[current_map].Enemy[i].current_frame = 0;
+                map[current_map]->Enemy[i].current_frame = 0;
      }
 
 
@@ -8022,129 +8034,129 @@ void physics()
 
 
      //npcs
-	  for (int i = 0; i < map[current_map].num_npcs; i++)
+	  for (int i = 0; i < map[current_map]->num_npcs; i++)
 	  {
 
 		  //fall
-		  if (map[current_map].NPC[i].y_speed < 10)
-			 map[current_map].NPC[i].y_speed += GRAVITY;
+		  if (map[current_map]->NPC[i].y_speed < 10)
+			 map[current_map]->NPC[i].y_speed += GRAVITY;
 
-			map[current_map].NPC[i].ground = true;
+			map[current_map]->NPC[i].ground = true;
 
 		  //verical collision detection
 			  bool block_y = blocked(
-					 map[current_map].NPC[i].x +
-					 NpcSprite[map[current_map].NPC[i].sprite].x1,
+					 map[current_map]->NPC[i].x +
+					 NpcSprite[map[current_map]->NPC[i].sprite].x1,
 
-					 map[current_map].NPC[i].y+
-					 map[current_map].NPC[i].y_speed +
-					 NpcSprite[map[current_map].NPC[i].sprite].y1,
+					 map[current_map]->NPC[i].y+
+					 map[current_map]->NPC[i].y_speed +
+					 NpcSprite[map[current_map]->NPC[i].sprite].y1,
 
-					 map[current_map].NPC[i].x +
-					 NpcSprite[map[current_map].NPC[i].sprite].x2,
+					 map[current_map]->NPC[i].x +
+					 NpcSprite[map[current_map]->NPC[i].sprite].x2,
 
-					 map[current_map].NPC[i].y +
-					 map[current_map].NPC[i].y_speed +
-					 NpcSprite[map[current_map].NPC[i].sprite].y2);
+					 map[current_map]->NPC[i].y +
+					 map[current_map]->NPC[i].y_speed +
+					 NpcSprite[map[current_map]->NPC[i].sprite].y2);
 
 			  //vertical movement
 			  if (!block_y)
 			  {//not blocked, fall
 
 				 //animation
-				 map[current_map].NPC[i].ground = false;
+				 map[current_map]->NPC[i].ground = false;
 
-				 map[current_map].NPC[i].y += map[current_map].NPC[i].y_speed;
+				 map[current_map]->NPC[i].y += map[current_map]->NPC[i].y_speed;
 
 			  }
 			  else
 			  {  //blocked, stop
-				 if (map[current_map].NPC[i].y_speed > 0)
+				 if (map[current_map]->NPC[i].y_speed > 0)
 				 {
-					 map[current_map].NPC[i].y_speed = 1;
+					 map[current_map]->NPC[i].y_speed = 1;
 
 					 //todo see if if or while is better
-					 for (int loopVar = 0; loopVar < HIT_LOOPS && (!blocked(map[current_map].NPC[i].x +
-							NpcSprite[map[current_map].NPC[i].sprite].x1,
-							map[current_map].NPC[i].y+
-							map[current_map].NPC[i].y_speed +
-							NpcSprite[map[current_map].NPC[i].sprite].y1,
-							map[current_map].NPC[i].x +
-							NpcSprite[map[current_map].NPC[i].sprite].x2,
-							map[current_map].NPC[i].y+
-							map[current_map].NPC[i].y_speed +
-							NpcSprite[map[current_map].NPC[i].sprite].y1 +
-							NpcSprite[map[current_map].NPC[i].sprite].y2)) ; loopVar++)
-								map[current_map].NPC[i].y +=
-								map[current_map].NPC[i].y_speed;
+					 for (int loopVar = 0; loopVar < HIT_LOOPS && (!blocked(map[current_map]->NPC[i].x +
+							NpcSprite[map[current_map]->NPC[i].sprite].x1,
+							map[current_map]->NPC[i].y+
+							map[current_map]->NPC[i].y_speed +
+							NpcSprite[map[current_map]->NPC[i].sprite].y1,
+							map[current_map]->NPC[i].x +
+							NpcSprite[map[current_map]->NPC[i].sprite].x2,
+							map[current_map]->NPC[i].y+
+							map[current_map]->NPC[i].y_speed +
+							NpcSprite[map[current_map]->NPC[i].sprite].y1 +
+							NpcSprite[map[current_map]->NPC[i].sprite].y2)) ; loopVar++)
+								map[current_map]->NPC[i].y +=
+								map[current_map]->NPC[i].y_speed;
 
-					map[current_map].NPC[i].y = (int) (map[current_map].NPC[i].y);
+					map[current_map]->NPC[i].y = (int) (map[current_map]->NPC[i].y);
 				 }
-				 if (map[current_map].NPC[i].y_speed < 0)
+				 if (map[current_map]->NPC[i].y_speed < 0)
 				 {
-					 map[current_map].NPC[i].ground = false;
-					 map[current_map].NPC[i].y_speed = -1;
+					 map[current_map]->NPC[i].ground = false;
+					 map[current_map]->NPC[i].y_speed = -1;
 
 					 //todo test if while or if is better
-					 for (int loopVar = 0; loopVar < HIT_LOOPS &&  (!blocked(map[current_map].NPC[i].x +
-							NpcSprite[map[current_map].NPC[i].sprite].x1,
-							map[current_map].NPC[i].y +
-							map[current_map].NPC[i].y_speed +
-							NpcSprite[map[current_map].NPC[i].sprite].y1,
-							map[current_map].NPC[i].x +
-							NpcSprite[map[current_map].NPC[i].sprite].x2,
-							map[current_map].NPC[i].y +
-							map[current_map].NPC[i].y_speed +
-							NpcSprite[map[current_map].NPC[i].sprite].y1 +
-							NpcSprite[map[current_map].NPC[i].sprite].y2)) ; loopVar++)
-						map[current_map].NPC[i].y += map[current_map].NPC[i].y_speed;
+					 for (int loopVar = 0; loopVar < HIT_LOOPS &&  (!blocked(map[current_map]->NPC[i].x +
+							NpcSprite[map[current_map]->NPC[i].sprite].x1,
+							map[current_map]->NPC[i].y +
+							map[current_map]->NPC[i].y_speed +
+							NpcSprite[map[current_map]->NPC[i].sprite].y1,
+							map[current_map]->NPC[i].x +
+							NpcSprite[map[current_map]->NPC[i].sprite].x2,
+							map[current_map]->NPC[i].y +
+							map[current_map]->NPC[i].y_speed +
+							NpcSprite[map[current_map]->NPC[i].sprite].y1 +
+							NpcSprite[map[current_map]->NPC[i].sprite].y2)) ; loopVar++)
+						map[current_map]->NPC[i].y += map[current_map]->NPC[i].y_speed;
 				 }
 
-				 map[current_map].NPC[i].y_speed = 1;
+				 map[current_map]->NPC[i].y_speed = 1;
 
 			  }
 
 			  //horizontal collision detection
 			  bool block_x = blocked(
-					 map[current_map].NPC[i].x +
-					 map[current_map].NPC[i].x_speed +
-					 NpcSprite[map[current_map].NPC[i].sprite].x1,
-					 map[current_map].NPC[i].y +
-					 NpcSprite[map[current_map].NPC[i].sprite].y1,
-					 map[current_map].NPC[i].x +
-					 map[current_map].NPC[i].x_speed +
-					 NpcSprite[map[current_map].NPC[i].sprite].x2,
-					 map[current_map].NPC[i].y +
-					 NpcSprite[map[current_map].NPC[i].sprite].y2);
+					 map[current_map]->NPC[i].x +
+					 map[current_map]->NPC[i].x_speed +
+					 NpcSprite[map[current_map]->NPC[i].sprite].x1,
+					 map[current_map]->NPC[i].y +
+					 NpcSprite[map[current_map]->NPC[i].sprite].y1,
+					 map[current_map]->NPC[i].x +
+					 map[current_map]->NPC[i].x_speed +
+					 NpcSprite[map[current_map]->NPC[i].sprite].x2,
+					 map[current_map]->NPC[i].y +
+					 NpcSprite[map[current_map]->NPC[i].sprite].y2);
 
 			  //horizontal movement
 			  if (!block_x)
 			  {//not blocked, walk
-				 map[current_map].NPC[i].x += map[current_map].NPC[i].x_speed;
+				 map[current_map]->NPC[i].x += map[current_map]->NPC[i].x_speed;
 			  }else
-				 map[current_map].NPC[i].x_speed = 0;
+				 map[current_map]->NPC[i].x_speed = 0;
 
 
 
 
 			  //NPC animation
-			  //animationmap[current_map].NPC[i]
-			  if ((map[current_map].NPC[i].x_speed != 0 && map[current_map].NPC[i].ground))
+			  //animationmap[current_map]->NPC[i]
+			  if ((map[current_map]->NPC[i].x_speed != 0 && map[current_map]->NPC[i].ground))
 			  {
 				 //if it is time to change the frame
-				 if (SDL_GetTicks() - map[current_map].NPC[i].animation_ticker >= (unsigned int)animation_speed)
+				 if (SDL_GetTicks() - map[current_map]->NPC[i].animation_ticker >= (unsigned int)animation_speed)
 				 {
-					map[current_map].NPC[i].current_frame++;
+					map[current_map]->NPC[i].current_frame++;
 
-					if (map[current_map].NPC[i].current_frame >= 6)
-					   map[current_map].NPC[i].current_frame = 0;
+					if (map[current_map]->NPC[i].current_frame >= 6)
+					   map[current_map]->NPC[i].current_frame = 0;
 
-					map[current_map].NPC[i].animation_ticker = SDL_GetTicks();
+					map[current_map]->NPC[i].animation_ticker = SDL_GetTicks();
 				 }
 
 			  }
 			  else
-				 map[current_map].NPC[i].current_frame = 0;
+				 map[current_map]->NPC[i].current_frame = 0;
 	  }
 
 
@@ -8628,42 +8640,42 @@ void physics()
 
 
          for (int i = 0; i < 256; i++)
-         if (map[current_map].ItemObj[i].status)
+         if (map[current_map]->ItemObj[i].status)
          {
-            // printf("(%.2f,%.2f)\n", map[current_map].ItemObj[i].x, map[current_map].ItemObj[i].y);
+            // printf("(%.2f,%.2f)\n", map[current_map]->ItemObj[i].x, map[current_map]->ItemObj[i].y);
              //horizontal collision detection
              bool block_x = blocked(
-            		 	map[current_map].ItemObj[i].x + map[current_map].ItemObj[i].x_speed,
-            		 	map[current_map].ItemObj[i].y ,
-            		 	map[current_map].ItemObj[i].x + map[current_map].ItemObj[i].x_speed + Item[(int)map[current_map].ItemObj[i].itemID].w,
-            		 	map[current_map].ItemObj[i].y + Item[(int)map[current_map].ItemObj[i].itemID].h);
+            		 	map[current_map]->ItemObj[i].x + map[current_map]->ItemObj[i].x_speed,
+            		 	map[current_map]->ItemObj[i].y ,
+            		 	map[current_map]->ItemObj[i].x + map[current_map]->ItemObj[i].x_speed + Item[(int)map[current_map]->ItemObj[i].itemID].w,
+            		 	map[current_map]->ItemObj[i].y + Item[(int)map[current_map]->ItemObj[i].itemID].h);
 
-             if (map[current_map].ItemObj[i].y_speed < 10)
-                 map[current_map].ItemObj[i].y_speed += GRAVITY;
+             if (map[current_map]->ItemObj[i].y_speed < 10)
+                 map[current_map]->ItemObj[i].y_speed += GRAVITY;
 
              //verical collision detection
              bool block_y = blocked(
-            		 map[current_map].ItemObj[i].x + map[current_map].ItemObj[i].x_speed,
-            		 map[current_map].ItemObj[i].y+map[current_map].ItemObj[i].y_speed,
-            		 map[current_map].ItemObj[i].x + Item[(int)map[current_map].ItemObj[i].itemID].w,
-            		 map[current_map].ItemObj[i].y+map[current_map].ItemObj[i].y_speed + Item[(int)map[current_map].ItemObj[i].itemID].h);
+            		 map[current_map]->ItemObj[i].x + map[current_map]->ItemObj[i].x_speed,
+            		 map[current_map]->ItemObj[i].y+map[current_map]->ItemObj[i].y_speed,
+            		 map[current_map]->ItemObj[i].x + Item[(int)map[current_map]->ItemObj[i].itemID].w,
+            		 map[current_map]->ItemObj[i].y+map[current_map]->ItemObj[i].y_speed + Item[(int)map[current_map]->ItemObj[i].itemID].h);
 
 
              //vertical movement
              if (!block_y)
-                map[current_map].ItemObj[i].y += map[current_map].ItemObj[i].y_speed;
+                map[current_map]->ItemObj[i].y += map[current_map]->ItemObj[i].y_speed;
              else{
-                map[current_map].ItemObj[i].y_speed = 0;
-                map[current_map].ItemObj[i].x_speed *= 0.5;
+                map[current_map]->ItemObj[i].y_speed = 0;
+                map[current_map]->ItemObj[i].x_speed *= 0.5;
              }
 
 
              //horizontal movement
              if (!block_x)
              {//not blocked, move
-                map[current_map].ItemObj[i].x += map[current_map].ItemObj[i].x_speed;
+                map[current_map]->ItemObj[i].x += map[current_map]->ItemObj[i].x_speed;
              } else {
-               map[current_map].ItemObj[i].x_speed = 0;
+               map[current_map]->ItemObj[i].x_speed = 0;
              }
 
          }

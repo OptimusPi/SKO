@@ -6,7 +6,7 @@
 
 #include <fstream>
 #include <cstring>
-#include <SDL/SDL.h>
+#include "SDL.h"
 #include "SKO_Stall.h"
 #include "SKO_Target.h"
 #include "SKO_Shop.h"
@@ -59,6 +59,7 @@ class SKO_Map
       void init(int mp);
       
       //constructors
+	  void init();
       SKO_Map();
       SKO_Map(std::string location, std::string mapName);
       

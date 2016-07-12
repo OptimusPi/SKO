@@ -15,165 +15,142 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="ini.cpp">
+    <ClCompile Include="StickKnightsOnline-Client\md5.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="INIReader.cpp">
+    <ClCompile Include="StickKnightsOnline-Client\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="InputBox.cpp">
+    <ClCompile Include="StickKnightsOnline-Client\ini.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="KE_Socket.cpp">
+    <ClCompile Include="StickKnightsOnline-Client\SKO_Target.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="KE_Timestep.cpp">
+    <ClCompile Include="StickKnightsOnline-Client\SKO_Stall.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="main.cpp">
+    <ClCompile Include="StickKnightsOnline-Client\SKO_Sprite.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="md5.cpp">
+    <ClCompile Include="StickKnightsOnline-Client\SKO_Sign.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="OPI_Image.cpp">
+    <ClCompile Include="StickKnightsOnline-Client\SKO_Shop.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="OPI_Text.cpp">
+    <ClCompile Include="StickKnightsOnline-Client\SKO_Player.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SKO.cpp">
+    <ClCompile Include="StickKnightsOnline-Client\SKO_NPC.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SKO_Enemy.cpp">
+    <ClCompile Include="StickKnightsOnline-Client\SKO_Map.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SKO_Item.cpp">
+    <ClCompile Include="StickKnightsOnline-Client\SKO_ItemObject.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SKO_ItemObject.cpp">
+    <ClCompile Include="StickKnightsOnline-Client\SKO_Item.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SKO_Map.cpp">
+    <ClCompile Include="StickKnightsOnline-Client\SKO_Enemy.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SKO_NPC.cpp">
+    <ClCompile Include="StickKnightsOnline-Client\OPI_Text.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SKO_Player.cpp">
+    <ClCompile Include="StickKnightsOnline-Client\OPI_Image.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SKO_Shop.cpp">
+    <ClCompile Include="StickKnightsOnline-Client\KE_Timestep.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SKO_Sign.cpp">
+    <ClCompile Include="StickKnightsOnline-Client\KE_Socket.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SKO_Sprite.cpp">
+    <ClCompile Include="StickKnightsOnline-Client\InputBox.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SKO_Stall.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="SKO_Target.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="stdafx.cpp">
+    <ClCompile Include="StickKnightsOnline-Client\INIReader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ini.h">
+    <ClInclude Include="StickKnightsOnline-Client\operating_system.windows.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="INIReader.h">
+    <ClInclude Include="StickKnightsOnline-Client\operating_system.mac.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="InputBox.h">
+    <ClInclude Include="StickKnightsOnline-Client\operating_system.linux.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="KE_Socket.h">
+    <ClInclude Include="StickKnightsOnline-Client\operating_system.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="KE_Timestep.h">
+    <ClInclude Include="StickKnightsOnline-Client\md5.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="md5.h">
+    <ClInclude Include="StickKnightsOnline-Client\ini.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="operating_system.h">
+    <ClInclude Include="StickKnightsOnline-Client\SKO_item_defs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="operating_system.linux.h">
+    <ClInclude Include="StickKnightsOnline-Client\SKO_Target.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="operating_system.mac.h">
+    <ClInclude Include="StickKnightsOnline-Client\SKO_Stall.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="operating_system.windows.h">
+    <ClInclude Include="StickKnightsOnline-Client\SKO_Sprite.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="OPI_Image.h">
+    <ClInclude Include="StickKnightsOnline-Client\SKO_Sign.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="OPI_Text.h">
+    <ClInclude Include="StickKnightsOnline-Client\SKO_Shop.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Resource.h">
+    <ClInclude Include="StickKnightsOnline-Client\SKO_Player.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SDLMain.h">
+    <ClInclude Include="StickKnightsOnline-Client\SKO_NPC.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SKO.h">
+    <ClInclude Include="StickKnightsOnline-Client\SKO_Map.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SKO_Enemy.h">
+    <ClInclude Include="StickKnightsOnline-Client\SKO_ItemObject.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SKO_Item.h">
+    <ClInclude Include="StickKnightsOnline-Client\SKO_Item.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SKO_ItemObject.h">
+    <ClInclude Include="StickKnightsOnline-Client\SKO_Enemy.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SKO_item_defs.h">
+    <ClInclude Include="StickKnightsOnline-Client\SDLMain.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SKO_Map.h">
+    <ClInclude Include="StickKnightsOnline-Client\OPI_Text.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SKO_NPC.h">
+    <ClInclude Include="StickKnightsOnline-Client\OPI_Image.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SKO_Player.h">
+    <ClInclude Include="StickKnightsOnline-Client\KE_Timestep.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SKO_Shop.h">
+    <ClInclude Include="StickKnightsOnline-Client\KE_Socket.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SKO_Sign.h">
+    <ClInclude Include="StickKnightsOnline-Client\InputBox.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SKO_Sprite.h">
+    <ClInclude Include="StickKnightsOnline-Client\INIReader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SKO_Stall.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="SKO_Target.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="stdafx.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="targetver.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="SKO.rc">
-      <Filter>Resource Files</Filter>
-    </ResourceCompile>
   </ItemGroup>
 </Project>

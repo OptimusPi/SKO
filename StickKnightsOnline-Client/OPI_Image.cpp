@@ -74,8 +74,8 @@ void OPI_Image::setImage( std::string path )
 
     // Free the SDL_Surface only if it was successfully created
     if ( surface )
-        //SDL_FreeSurface( surface );
-    	delete surface;
+        SDL_FreeSurface( surface );
+
     texture = tex[0];
 }
 

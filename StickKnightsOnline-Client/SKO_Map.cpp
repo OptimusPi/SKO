@@ -1,8 +1,7 @@
 #include "SKO_Map.h"
 
 
-SKO_Map::SKO_Map ()
-{
+void SKO_Map::init(){
 	num_enemies = 0;
 	num_shops = 0;
 	num_stalls = 0;
@@ -14,9 +13,14 @@ SKO_Map::SKO_Map ()
 	num_npcs = 0;
 }
 
+SKO_Map::SKO_Map ()
+{
+	init();
+}
+
 SKO_Map::SKO_Map (std::string location, std::string mapName)
 {
-	SKO_Map();
+	 init();
 
 	 //where is the map data and config?
 	 std::string mapDataLoc;
@@ -159,8 +163,9 @@ SKO_Map::SKO_Map (std::string location, std::string mapName)
             //store the number into variables
             fringe[i] = memblock[last_i+9+i*9];
 
+
             if (fringe[i] == 60)
-                        	fringe[i] = 61;
+                fringe[i] = 61;
 
 //            printf("fringe tile is %i\n", fringe[i]);
 
