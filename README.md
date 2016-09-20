@@ -8,7 +8,7 @@ easier to expand and improve the game, as well making it more approachable to
 anybody who would wish to collaborate.
 
 ## Compiling
-SDL2 must be downloaded and installed seperately. Support for doing so can be
+SDL must be downloaded and installed seperately. Support for doing so can be
 found on the SDL website.
 
 1. Copy contents of operating_system.<OS>.h into operating_system.h
