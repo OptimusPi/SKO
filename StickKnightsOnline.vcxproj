@@ -67,6 +67,15 @@
     <ClInclude Include="StickKnightsOnline-Client\SKO_Stall.h" />
     <ClInclude Include="StickKnightsOnline-Client\SKO_Target.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Makefile" />
+    <None Include="Makefile.linux" />
+    <None Include="Makefile.mac" />
+    <None Include="Makefile.windows" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="readme.txt" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{95C6562E-1ACD-4AB3-8650-3DB45A4A4F20}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
@@ -75,7 +84,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -112,12 +121,14 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <LibraryPath>StickKnightsOnline-Dependencies\pthread\lib\x86;$(LibraryPath)</LibraryPath>
-    <IncludePath>$(IncludePath)</IncludePath>
+    <LibraryPath>StickKnightsOnline-Dependencies\pthread\lib\x86;StickKnightsOnline-Dependencies\SDL_mixer\lib\x86;StickKnightsOnline-Dependencies\SDL_net\lib\x86;StickKnightsOnline-Dependencies\SDL_image\lib\x86;StickKnightsOnline-Dependencies\SDL\lib\x86;$(LibraryPath)</LibraryPath>
+    <IncludePath>StickKnightsOnline-Dependencies\pthread\include;StickKnightsOnline-Dependencies\SDL_net\include;StickKnightsOnline-Dependencies\SDL_mixer\include;StickKnightsOnline-Dependencies\SDL_image\include;StickKnightsOnline-Dependencies\SDL\include;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)\StickKnightsOnline-Client</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>StickKnightsOnline-Dependencies\pthread\include;StickKnightsOnline-Dependencies\SDL_net\include;StickKnightsOnline-Dependencies\SDL_mixer\include;StickKnightsOnline-Dependencies\SDL_image\include;StickKnightsOnline-Dependencies\SDL\include;$(IncludePath)</IncludePath>
+    <LibraryPath>StickKnightsOnline-Dependencies\pthread\lib\x86;StickKnightsOnline-Dependencies\SDL_mixer\lib\x86;StickKnightsOnline-Dependencies\SDL_net\lib\x86;StickKnightsOnline-Dependencies\SDL_image\lib\x86;StickKnightsOnline-Dependencies\SDL\lib\x86;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -128,16 +139,17 @@
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>StickKnightsOnline-Dependencies\SDL_image-1.2.12;StickKnightsOnline-Dependencies\SDL_mixer-1.2.12;StickKnightsOnline-Dependencies\SDL_net-1.2.8;StickKnightsOnline-Dependencies\SDL-1.2.15\include;StickKnightsOnline-Dependencies\pthread\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
+      <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
     <Link>
       <TargetMachine>MachineX86</TargetMachine>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
       <AdditionalDependencies>pthreadVC2.lib;SDL.lib;SDL_net.lib;SDL_image.lib;SDL_mixer.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>StickKnightsOnline-Dependencies\SDL_image-1.2.12\VisualC\Debug;Debug;StickKnightsOnline-Dependencies\SDL_mixer-1.2.12\VisualC\Debug;StickKnightsOnline-Dependencies\SDL_net-1.2.8\VisualC\Debug;StickKnightsOnline-Dependencies\pthread\lib\x86</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>StickKnightsOnline-Dependencies\SDL_image\lib;Debug;StickKnightsOnline-Dependencies\SDL_mixer\lib;StickKnightsOnline-Dependencies\SDL_net\lib;StickKnightsOnline-Dependencies\pthread\lib\x86</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>$(SolutionDir)Default\rcedit.exe $(SolutionDir)StickKnightsOnline-Client\StickKnightsOnline.exe --set-icon $(SolutionDir)\StickKnightsOnline-Client\sko.ico</Command>
+      <Command>"$(SolutionDir)rcedit\rcedit.exe"  "$(SolutionDir)StickKnightsOnline-Client\StickKnightsOnline.exe" --set-icon "$(SolutionDir)StickKnightsOnline-Client\sko.ico"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -146,6 +158,7 @@
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
     <Link>
       <TargetMachine>MachineX86</TargetMachine>

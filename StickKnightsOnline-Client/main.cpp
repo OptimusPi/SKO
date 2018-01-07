@@ -7,6 +7,7 @@
   3/31/2016 setup in Visual Studio
 */
 
+#define HAVE_STRUCT_TIMESPEC
 
 
 #include <cstdio>
@@ -330,7 +331,7 @@ void setTitle()
 		title << "Stick Knights Online v"
 			  << (int)VERSION_MAJOR << "."
 			  << (int)VERSION_MINOR << "."
-			  << (int)VERSION_PATCH << " Beta"
+			  << (int)VERSION_PATCH << " Beta lol"
 			  ;//<< " {Dev Version: 1.1.2A}";
 
 		SDL_WM_SetCaption (title.str().c_str(), "SKO");
@@ -1419,9 +1420,6 @@ void Button::handle_events(int ID)
                                         //bank scrolling
                                         btmx += 6*bankScroll;
 
-
-                                       // printf("ya in the bank bitch and btmx=%d\n", btmx);
-
                                         //select item
                                         selectedBankItem = btmx;
 
@@ -1555,7 +1553,6 @@ void Button::handle_events(int ID)
                                    //okay
                                    if (x > 305 && x < 358 &&  y < 476 && y > 459)
                                    {
-                                	   //random shit variables have to be declared up here unfortunately, fuck you C++03
                                 	   int amount;
                                 	   std::string amountStr;
 							           std::string packet;
@@ -1613,7 +1610,7 @@ void Button::handle_events(int ID)
                                       popup_gui_menu = 0;
                                       chat_box = 4;
 
-                                      for (int i = 0; i < 31; i++)
+                                      for (int i = 0; i < 20; i++)
                                       {
                                         iMessage[i] = 0;
                                         iSeek = 0;
@@ -2349,10 +2346,10 @@ void Button::handle_events(int ID)
                            break;
 
                            case 43:
-                        	   	   if (popup_sign)
-                        	   		   popup_sign = false;
-                        	   	   if (popup_npc)
-                        	   		   popup_npc = false;
+								if (popup_sign)
+                        	   		popup_sign = false;
+                        	   	if (popup_npc)
+                        	   		popup_npc = false;
                            break;
 
                            case 44:
@@ -2407,7 +2404,6 @@ void Button::handle_events(int ID)
 								  //okay
 								  if (x > 305 && x < 358 &&  y < 476 && y > 459)
 								  {
-								   //random shit variables have to be declared up here unfortunately, fuck you C++03
 								   int amount;
 								   std::string amountStr;
 								   std::string packet;
@@ -5027,7 +5023,7 @@ void HandleUI()
                    }
                    else
                    {
-                	   //reset these so it don't draw when your nigga ass aint hoverin' shit yo
+                	   //reset this. Only draw when user is hovering this item with the mouse.
                        hoveredInventoryItem = -1;
                    }
 
@@ -5089,7 +5085,7 @@ void HandleUI()
 				  }
 				  else
 				  {
-				   //reset these so it don't draw when your nigga ass aint hoverin' shit yo
+					  //reset this. Only draw when user is hovering this item with the mouse.
 					  hoveredShopItemX = -1;
 					  hoveredShopItemY = -1;
 				  }
@@ -5582,7 +5578,7 @@ void* Network(void *arg)
 //						   (int)map[current_map]->Enemy[npc_id].x,
 //						   (int)map[current_map]->Enemy[npc_id].x);
               }
-              //NPC shit
+              //NPC packets
               else if (code == NPC_TALK)
 				{
 //					float temp;
@@ -5666,7 +5662,7 @@ void* Network(void *arg)
 					 map[current_map]->NPC[npc_id].y = npc_y;
 
 				}
-              //end NPC shit
+              //end NPC packets
               else if (code == MOVE_RIGHT)
               {
                  // Declare message string
@@ -6277,17 +6273,17 @@ void* Network(void *arg)
                    bool playSound = false;
 
                    //find if there is an item
-                   bool damnThingFound = false;
+                   bool itemFound = false;
                    int i;
                    for (i = 0 ; i < 24; i++)
                        if (Player[MyID].inventory[i][0] == item && Player[MyID].inventory[i][1] > 0)
                        {
-                          damnThingFound = true;
+                          itemFound = true;
                           break;
                        }
 
 
-                   if (damnThingFound)//theres already an item, stack it
+                   if (itemFound)//theres already an item, stack it
                    {
                 	  if (Player[MyID].inventory[i][1] < amount && loaded)
                 		  playSound = true;
@@ -7354,7 +7350,7 @@ int main (int argc, char *argv[])
     hat_img[14].setImage("IMG/EQUIP/HAT/purple_party_hat.png");
 
 
-    //trophies to show off and chuck at a nigga
+    //trophies to show off in the player's off-hand. Can be thrown at other players.
     trophy_img[0].setImage("IMG/ITEM/cherry_pi.png");
     trophy_img[1].setImage("IMG/ITEM/easter_egg.png");
     trophy_img[2].setImage("IMG/ITEM/pumpkin.png");
@@ -7487,11 +7483,11 @@ int main (int argc, char *argv[])
     Item_img[ITEM_CANDY_CANE].setImage("IMG/ITEM/candy_cane.png");
     Item_img[ITEM_SKELETON_HELM].setImage("IMG/ITEM/skeleton_helmet.png");
 
-    //fuck dude it's 2015. quit slacking. or ill beat your nigger bitch ass.
-    //added 2/10/2015 u old FucK
+    
+   // added on 2/10/2015
    Item_img[ITEM_TRAINING_HELM].setImage("IMG/ITEM/training_helmet.png");
 
-   //2.22.2015
+   // added on 2/22/2015
    Item_img[ITEM_PURPLE_PHAT].setImage("IMG/ITEM/purple_party_hat.png");
    Item_img[ITEM_SNOW_BALL].setImage("IMG/ITEM/snowball.png");
 
@@ -7530,10 +7526,10 @@ int main (int argc, char *argv[])
         Message[i] = OPI_Text();
     }
 
-    //enemy hp bars
+    // enemy hp bars
     enemy_hp.setImage("IMG/MISC/enemy_hp.png");
 
-//tiled background
+	// tiled background
     back_img[0].setImage("IMG/MISC/sky_back.png");
     back_img[1].setImage("IMG/MISC/far_back.png");
     back_img[2].setImage("IMG/MISC/med_back.png");
@@ -7695,20 +7691,19 @@ int main (int argc, char *argv[])
     loadContent();
 
     if (music != NULL && Mix_PlayMusic( music, -1 ) == -1)
-       	   printf("ERROR PLAYING MUSIC!!");
-           else
-           	printf(
-           	"music played ok.");
+		printf("ERROR PLAYING MUSIC!!");
+	else
+		printf("music played ok.");
 
-           if (!enableSND || !enableMUS)
-           {
-              printf("not playing music because either sound or music is mute.\n");
-              if (Mix_PausedMusic() != 1 )
-              {
-                      //pause the music
-                      Mix_PauseMusic();
-              }
-           }
+	if (!enableSND || !enableMUS)
+	{
+		printf("not playing music because either sound or music is mute.\n");
+		if (Mix_PausedMusic() != 1 )
+		{
+			//pause the music
+			Mix_PauseMusic();
+		}
+	}
 
     //start drawing
     pthread_t networkThread, physicsThread; //GraphicsThread;
@@ -7739,7 +7734,7 @@ int main (int argc, char *argv[])
 
     KE_Timestep *timestep = new KE_Timestep(60);
 
-    printf("Starting input and grtaphics . . . \n");
+    printf("Starting input and graphics . . . \n");
 
 
     //Input & graphics
