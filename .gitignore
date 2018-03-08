@@ -4,6 +4,10 @@
 *.o
 *.obj
 
+# Unwanted VS files
+*.VC.db
+*.ilk
+
 # Precompiled Headers
 *.gch
 *.pch
@@ -11,7 +15,7 @@
 # Compiled Dynamic libraries
 *.so
 *.dylib
-*.dll
+
 
 # Fortran module files
 *.mod
