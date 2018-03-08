@@ -7188,10 +7188,17 @@ int main (int argc, char *argv[])
      	//read config.ini file and set all options
     	INIReader configFile("DAT/config.ini");
         if (configFile.ParseError() < 0) {
+		
+			if (configFile.ParseError() == -1)
+				printf("file open error. TIP: Line endings must be CRLF!");
+
+			if (configFile.ParseError() == -2)
+				printf("memory allocation error.");
+
            printf("error: Can't load 'config.ini'\n");
            return 1;
         }
-        SERVER_IP = configFile.Get("server", "ip", "optimuspi.us");
+        SERVER_IP = configFile.Get("server", "hostname", "optimuspi.us");
         SERVER_PORT = configFile.GetInteger("server", "port", 1337);
         bool FULLSCREEN = configFile.GetBoolean("graphics", "fullscreen", false);
 

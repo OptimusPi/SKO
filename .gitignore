@@ -7,6 +7,7 @@
 # Unwanted VS files
 *.VC.db
 *.ilk
+*.suo
 
 # Precompiled Headers
 *.gch
@@ -46,3 +47,4 @@ StickKnightsOnline-Client/SND
 /StickKnightsOnline-Client/stdout.txt
 StickKnightsOnline.VC.db
 StickKnightsOnline-Client/DAT/options.dat
+StickKnightsOnline.VC.db
