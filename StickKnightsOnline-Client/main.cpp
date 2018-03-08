@@ -11,6 +11,7 @@
 
 
 #include <cstdio>
+#include <ctime>
 #include <cstring>
 #include <fstream>
 #include <sstream>
@@ -327,11 +328,33 @@ void inventory();
 
 void setTitle()
 {
+	//use letters for the month
+	std::string months[12];
+	months[0] = "Jan.";
+	months[1] = "Feb.";
+	months[2] = "Mar.";
+	months[3] = "Apr.";
+	months[4] = "May";
+	months[5] = "June";
+	months[6] = "July";
+	months[7] = "Aug.";
+	months[8] = "Sept.";
+	months[9] = "Oct.";
+	months[10] = "Nov.";
+	months[11] = "Dec.";
+
+	//get current date
+	time_t t = time(0);   // get time now
+	struct tm * now = localtime(&t);
+	
 	std::stringstream title;
 		title << "Stick Knights Online v"
 			  << (int)VERSION_MAJOR << "."
 			  << (int)VERSION_MINOR << "."
-			  << (int)VERSION_PATCH << " Beta lol"
+			  << (int)VERSION_PATCH << "   "
+			  << months[now->tm_mon] << " "
+			  << now->tm_mday << ", "
+			  << (now->tm_year + 1900)
 			  ;//<< " {Dev Version: 1.1.2A}";
 
 		SDL_WM_SetCaption (title.str().c_str(), "SKO");
@@ -3620,6 +3643,8 @@ construct_frame()
           break;
 
           case 1: case 2:
+			  for (int i = 0; i < 2; i++)
+				  drawText(i);
                for (int i = 16; i < 18; i++)
                    drawText(i);
           break;
@@ -7539,8 +7564,8 @@ int main (int argc, char *argv[])
     TILES_TALL = (600/back_img[1].h) + 2;
 
     //Message[0],[1]
-    Text(320, 530, "", 240, 250, 250);
-    Text(295, 555, "", 240, 250, 250);
+    Text(370, 530, "", 240, 250, 250);
+    Text(345, 555, "", 240, 250, 250);
     Message[0].SetText("Loading...");
     Message[1].SetText("Attempting to connect to the server...");
 
@@ -8397,10 +8422,13 @@ void physics()
                  {
                      //coordinates
                      std::stringstream ss;
+					 ss << (int)current_map;
+					 ss << ": (";
                      ss << (int)Player[i].x;
                      ss << ",";
                      ss << (int)Player[i].y;
-                     std::string cs = "Coords: " + ss.str();
+					 ss << ")";
+                     std::string cs = "Map " + ss.str();
                      Message[50].SetText(cs);
 
                      //hp, xp
@@ -8783,13 +8811,14 @@ void TryToLogin()
 		   else if (PiSock.Data[1] == LOGIN_FAIL_NONE)
 		   {
 			  Message[0].SetText("Wrong username or password.");
-			  Message[1].SetText("Please try again...");
-			  //save an extra packet
-			  		   PiSock.Data = PiSock.Data.substr(PiSock.Data[0]);
+			  Message[1].SetText("    Please try again...");
 
-			  		   printf("turning network lock off...\n");
-			  		   networkLock = false;
-			  		   return;
+			  //save an extra packet
+				PiSock.Data = PiSock.Data.substr(PiSock.Data[0]);
+
+				printf("turning network lock off...\n");
+				networkLock = false;
+				return;
 		   }
 		   else if (PiSock.Data[1] == LOGIN_FAIL_BANNED)
 		   {

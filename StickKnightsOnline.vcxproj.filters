@@ -158,6 +158,7 @@
     <None Include="Makefile.linux" />
     <None Include="Makefile.mac" />
     <None Include="Makefile.windows" />
+    <None Include="StickKnightsOnline-Client\DAT\config.ini" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="readme.txt" />

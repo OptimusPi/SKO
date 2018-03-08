@@ -20,14 +20,13 @@
 *.lai
 *.la
 *.a
-*.lib
 
 # Executables
 *.exe
 *.out
 *.app
 
-# C:/Users/midnite/Source/Repos/SKO/StickKnightsOnline.VC.opendb
+# SKO/StickKnightsOnline.VC.opendb
 *.opendb
 
 # Ignore game resources
@@ -41,3 +40,5 @@ StickKnightsOnline-Client/SND
 *.tlog
 *.idb
 /StickKnightsOnline-Client/stdout.txt
+StickKnightsOnline.VC.db
+StickKnightsOnline-Client/DAT/options.dat

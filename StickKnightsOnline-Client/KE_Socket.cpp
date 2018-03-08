@@ -69,11 +69,16 @@ void KE_Socket::Close()
 void KE_Socket::Send(std::string packet)
 {
      len = packet.length();
- 	 if (SDLNet_TCP_Send(sock, packet.c_str(), len) < len)
-  	 {
-		fprintf(stderr, "SDLNet_TCP_Send: %s\n", SDLNet_GetError());
-		Close();
-	 }
+	 if (sock)
+ 		 if (SDLNet_TCP_Send(sock, packet.c_str(), len) < len)
+  		 {
+			fprintf(stderr, "SDLNet_TCP_Send: %s\n", SDLNet_GetError());
+			Close();
+		 }
+		 
+		 else {
+			 //TODO try to reconnect
+		 }
 
 }
 
