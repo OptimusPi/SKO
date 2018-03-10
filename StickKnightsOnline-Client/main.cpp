@@ -3739,10 +3739,14 @@ construct_frame()
                       //dragging an item
                       if (i == selectedInventoryItem && hoveredInventoryItem >= 0 && lclick)
                       {
+						  int itemAmount;
+						  itemAmount = Player[MyID].inventory[i][1];
                     	  //center the item over your mouse
-                    	  offset_x -= 16;
-                    	  offset_y -= 16;
-                         DrawImage(hoverItemX + offset_x, hoverItemY + offset_y, Item_img[item]);
+						  if (itemAmount > 0) {
+							  offset_x -= 16;
+							  offset_y -= 16;
+							  DrawImage(hoverItemX + offset_x, hoverItemY + offset_y, Item_img[item]);
+						  }
                       }
 
                       i++;
