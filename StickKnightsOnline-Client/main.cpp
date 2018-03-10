@@ -3741,7 +3741,8 @@ construct_frame()
                       {
 						  int itemAmount;
 						  itemAmount = Player[MyID].inventory[i][1];
-                    	  //center the item over your mouse
+                    	  
+						  //center the item over your mouse
 						  if (itemAmount > 0) {
 							  offset_x -= 16;
 							  offset_y -= 16;
