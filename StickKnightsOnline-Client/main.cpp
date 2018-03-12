@@ -8249,25 +8249,27 @@ void physics()
 
 
 
-
-
+	  //Sign reading collision detection
 	  if (enableSIGN) {
 		  for (int i = 0; i < map[current_map]->num_signs; i++)
 		  {
 			  float rangeX = (std::abs)(Player[MyID].x - map[current_map]->Sign[i].x);
 			  float rangeY = (std::abs)(Player[MyID].y - map[current_map]->Sign[i].y);
 			  float distance = sqrt((rangeX*rangeX) + (rangeY*rangeY));
-			  bool isColliding;
+			  bool inRange;
 			  //isColliding = blocked(Player[MyID].x, Player[MyID].y, map[current_map]->Sign[i].x, map[current_map]->Sign[i].y);
 
 
-			  isColliding = (distance < 50);
-			  if (isColliding) {
+			  inRange = (distance < 50);
+			  if (inRange) {
 				  printf("sign!\n");
 				  current_sign = map[current_map]->Sign[i];
-				  popup_menu = 0;
-				  popup_sign = true;
-				  popup_npc = false;
+				  if (!current_sign.triggered) {
+					  popup_menu = 0;
+					  popup_sign = true;
+					  popup_npc = false;
+					  current_sign.triggered = true;
+				  }
 			  }
 
 
@@ -8279,14 +8281,15 @@ void physics()
 
 		  }
 	  }
+		  float rangeX = (std::abs)(Player[MyID].x - current_sign.x);
+		  float rangeY = (std::abs)(Player[MyID].y - current_sign.y);
+		  float distance = sqrt((rangeX*rangeX) + (rangeY*rangeY));
+		  bool inRange = (distance < 100);
+		  if (!inRange) {
+			  popup_sign = false;
+			  current_sign.triggered = false;
+		  }
 
-	  float rangeX = (std::abs)(Player[MyID].x - current_sign.x);
-	  float rangeY = (std::abs)(Player[MyID].y - current_sign.y);
-	  float distance = sqrt((rangeX*rangeX) + (rangeY*rangeY));
-	  bool isColliding = (distance < 50);
-	  if (!isColliding) {
-		  popup_sign = false;
-	  }
 
      //players
      for (int i = 0; i < MAX_CLIENTS; i++)
