@@ -2389,7 +2389,8 @@ void Button::handle_events(int ID)
                            break;
 
                            case 43:
-								if (popup_sign)
+							   if (popup_sign)
+								    current_sign.triggered = true;
                         	   		popup_sign = false;
                         	   	if (popup_npc)
                         	   		popup_npc = false;
@@ -8284,9 +8285,11 @@ void physics()
 		  float rangeX = (std::abs)(Player[MyID].x - current_sign.x);
 		  float rangeY = (std::abs)(Player[MyID].y - current_sign.y);
 		  float distance = sqrt((rangeX*rangeX) + (rangeY*rangeY));
-		  bool inRange = (distance < 100);
-		  if (!inRange) {
+		  bool inRange = (distance < 75);
+		  if (!inRange && current_sign.triggered) {
 			  popup_sign = false;
+		  }
+		  if (distance > 150) {
 			  current_sign.triggered = false;
 		  }
 
