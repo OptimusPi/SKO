@@ -5045,6 +5045,7 @@ void HandleUI()
 					nextPageButton.handle_events(44);
 
 					disable_auto_signs_button.handle_events(46);
+					enable_auto_signs_button.handle_events(46);
 					//do world interactions after all gui
 					worldInteractButton.handle_events(21);
             	 }
@@ -7287,7 +7288,7 @@ int main (int argc, char *argv[])
     nextPageButton.setBounds(860, 372, 92, 43);
     leave_party_button.setBounds( 224+652, 45, 148, 32);
 	
-	disable_auto_signs_button.setBounds(169, 393, 34, 17);
+	enable_auto_signs_button.setBounds(169, 393, 34, 17);
 	disable_auto_signs_button.setBounds(206, 393, 34, 17);
 
     unmute_sound_button.setBounds( 169, 417, 34, 17 );
