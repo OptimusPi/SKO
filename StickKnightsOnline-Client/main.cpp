@@ -15,6 +15,7 @@
 #include <cstring>
 #include <fstream>
 #include <sstream>
+#include <math.h>
 #include "SDL_opengl.h"
 #include "SDL.h"
 #include "SDL_image.h"
@@ -1721,6 +1722,7 @@ void Button::handle_events(int ID)
                                         }
                                     }
                                     //check for interaction with a sign
+
                                     for (int i = 0; i < map[current_map]->num_signs; i++)
 									{
 										float x1 = map[current_map]->Sign[i].x  - camera_x;
@@ -1738,6 +1740,21 @@ void Button::handle_events(int ID)
 											current_sign = map[current_map]->Sign[i];
 											return;
 										}
+
+
+										//bool isColliding = blocked(Player[MyID].x, Player[MyID].y, map[current_map]->Sign[i].x, map[current_map]->Sign[i].y);
+
+
+										bool isColliding = ((Player[MyID].x == map[current_map]->Sign[i].x) && (Player[MyID].y == map[current_map]->Sign[i].y));
+										if (isColliding == true){
+											printf("sign!\n");
+											popup_menu = 0;
+											popup_sign = true;
+											popup_npc = false;
+											current_sign = map[current_map]->Sign[i];
+											return;
+										}
+
 									}
 
 
@@ -7798,6 +7815,10 @@ int main (int argc, char *argv[])
 
     printf("end of main.\n");
     return 0;
+
+
+
+
 }//end main
 
 void Graphics()
@@ -8207,7 +8228,33 @@ void physics()
 
 
 
+	  for (int i = 0; i < map[current_map]->num_signs; i++)
+	  {
+		  bool triggeredState = false;
+		  float rangeX = (std::abs)(Player[MyID].x - map[current_map]->Sign[i].x);
+		  float rangeY = (std::abs)(Player[MyID].y - map[current_map]->Sign[i].y);
+		  float distance = sqrt((rangeX*rangeX) + (rangeY*rangeY));
+		  bool isColliding;
+		  //isColliding = blocked(Player[MyID].x, Player[MyID].y, map[current_map]->Sign[i].x, map[current_map]->Sign[i].y);
 
+
+		  isColliding = (distance < 150);
+		  if ((isColliding == true) && (map[current_map]->Sign[i].triggered == false)) {
+			  printf("sign!\n");
+			  popup_menu = 0;
+			  popup_sign = true;
+			  popup_npc = false;
+			  current_sign = map[current_map]->Sign[i];
+			  map[current_map]->Sign[i].triggered = true;
+		  }
+
+		  /*if ( (distance > 175) && (map[current_map]->Sign[i].triggered == true)) {
+			  popup_sign = false;
+		  }*/
+		 
+
+
+	  }
 
 
      //players
@@ -8899,3 +8946,5 @@ void Kill()
 	// at the time of writing SDL_Quit() causes a crash upon exit.
 	exit(0);
 }
+
+
