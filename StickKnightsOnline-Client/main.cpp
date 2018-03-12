@@ -8254,7 +8254,6 @@ void physics()
 
 
 	  //Sign reading collision detection
-
 	  if (enableSIGN) {
 		  for (int i = 0; i < map[current_map]->num_signs; i++)
 		  {
@@ -8267,7 +8266,10 @@ void physics()
 			  inRange = (distance < 50);
 			  if (inRange) {
 				  printf("sign!\n");
-				  current_sign = map[current_map]->Sign[i];
+				  bool isNew = ((current_sign.hasBeenClosed) == (map[current_map]->Sign[i].hasBeenClosed));
+				  if (isNew){
+					  current_sign = map[current_map]->Sign[i];
+				  }
 				  if (!current_sign.triggered && !(current_sign.hasBeenClosed)) {
 					  current_sign.triggered = true;
 					  popup_menu = 0;
