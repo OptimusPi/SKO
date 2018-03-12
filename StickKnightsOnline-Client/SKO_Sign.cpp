@@ -16,5 +16,4 @@ SKO_Sign::SKO_Sign()
 	y = 0;
 	w = 0;
 	h = 0;
-	triggered = false;
 }

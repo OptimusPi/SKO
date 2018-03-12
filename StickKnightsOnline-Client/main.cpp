@@ -165,6 +165,8 @@ bool enableSFX = true;
 bool enableSND = true;
 int lastSfx = 0;//random sounds :)
 
+//default options
+bool enableSIGN = true;
 
 //Exit points
 void Disconnect();
@@ -584,10 +586,11 @@ void saveOptions()
            unsigned char b = (unsigned char)(int)enableSFX;
            unsigned char c = (unsigned char)(int)enableMUS;
            unsigned char d = (unsigned char)(int)enableBetaWarning;
+		   unsigned char e = (unsigned char)(int)enableSIGN;
 
            //spit out each of the bytes
-           optionFile << a << b << c << d;
-           printf("save SND[%i] SFX[%i] MUS[%i] \n", a, b, c);
+		   optionFile << a << b << c << d << e;
+           printf("save SND[%i] SFX[%i] MUS[%i] \n", a, b, c, d);
         }
         optionFile.close();
     }
@@ -2496,7 +2499,15 @@ void Button::handle_events(int ID)
 									 }
 								  }
 							   }
+
+						
                            break;
+
+						   //enable or disable auto sign reading
+						   case 46:
+							   (enableSIGN) = (!enableSIGN);
+						
+							   break;
 
                            //something unknown, but this shouldn't happen
                            default:
@@ -2623,6 +2634,7 @@ void Button::handle_events(int ID)
                            }//end inside inventory click
                           break;
 
+			
                           default:
                           break;
 
@@ -2645,6 +2657,7 @@ Button leave_party_button;
 Button mute_sound_button, unmute_sound_button;
 Button mute_music_button, unmute_music_button;
 Button mute_effects_button, unmute_effects_button;
+Button disable_auto_signs_button, enable_auto_signs_button;
 
 
 Button use_button, drop_button;
@@ -3851,6 +3864,11 @@ construct_frame()
                DrawImage(0, 244, options_popup);
 
                /* draw little options selectors */
+			   //Sign enabling
+			   if (enableSIGN)
+				   DrawImage(169, 393, option_selector);
+			   else
+				   DrawImage(206, 393, option_selector);
                //Master sound
                if (enableSND)
                   DrawImage(169, 417, option_selector);
@@ -5026,7 +5044,7 @@ void HandleUI()
 
 					nextPageButton.handle_events(44);
 
-
+					disable_auto_signs_button.handle_events(46);
 					//do world interactions after all gui
 					worldInteractButton.handle_events(21);
             	 }
@@ -7196,6 +7214,7 @@ int main (int argc, char *argv[])
         enableSFX = (bool)(int)memblock[1];
         enableMUS = (bool)(int)memblock[2];
         enableBetaWarning = (bool)(int)memblock[3];
+		//enableSIGN = (bool)(int)memblock[4];
 
         //fix memory leak
         free (memblock);
@@ -8227,35 +8246,42 @@ void physics()
 
 
 
+	  if (enableSIGN) {
+		  for (int i = 0; i < map[current_map]->num_signs; i++)
+		  {
+			  float rangeX = (std::abs)(Player[MyID].x - map[current_map]->Sign[i].x);
+			  float rangeY = (std::abs)(Player[MyID].y - map[current_map]->Sign[i].y);
+			  float distance = sqrt((rangeX*rangeX) + (rangeY*rangeY));
+			  bool isColliding;
+			  //isColliding = blocked(Player[MyID].x, Player[MyID].y, map[current_map]->Sign[i].x, map[current_map]->Sign[i].y);
 
-	  for (int i = 0; i < map[current_map]->num_signs; i++)
-	  {
-		  bool triggeredState = false;
-		  float rangeX = (std::abs)(Player[MyID].x - map[current_map]->Sign[i].x);
-		  float rangeY = (std::abs)(Player[MyID].y - map[current_map]->Sign[i].y);
-		  float distance = sqrt((rangeX*rangeX) + (rangeY*rangeY));
-		  bool isColliding;
-		  //isColliding = blocked(Player[MyID].x, Player[MyID].y, map[current_map]->Sign[i].x, map[current_map]->Sign[i].y);
+
+			  isColliding = (distance < 50);
+			  if (isColliding) {
+				  printf("sign!\n");
+				  current_sign = map[current_map]->Sign[i];
+				  popup_menu = 0;
+				  popup_sign = true;
+				  popup_npc = false;
+			  }
 
 
-		  isColliding = (distance < 150);
-		  if ((isColliding == true) && (map[current_map]->Sign[i].triggered == false)) {
-			  printf("sign!\n");
-			  popup_menu = 0;
-			  popup_sign = true;
-			  popup_npc = false;
-			  current_sign = map[current_map]->Sign[i];
-			  map[current_map]->Sign[i].triggered = true;
+			  /*if ( (distance > 175) && (map[current_map]->Sign[i].triggered == true)) {
+				  popup_sign = false;
+			  }*/
+
+
+
 		  }
-
-		  /*if ( (distance > 175) && (map[current_map]->Sign[i].triggered == true)) {
-			  popup_sign = false;
-		  }*/
-		 
-
-
 	  }
 
+	  float rangeX = (std::abs)(Player[MyID].x - current_sign.x);
+	  float rangeY = (std::abs)(Player[MyID].y - current_sign.y);
+	  float distance = sqrt((rangeX*rangeX) + (rangeY*rangeY));
+	  bool isColliding = (distance < 50);
+	  if (!isColliding) {
+		  popup_sign = false;
+	  }
 
      //players
      for (int i = 0; i < MAX_CLIENTS; i++)
