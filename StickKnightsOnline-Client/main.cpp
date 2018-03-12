@@ -7286,6 +7286,10 @@ int main (int argc, char *argv[])
     closeChatButton.setBounds(687+150, 4+372, 10,10);
     nextPageButton.setBounds(860, 372, 92, 43);
     leave_party_button.setBounds( 224+652, 45, 148, 32);
+	
+	disable_auto_signs_button.setBounds(169, 393, 34, 17);
+	disable_auto_signs_button.setBounds(206, 393, 34, 17);
+
     unmute_sound_button.setBounds( 169, 417, 34, 17 );
     mute_sound_button.setBounds( 206, 417, 34, 17 );
 
