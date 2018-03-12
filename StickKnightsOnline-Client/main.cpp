@@ -240,6 +240,7 @@ int chat_box = 3;
 //what sign you're reading
 bool popup_sign = false;
 SKO_Sign current_sign;
+SKO_Sign temp_sign;
 
 //what NPC you're talking to
 bool popup_npc = false;
@@ -2389,11 +2390,13 @@ void Button::handle_events(int ID)
                            break;
 
                            case 43:
-							   if (popup_sign)
-								    current_sign.triggered = true;
-                        	   		popup_sign = false;
+							   if (popup_sign) {
+								   popup_sign = false;
+								   current_sign.hasBeenClosed = true;
+							   }
                         	   	if (popup_npc)
                         	   		popup_npc = false;
+								current_sign.triggered = true;
                            break;
 
                            case 44:
@@ -7216,7 +7219,7 @@ int main (int argc, char *argv[])
         enableSFX = (bool)(int)memblock[1];
         enableMUS = (bool)(int)memblock[2];
         enableBetaWarning = (bool)(int)memblock[3];
-		//enableSIGN = (bool)(int)memblock[4];
+		enableSIGN = (bool)(int)memblock[4];
 
         //fix memory leak
         free (memblock);
@@ -8251,6 +8254,7 @@ void physics()
 
 
 	  //Sign reading collision detection
+
 	  if (enableSIGN) {
 		  for (int i = 0; i < map[current_map]->num_signs; i++)
 		  {
@@ -8260,19 +8264,17 @@ void physics()
 			  bool inRange;
 			  //isColliding = blocked(Player[MyID].x, Player[MyID].y, map[current_map]->Sign[i].x, map[current_map]->Sign[i].y);
 
-
 			  inRange = (distance < 50);
 			  if (inRange) {
 				  printf("sign!\n");
 				  current_sign = map[current_map]->Sign[i];
-				  if (!current_sign.triggered) {
+				  if (!current_sign.triggered && !(current_sign.hasBeenClosed)) {
+					  current_sign.triggered = true;
 					  popup_menu = 0;
 					  popup_sign = true;
 					  popup_npc = false;
-					  current_sign.triggered = true;
 				  }
 			  }
-
 
 			  /*if ( (distance > 175) && (map[current_map]->Sign[i].triggered == true)) {
 				  popup_sign = false;
@@ -8281,19 +8283,21 @@ void physics()
 
 
 		  }
-	  }
+	  
 		  float rangeX = (std::abs)(Player[MyID].x - current_sign.x);
 		  float rangeY = (std::abs)(Player[MyID].y - current_sign.y);
 		  float distance = sqrt((rangeX*rangeX) + (rangeY*rangeY));
 		  bool inRange = (distance < 75);
 		  if (!inRange && current_sign.triggered) {
 			  popup_sign = false;
+			  current_sign.hasBeenClosed = false;
 		  }
 		  if (distance > 150) {
 			  current_sign.triggered = false;
+			  current_sign.hasBeenClosed = false;;
 		  }
 
-
+	  }
      //players
      for (int i = 0; i < MAX_CLIENTS; i++)
          if (Player[i].Status && Player[i].current_map == current_map)

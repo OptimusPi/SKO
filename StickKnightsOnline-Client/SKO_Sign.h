@@ -20,7 +20,7 @@ public:
 	OPI_Text line[NUM_LINES];
 
 	int x, y, w, h;
-	bool triggered;
+	bool triggered, hasBeenClosed;
 };
 
 
