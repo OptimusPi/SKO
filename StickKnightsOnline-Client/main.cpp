@@ -15,7 +15,7 @@
 #include <cstring>
 #include <fstream>
 #include <sstream>
-#include <math.h>
+#include <cmath>
 #include "SDL_opengl.h"
 #include "SDL.h"
 #include "SDL_image.h"
@@ -8278,9 +8278,6 @@ void physics()
 				  }
 			  }
 
-			  /*if ( (distance > 175) && (map[current_map]->Sign[i].triggered == true)) {
-				  popup_sign = false;
-			  }*/
 
 
 

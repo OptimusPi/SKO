@@ -34,12 +34,17 @@
 # SKO/StickKnightsOnline.VC.opendb
 *.opendb
 
+#misc
+.ipch
+.log
+.pdb
 # Ignore game resources
 *.png
 *.mp3
 StickKnightsOnline-Client/resources/*
 StickKnightsOnline-Client/IMG
 StickKnightsOnline-Client/SND
+
 
 # Ignore dependencies
 *.tlog
