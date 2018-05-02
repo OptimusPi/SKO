@@ -44,7 +44,7 @@
 StickKnightsOnline-Client/resources/*
 StickKnightsOnline-Client/IMG
 StickKnightsOnline-Client/SND
-
+.vs/*
 
 # Ignore dependencies
 *.tlog
