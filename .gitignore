@@ -38,13 +38,17 @@
 .ipch
 .log
 .pdb
+.vs/*
+Debug/*
+
 # Ignore game resources
 *.png
 *.mp3
 StickKnightsOnline-Client/resources/*
 StickKnightsOnline-Client/IMG
 StickKnightsOnline-Client/SND
-.vs/*
+
+
 
 # Ignore dependencies
 *.tlog
@@ -52,4 +56,12 @@ StickKnightsOnline-Client/SND
 /StickKnightsOnline-Client/stdout.txt
 StickKnightsOnline.VC.db
 StickKnightsOnline-Client/DAT/options.dat
+StickKnightsOnline.VC.db
+*.log
+*.pdb
+*.pdb
+*.db
+Debug/StickKnightsOnline.log
+Debug/vc140.pdb
+StickKnightsOnline-Client/StickKnightsOnline.pdb
 StickKnightsOnline.VC.db
