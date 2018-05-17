@@ -1749,15 +1749,7 @@ void Button::handle_events(int ID)
 										//bool isColliding = blocked(Player[MyID].x, Player[MyID].y, map[current_map]->Sign[i].x, map[current_map]->Sign[i].y);
 
 
-										bool isColliding = ((Player[MyID].x == map[current_map]->Sign[i].x) && (Player[MyID].y == map[current_map]->Sign[i].y));
-										if (isColliding == true){
-											printf("sign!\n");
-											popup_menu = 0;
-											popup_sign = true;
-											popup_npc = false;
-											current_sign = map[current_map]->Sign[i];
-											return;
-										}
+
 
 									}
 
@@ -8262,19 +8254,22 @@ void physics()
 			  float distance = sqrt((rangeX*rangeX) + (rangeY*rangeY));
 			  bool inRange;
 			  //isColliding = blocked(Player[MyID].x, Player[MyID].y, map[current_map]->Sign[i].x, map[current_map]->Sign[i].y);
-
 			  inRange = (distance < 50);
 			  if (inRange) {
 				  printf("sign!\n");
 				  bool isNew = ((current_sign.hasBeenClosed) == (map[current_map]->Sign[i].hasBeenClosed));
-				  if (isNew){
-					  current_sign = map[current_map]->Sign[i];
+				  if (isNew) {
+					  if (popup_sign == false){
+						  current_sign = map[current_map]->Sign[i];
+				  }
 				  }
 				  if (!current_sign.triggered && !(current_sign.hasBeenClosed)) {
-					  current_sign.triggered = true;
-					  popup_menu = 0;
-					  popup_sign = true;
-					  popup_npc = false;
+					  if (popup_sign == false) {
+						  current_sign.triggered = true;
+						  popup_menu = 0;
+						  popup_sign = true;
+						  popup_npc = false;
+					  }
 				  }
 			  }
 
@@ -8293,7 +8288,7 @@ void physics()
 		  }
 		  if (distance > 150) {
 			  current_sign.triggered = false;
-			  current_sign.hasBeenClosed = false;;
+			  current_sign.hasBeenClosed = false;
 		  }
 
 	  }
