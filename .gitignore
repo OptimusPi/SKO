@@ -65,3 +65,8 @@ Debug/StickKnightsOnline.log
 Debug/vc140.pdb
 StickKnightsOnline-Client/StickKnightsOnline.pdb
 StickKnightsOnline.VC.db
+StickKnightsOnline.VC.db
+*.db
+*.ipch
+*.pdb
+StickKnightsOnline-Client/StickKnightsOnline.pdb
