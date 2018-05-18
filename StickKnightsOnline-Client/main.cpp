@@ -1746,7 +1746,6 @@ void Button::handle_events(int ID)
 										}
 
 
-										//bool isColliding = blocked(Player[MyID].x, Player[MyID].y, map[current_map]->Sign[i].x, map[current_map]->Sign[i].y);
 
 
 
@@ -8253,7 +8252,6 @@ void physics()
 			  float rangeY = (std::abs)(Player[MyID].y - map[current_map]->Sign[i].y);
 			  float distance = sqrt((rangeX*rangeX) + (rangeY*rangeY));
 			  bool inRange;
-			  //isColliding = blocked(Player[MyID].x, Player[MyID].y, map[current_map]->Sign[i].x, map[current_map]->Sign[i].y);
 			  inRange = (distance < 50);
 			  if (inRange) {
 				  printf("sign!\n");
