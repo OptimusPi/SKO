@@ -7241,10 +7241,6 @@ int main (int argc, char *argv[])
 
     printf("Connecting to %s:%i\n\n", SERVER_IP.c_str(), SERVER_PORT);
 
-
-
-
-
     setTitle();
 
     if (FULLSCREEN)
@@ -7950,850 +7946,832 @@ void physics()
 #if MY_OS == LINUX_OS
 	HandleUI();
 #endif
-	 if (menu != STATE_PLAY)
-		 return;
-
-     //enemies
-     for (int i = 0; i < map[current_map]->num_enemies; i++)
-     {
-
-         //turn off flash effect
-         if (map[current_map]->Enemy[i].hit && SDL_GetTicks() - map[current_map]->Enemy[i].hit_ticker > 100)
-         {
-            map[current_map]->Enemy[i].hit = false;
-         }
-
-         //fall
-         if (map[current_map]->Enemy[i].y_speed < 10)
-            map[current_map]->Enemy[i].y_speed += GRAVITY;
-
-           map[current_map]->Enemy[i].ground = true;
-
-         //verical collision detection
-             bool block_y = blocked(
-            		 map[current_map]->Enemy[i].x +
-            		 EnemySprite[map[current_map]->Enemy[i].sprite].x1,
-
-            		 map[current_map]->Enemy[i].y+
-            		 map[current_map]->Enemy[i].y_speed +
-            		 EnemySprite[map[current_map]->Enemy[i].sprite].y1,
-
-            		 map[current_map]->Enemy[i].x +
-            		 EnemySprite[map[current_map]->Enemy[i].sprite].x2,
-
-            		 map[current_map]->Enemy[i].y +
-            		 map[current_map]->Enemy[i].y_speed +
-            		 EnemySprite[map[current_map]->Enemy[i].sprite].y2);
-
-             //vertical movement
-             if (!block_y)
-             {//not blocked, fall
-
-                //animation
-                map[current_map]->Enemy[i].ground = false;
-
-                map[current_map]->Enemy[i].y += map[current_map]->Enemy[i].y_speed;
-
-             }
-             else
-             {  //blocked, stop
-                if (map[current_map]->Enemy[i].y_speed > 0)
-                {
-                    map[current_map]->Enemy[i].y_speed = 1;
-
-                    //todo see if if or while is better
-                    for (int loopVar = 0; loopVar < HIT_LOOPS && (!blocked(map[current_map]->Enemy[i].x +
-                    		EnemySprite[map[current_map]->Enemy[i].sprite].x1,
-                    		map[current_map]->Enemy[i].y+
-                    		map[current_map]->Enemy[i].y_speed +
-                    		EnemySprite[map[current_map]->Enemy[i].sprite].y1,
-                    		map[current_map]->Enemy[i].x +
-                    		EnemySprite[map[current_map]->Enemy[i].sprite].x2,
-                    		map[current_map]->Enemy[i].y+
-                    		map[current_map]->Enemy[i].y_speed +
-                    		EnemySprite[map[current_map]->Enemy[i].sprite].y1 +
-                    		EnemySprite[map[current_map]->Enemy[i].sprite].y2)) ; loopVar++)
-                            	map[current_map]->Enemy[i].y +=
-                            	map[current_map]->Enemy[i].y_speed;
-
-                   map[current_map]->Enemy[i].y = (int) (map[current_map]->Enemy[i].y);
-                }
-                if (map[current_map]->Enemy[i].y_speed < 0)
-                {
-                    map[current_map]->Enemy[i].ground = false;
-                    map[current_map]->Enemy[i].y_speed = -1;
-
-                    //todo test if while or if is better
-                    for (int loopVar = 0; loopVar < HIT_LOOPS &&  (!blocked(map[current_map]->Enemy[i].x +
-                    		EnemySprite[map[current_map]->Enemy[i].sprite].x1,
-                    		map[current_map]->Enemy[i].y +
-                    		map[current_map]->Enemy[i].y_speed +
-                    		EnemySprite[map[current_map]->Enemy[i].sprite].y1,
-                    		map[current_map]->Enemy[i].x +
-                    		EnemySprite[map[current_map]->Enemy[i].sprite].x2,
-                    		map[current_map]->Enemy[i].y +
-                    		map[current_map]->Enemy[i].y_speed +
-                    		EnemySprite[map[current_map]->Enemy[i].sprite].y1 +
-                    		EnemySprite[map[current_map]->Enemy[i].sprite].y2)) ; loopVar++)
-                       map[current_map]->Enemy[i].y += map[current_map]->Enemy[i].y_speed;
-                }
-
-                map[current_map]->Enemy[i].y_speed = 1;
-
-             }
-
-             //horizontal collision detection
-             bool block_x = blocked(
-            		 map[current_map]->Enemy[i].x +
-            		 map[current_map]->Enemy[i].x_speed +
-            		 EnemySprite[map[current_map]->Enemy[i].sprite].x1,
-            		 map[current_map]->Enemy[i].y +
-            		 EnemySprite[map[current_map]->Enemy[i].sprite].y1,
-            		 map[current_map]->Enemy[i].x +
-            		 map[current_map]->Enemy[i].x_speed +
-            		 EnemySprite[map[current_map]->Enemy[i].sprite].x2,
-            		 map[current_map]->Enemy[i].y +
-            		 EnemySprite[map[current_map]->Enemy[i].sprite].y2);
-
-             //horizontal movement
-             if (!block_x)
-             {//not blocked, walk
-                map[current_map]->Enemy[i].x += map[current_map]->Enemy[i].x_speed;
-             }else
-            	 map[current_map]->Enemy[i].x_speed = 0;
-
-
-
-             //enemy animation
-             //animationmap[current_map]->Enemy[i]
-             if ((map[current_map]->Enemy[i].x_speed != 0 && map[current_map]->Enemy[i].ground) || map[current_map]->Enemy[i].attacking)
-             {
-                //if it is time to change the frame
-                if (!map[current_map]->Enemy[i].attacking && SDL_GetTicks() - map[current_map]->Enemy[i].animation_ticker >= (unsigned int)animation_speed)
-                {
-                   map[current_map]->Enemy[i].current_frame++;
-
-                   if (map[current_map]->Enemy[i].current_frame >= 6)
-                      map[current_map]->Enemy[i].current_frame = 0;
-
-                   map[current_map]->Enemy[i].animation_ticker = SDL_GetTicks();
-                }
-                //if it is time to change the frame
-                if (map[current_map]->Enemy[i].attacking && SDL_GetTicks() - map[current_map]->Enemy[i].attack_ticker >= attack_speed/2.0)
-                {
-                   map[current_map]->Enemy[i].current_frame++;
-
-                   if (map[current_map]->Enemy[i].current_frame >= 6)
-                   {
-                      map[current_map]->Enemy[i].current_frame = 0;
-                      if (map[current_map]->Enemy[i].attacking)
-                         map[current_map]->Enemy[i].attacking = false;
-                   }
-                   map[current_map]->Enemy[i].attack_ticker = SDL_GetTicks();
-                }
-             }
-             else
-                map[current_map]->Enemy[i].current_frame = 0;
-     }
-
-
-
-
-
-
-
-
-
-
-     //npcs
-	  for (int i = 0; i < map[current_map]->num_npcs; i++)
-	  {
-
-		  //fall
-		  if (map[current_map]->NPC[i].y_speed < 10)
-			 map[current_map]->NPC[i].y_speed += GRAVITY;
-
-			map[current_map]->NPC[i].ground = true;
-
-		  //verical collision detection
-			  bool block_y = blocked(
-					 map[current_map]->NPC[i].x +
-					 NpcSprite[map[current_map]->NPC[i].sprite].x1,
-
-					 map[current_map]->NPC[i].y+
-					 map[current_map]->NPC[i].y_speed +
-					 NpcSprite[map[current_map]->NPC[i].sprite].y1,
-
-					 map[current_map]->NPC[i].x +
-					 NpcSprite[map[current_map]->NPC[i].sprite].x2,
-
-					 map[current_map]->NPC[i].y +
-					 map[current_map]->NPC[i].y_speed +
-					 NpcSprite[map[current_map]->NPC[i].sprite].y2);
-
-			  //vertical movement
-			  if (!block_y)
-			  {//not blocked, fall
-
-				 //animation
-				 map[current_map]->NPC[i].ground = false;
-
-				 map[current_map]->NPC[i].y += map[current_map]->NPC[i].y_speed;
-
-			  }
-			  else
-			  {  //blocked, stop
-				 if (map[current_map]->NPC[i].y_speed > 0)
-				 {
-					 map[current_map]->NPC[i].y_speed = 1;
-
-					 //todo see if if or while is better
-					 for (int loopVar = 0; loopVar < HIT_LOOPS && (!blocked(map[current_map]->NPC[i].x +
-							NpcSprite[map[current_map]->NPC[i].sprite].x1,
-							map[current_map]->NPC[i].y+
-							map[current_map]->NPC[i].y_speed +
-							NpcSprite[map[current_map]->NPC[i].sprite].y1,
-							map[current_map]->NPC[i].x +
-							NpcSprite[map[current_map]->NPC[i].sprite].x2,
-							map[current_map]->NPC[i].y+
-							map[current_map]->NPC[i].y_speed +
-							NpcSprite[map[current_map]->NPC[i].sprite].y1 +
-							NpcSprite[map[current_map]->NPC[i].sprite].y2)) ; loopVar++)
-								map[current_map]->NPC[i].y +=
-								map[current_map]->NPC[i].y_speed;
-
-					map[current_map]->NPC[i].y = (int) (map[current_map]->NPC[i].y);
-				 }
-				 if (map[current_map]->NPC[i].y_speed < 0)
-				 {
-					 map[current_map]->NPC[i].ground = false;
-					 map[current_map]->NPC[i].y_speed = -1;
-
-					 //todo test if while or if is better
-					 for (int loopVar = 0; loopVar < HIT_LOOPS &&  (!blocked(map[current_map]->NPC[i].x +
-							NpcSprite[map[current_map]->NPC[i].sprite].x1,
-							map[current_map]->NPC[i].y +
-							map[current_map]->NPC[i].y_speed +
-							NpcSprite[map[current_map]->NPC[i].sprite].y1,
-							map[current_map]->NPC[i].x +
-							NpcSprite[map[current_map]->NPC[i].sprite].x2,
-							map[current_map]->NPC[i].y +
-							map[current_map]->NPC[i].y_speed +
-							NpcSprite[map[current_map]->NPC[i].sprite].y1 +
-							NpcSprite[map[current_map]->NPC[i].sprite].y2)) ; loopVar++)
-						map[current_map]->NPC[i].y += map[current_map]->NPC[i].y_speed;
-				 }
-
-				 map[current_map]->NPC[i].y_speed = 1;
-
-			  }
-
-			  //horizontal collision detection
-			  bool block_x = blocked(
-					 map[current_map]->NPC[i].x +
-					 map[current_map]->NPC[i].x_speed +
-					 NpcSprite[map[current_map]->NPC[i].sprite].x1,
-					 map[current_map]->NPC[i].y +
-					 NpcSprite[map[current_map]->NPC[i].sprite].y1,
-					 map[current_map]->NPC[i].x +
-					 map[current_map]->NPC[i].x_speed +
-					 NpcSprite[map[current_map]->NPC[i].sprite].x2,
-					 map[current_map]->NPC[i].y +
-					 NpcSprite[map[current_map]->NPC[i].sprite].y2);
-
-			  //horizontal movement
-			  if (!block_x)
-			  {//not blocked, walk
-				 map[current_map]->NPC[i].x += map[current_map]->NPC[i].x_speed;
-			  }else
-				 map[current_map]->NPC[i].x_speed = 0;
-
-
-
-
-			  //NPC animation
-			  //animationmap[current_map]->NPC[i]
-			  if ((map[current_map]->NPC[i].x_speed != 0 && map[current_map]->NPC[i].ground))
-			  {
-				 //if it is time to change the frame
-				 if (SDL_GetTicks() - map[current_map]->NPC[i].animation_ticker >= (unsigned int)animation_speed)
-				 {
-					map[current_map]->NPC[i].current_frame++;
-
-					if (map[current_map]->NPC[i].current_frame >= 6)
-					   map[current_map]->NPC[i].current_frame = 0;
-
-					map[current_map]->NPC[i].animation_ticker = SDL_GetTicks();
-				 }
-
-			  }
-			  else
-				 map[current_map]->NPC[i].current_frame = 0;
-	  }
-
-
-     //end npcs
-
-
-
-
-
-
-
-
-
-
-
-	  //Sign reading collision detection
-	  if (enableSIGN) {
-		  for (int i = 0; i < map[current_map]->num_signs; i++)
-		  {
-			  float rangeX = (std::abs)(Player[MyID].x - map[current_map]->Sign[i].x);
-			  float rangeY = (std::abs)(Player[MyID].y - map[current_map]->Sign[i].y);
-			  float distance = sqrt((rangeX*rangeX) + (rangeY*rangeY));
-			  bool inRange;
-			  inRange = (distance < 50);
-			  if (inRange) {
-				  printf("sign!\n");
-				  bool isNew = ((current_sign.hasBeenClosed) == (map[current_map]->Sign[i].hasBeenClosed));
-				  if (isNew) {
-					  if (popup_sign == false){
-						  current_sign = map[current_map]->Sign[i];
-				  }
-				  }
-				  if (!current_sign.triggered && !(current_sign.hasBeenClosed)) {
-					  if (popup_sign == false) {
-						  current_sign.triggered = true;
-						  popup_menu = 0;
-						  popup_sign = true;
-						  popup_npc = false;
-					  }
-				  }
-			  }
-
-
-
-
-		  }
-	  
-		  float rangeX = (std::abs)(Player[MyID].x - current_sign.x);
-		  float rangeY = (std::abs)(Player[MyID].y - current_sign.y);
-		  float distance = sqrt((rangeX*rangeX) + (rangeY*rangeY));
-		  bool inRange = (distance < 75);
-		  if (!inRange && current_sign.triggered) {
-			  popup_sign = false;
-			  current_sign.hasBeenClosed = false;
-		  }
-		  if (distance > 150) {
-			  current_sign.triggered = false;
-			  current_sign.hasBeenClosed = false;
-		  }
-
-	  }
-     //players
-     for (int i = 0; i < MAX_CLIENTS; i++)
-         if (Player[i].Status && Player[i].current_map == current_map)
-         {
-             //turn off flash effect
-             if (Player[i].hit && SDL_GetTicks() - Player[i].hit_ticker > 100)
-             {
-                Player[i].hit = false;
-             }
-
-             //fall
-             if (Player[i].y_speed < 10){
-                 Player[i].y_speed += GRAVITY;
-             }
-
-             Player[i].ground = true;
-
-             //verical collision detection
-             bool block_y = blocked(Player[i].x + 25, Player[i].y+Player[i].y_speed + 13, Player[i].x + 38, Player[i].y+Player[i].y_speed + 64);
-
-
-             //vertical movement
-             if (!block_y)
-             {//not blocked, fall
-
-                //animation
-                Player[i].ground = false;
-
-                Player[i].y += Player[i].y_speed;
-
-                if (i == MyID) {
-                    //move tiles background
-                    if (camera_y >0)
-                    {
-                    	back_offsety[1] -= (Player[i].y_speed)/3.3;
-						back_offsety[2] -= (Player[i].y_speed)/2.2;
-						back_offsety[3] -= (Player[i].y_speed)/1.75;
+	if (menu != STATE_PLAY)
+		return;
+
+	//enemies
+	for (int i = 0; i < map[current_map]->num_enemies; i++)
+	{
+		//turn off flash effect
+		if (map[current_map]->Enemy[i].hit && SDL_GetTicks() - map[current_map]->Enemy[i].hit_ticker > 100)
+		{
+			map[current_map]->Enemy[i].hit = false;
+		}
+
+		//fall
+		if (map[current_map]->Enemy[i].y_speed < 10)
+			map[current_map]->Enemy[i].y_speed += GRAVITY;
+
+		map[current_map]->Enemy[i].ground = true;
+
+		//verical collision detection
+		bool block_y = blocked(
+			map[current_map]->Enemy[i].x +
+			EnemySprite[map[current_map]->Enemy[i].sprite].x1,
+
+			map[current_map]->Enemy[i].y +
+			map[current_map]->Enemy[i].y_speed +
+			EnemySprite[map[current_map]->Enemy[i].sprite].y1,
+
+			map[current_map]->Enemy[i].x +
+			EnemySprite[map[current_map]->Enemy[i].sprite].x2,
+
+			map[current_map]->Enemy[i].y +
+			map[current_map]->Enemy[i].y_speed +
+			EnemySprite[map[current_map]->Enemy[i].sprite].y2);
+
+		//vertical movement
+		if (!block_y)
+		{//not blocked, fall
+
+		   //animation
+			map[current_map]->Enemy[i].ground = false;
+
+			map[current_map]->Enemy[i].y += map[current_map]->Enemy[i].y_speed;
+
+		}
+		else
+		{  //blocked, stop
+			if (map[current_map]->Enemy[i].y_speed > 0)
+			{
+				map[current_map]->Enemy[i].y_speed = 1;
+
+				//todo see if if or while is better
+				for (int loopVar = 0; loopVar < HIT_LOOPS && (!blocked(map[current_map]->Enemy[i].x +
+					EnemySprite[map[current_map]->Enemy[i].sprite].x1,
+					map[current_map]->Enemy[i].y +
+					map[current_map]->Enemy[i].y_speed +
+					EnemySprite[map[current_map]->Enemy[i].sprite].y1,
+					map[current_map]->Enemy[i].x +
+					EnemySprite[map[current_map]->Enemy[i].sprite].x2,
+					map[current_map]->Enemy[i].y +
+					map[current_map]->Enemy[i].y_speed +
+					EnemySprite[map[current_map]->Enemy[i].sprite].y1 +
+					EnemySprite[map[current_map]->Enemy[i].sprite].y2)); loopVar++)
+					map[current_map]->Enemy[i].y +=
+					map[current_map]->Enemy[i].y_speed;
+
+				map[current_map]->Enemy[i].y = (int)(map[current_map]->Enemy[i].y);
+			}
+			if (map[current_map]->Enemy[i].y_speed < 0)
+			{
+				map[current_map]->Enemy[i].ground = false;
+				map[current_map]->Enemy[i].y_speed = -1;
+
+				//todo test if while or if is better
+				for (int loopVar = 0; loopVar < HIT_LOOPS && (!blocked(map[current_map]->Enemy[i].x +
+					EnemySprite[map[current_map]->Enemy[i].sprite].x1,
+					map[current_map]->Enemy[i].y +
+					map[current_map]->Enemy[i].y_speed +
+					EnemySprite[map[current_map]->Enemy[i].sprite].y1,
+					map[current_map]->Enemy[i].x +
+					EnemySprite[map[current_map]->Enemy[i].sprite].x2,
+					map[current_map]->Enemy[i].y +
+					map[current_map]->Enemy[i].y_speed +
+					EnemySprite[map[current_map]->Enemy[i].sprite].y1 +
+					EnemySprite[map[current_map]->Enemy[i].sprite].y2)); loopVar++)
+					map[current_map]->Enemy[i].y += map[current_map]->Enemy[i].y_speed;
+			}
+
+			map[current_map]->Enemy[i].y_speed = 1;
+
+		}
+
+		//horizontal collision detection
+		bool block_x = blocked(
+			map[current_map]->Enemy[i].x +
+			map[current_map]->Enemy[i].x_speed +
+			EnemySprite[map[current_map]->Enemy[i].sprite].x1,
+			map[current_map]->Enemy[i].y +
+			EnemySprite[map[current_map]->Enemy[i].sprite].y1,
+			map[current_map]->Enemy[i].x +
+			map[current_map]->Enemy[i].x_speed +
+			EnemySprite[map[current_map]->Enemy[i].sprite].x2,
+			map[current_map]->Enemy[i].y +
+			EnemySprite[map[current_map]->Enemy[i].sprite].y2);
+
+		//horizontal movement
+		if (!block_x)
+		{//not blocked, walk
+			map[current_map]->Enemy[i].x += map[current_map]->Enemy[i].x_speed;
+		}
+		else
+			map[current_map]->Enemy[i].x_speed = 0;
+
+
+
+		//enemy animation
+		//animationmap[current_map]->Enemy[i]
+		if ((map[current_map]->Enemy[i].x_speed != 0 && map[current_map]->Enemy[i].ground) || map[current_map]->Enemy[i].attacking)
+		{
+			//if it is time to change the frame
+			if (!map[current_map]->Enemy[i].attacking && SDL_GetTicks() - map[current_map]->Enemy[i].animation_ticker >= (unsigned int)animation_speed)
+			{
+				map[current_map]->Enemy[i].current_frame++;
+
+				if (map[current_map]->Enemy[i].current_frame >= 6)
+					map[current_map]->Enemy[i].current_frame = 0;
+
+				map[current_map]->Enemy[i].animation_ticker = SDL_GetTicks();
+			}
+			//if it is time to change the frame
+			if (map[current_map]->Enemy[i].attacking && SDL_GetTicks() - map[current_map]->Enemy[i].attack_ticker >= attack_speed / 2.0)
+			{
+				map[current_map]->Enemy[i].current_frame++;
+
+				if (map[current_map]->Enemy[i].current_frame >= 6)
+				{
+					map[current_map]->Enemy[i].current_frame = 0;
+					if (map[current_map]->Enemy[i].attacking)
+						map[current_map]->Enemy[i].attacking = false;
+				}
+				map[current_map]->Enemy[i].attack_ticker = SDL_GetTicks();
+			}
+		}
+		else
+			map[current_map]->Enemy[i].current_frame = 0;
+	}
+	//end enemies
+
+	//npcs
+	for (int i = 0; i < map[current_map]->num_npcs; i++)
+	{
+
+		//fall
+		if (map[current_map]->NPC[i].y_speed < 10)
+			map[current_map]->NPC[i].y_speed += GRAVITY;
+
+		map[current_map]->NPC[i].ground = true;
+
+		//verical collision detection
+		bool block_y = blocked(
+			map[current_map]->NPC[i].x +
+			NpcSprite[map[current_map]->NPC[i].sprite].x1,
+
+			map[current_map]->NPC[i].y +
+			map[current_map]->NPC[i].y_speed +
+			NpcSprite[map[current_map]->NPC[i].sprite].y1,
+
+			map[current_map]->NPC[i].x +
+			NpcSprite[map[current_map]->NPC[i].sprite].x2,
+
+			map[current_map]->NPC[i].y +
+			map[current_map]->NPC[i].y_speed +
+			NpcSprite[map[current_map]->NPC[i].sprite].y2);
+
+		//vertical movement
+		if (!block_y)
+		{//not blocked, fall
+
+		   //animation
+			map[current_map]->NPC[i].ground = false;
+
+			map[current_map]->NPC[i].y += map[current_map]->NPC[i].y_speed;
+
+		}
+		else
+		{  //blocked, stop
+			if (map[current_map]->NPC[i].y_speed > 0)
+			{
+				map[current_map]->NPC[i].y_speed = 1;
+
+				//todo see if if or while is better
+				for (int loopVar = 0; loopVar < HIT_LOOPS && (!blocked(map[current_map]->NPC[i].x +
+					NpcSprite[map[current_map]->NPC[i].sprite].x1,
+					map[current_map]->NPC[i].y +
+					map[current_map]->NPC[i].y_speed +
+					NpcSprite[map[current_map]->NPC[i].sprite].y1,
+					map[current_map]->NPC[i].x +
+					NpcSprite[map[current_map]->NPC[i].sprite].x2,
+					map[current_map]->NPC[i].y +
+					map[current_map]->NPC[i].y_speed +
+					NpcSprite[map[current_map]->NPC[i].sprite].y1 +
+					NpcSprite[map[current_map]->NPC[i].sprite].y2)); loopVar++)
+					map[current_map]->NPC[i].y +=
+					map[current_map]->NPC[i].y_speed;
+
+				map[current_map]->NPC[i].y = (int)(map[current_map]->NPC[i].y);
+			}
+			if (map[current_map]->NPC[i].y_speed < 0)
+			{
+				map[current_map]->NPC[i].ground = false;
+				map[current_map]->NPC[i].y_speed = -1;
+
+				//todo test if while or if is better
+				for (int loopVar = 0; loopVar < HIT_LOOPS && (!blocked(map[current_map]->NPC[i].x +
+					NpcSprite[map[current_map]->NPC[i].sprite].x1,
+					map[current_map]->NPC[i].y +
+					map[current_map]->NPC[i].y_speed +
+					NpcSprite[map[current_map]->NPC[i].sprite].y1,
+					map[current_map]->NPC[i].x +
+					NpcSprite[map[current_map]->NPC[i].sprite].x2,
+					map[current_map]->NPC[i].y +
+					map[current_map]->NPC[i].y_speed +
+					NpcSprite[map[current_map]->NPC[i].sprite].y1 +
+					NpcSprite[map[current_map]->NPC[i].sprite].y2)); loopVar++)
+					map[current_map]->NPC[i].y += map[current_map]->NPC[i].y_speed;
+			}
+
+			map[current_map]->NPC[i].y_speed = 1;
+
+		}
+
+		//horizontal collision detection
+		bool block_x = blocked(
+			map[current_map]->NPC[i].x +
+			map[current_map]->NPC[i].x_speed +
+			NpcSprite[map[current_map]->NPC[i].sprite].x1,
+			map[current_map]->NPC[i].y +
+			NpcSprite[map[current_map]->NPC[i].sprite].y1,
+			map[current_map]->NPC[i].x +
+			map[current_map]->NPC[i].x_speed +
+			NpcSprite[map[current_map]->NPC[i].sprite].x2,
+			map[current_map]->NPC[i].y +
+			NpcSprite[map[current_map]->NPC[i].sprite].y2);
+
+		//horizontal movement
+		if (!block_x)
+		{//not blocked, walk
+			map[current_map]->NPC[i].x += map[current_map]->NPC[i].x_speed;
+		}
+		else
+			map[current_map]->NPC[i].x_speed = 0;
+
+
+
+
+		//NPC animation
+		//animationmap[current_map]->NPC[i]
+		if ((map[current_map]->NPC[i].x_speed != 0 && map[current_map]->NPC[i].ground))
+		{
+			//if it is time to change the frame
+			if (SDL_GetTicks() - map[current_map]->NPC[i].animation_ticker >= (unsigned int)animation_speed)
+			{
+				map[current_map]->NPC[i].current_frame++;
+
+				if (map[current_map]->NPC[i].current_frame >= 6)
+					map[current_map]->NPC[i].current_frame = 0;
+
+				map[current_map]->NPC[i].animation_ticker = SDL_GetTicks();
+			}
+
+		}
+		else
+			map[current_map]->NPC[i].current_frame = 0;
+	}
+	//end npcs
+
+	//players
+	for (int i = 0; i < MAX_CLIENTS; i++) 
+	{
+		if (Player[i].Status && Player[i].current_map == current_map)
+		{
+			//turn off flash effect
+			if (Player[i].hit && SDL_GetTicks() - Player[i].hit_ticker > 100)
+			{
+				Player[i].hit = false;
+			}
+
+			//fall
+			if (Player[i].y_speed < 10) {
+				Player[i].y_speed += GRAVITY;
+			}
+
+			Player[i].ground = true;
+
+			//verical collision detection
+			bool block_y = blocked(Player[i].x + 25, Player[i].y + Player[i].y_speed + 13, Player[i].x + 38, Player[i].y + Player[i].y_speed + 64);
+
+
+			//vertical movement
+			if (!block_y)
+			{//not blocked, fall
+
+			   //animation
+				Player[i].ground = false;
+
+				Player[i].y += Player[i].y_speed;
+
+				if (i == MyID) {
+					//move tiles background
+					if (camera_y > 0)
+					{
+						back_offsety[1] -= (Player[i].y_speed) / 3.3;
+						back_offsety[2] -= (Player[i].y_speed) / 2.2;
+						back_offsety[3] -= (Player[i].y_speed) / 1.75;
 						back_offsety[1] -= 0.01;
-                    }
+					}
 
-                    if (back_offsety[1] > back_img[1].h)
-                       back_offsety[1] -= back_img[1].h;
+					if (back_offsety[1] > back_img[1].h)
+						back_offsety[1] -= back_img[1].h;
 
-                    if (back_offsety[1] < -back_img[1].h)
-                       back_offsety[1] += back_img[1].h;
+					if (back_offsety[1] < -back_img[1].h)
+						back_offsety[1] += back_img[1].h;
 
-                    back_offsety[2] += 0.015;
+					back_offsety[2] += 0.015;
 
-                    if (back_offsety[2] > back_img[2].h)
-                       back_offsety[2] -= back_img[2].h;
+					if (back_offsety[2] > back_img[2].h)
+						back_offsety[2] -= back_img[2].h;
 
-                    if (back_offsety[2] < -back_img[2].h)
-                       back_offsety[2] += back_img[2].h;
+					if (back_offsety[2] < -back_img[2].h)
+						back_offsety[2] += back_img[2].h;
 
-                    back_offsety[3] -= 0.01;
+					back_offsety[3] -= 0.01;
 
-                    if (back_offsety[3] > back_img[3].h)
-                       back_offsety[3] -= back_img[3].h;
+					if (back_offsety[3] > back_img[3].h)
+						back_offsety[3] -= back_img[3].h;
 
-                    if (back_offsety[3] < -back_img[3].h)
-                       back_offsety[3] += back_img[3].h;
-                }
+					if (back_offsety[3] < -back_img[3].h)
+						back_offsety[3] += back_img[3].h;
+				}
 
-             }
-             else
-             {  //blocked, stop
-                if (Player[i].y_speed > 0)
-                {
+			}
+			else
+			{  //blocked, stop
+				if (Player[i].y_speed > 0)
+				{
+					Player[i].y_speed = 1;
 
-                    Player[i].y_speed = 1;
+					//todo see if while or if is better
+					for (int loopVar = 0; loopVar < HIT_LOOPS &&
+						(!blocked(Player[i].x + 25, Player[i].y + Player[i].y_speed + 13, Player[i].x + 38, Player[i].y + Player[i].y_speed + 64))
+						; loopVar++)
+						Player[i].y += Player[i].y_speed;
 
-                    //todo see if while or if is better
-                    for (int loopVar = 0; loopVar < HIT_LOOPS &&
-                    (!blocked(Player[i].x + 25, Player[i].y+Player[i].y_speed + 13, Player[i].x + 38, Player[i].y+Player[i].y_speed + 64))
-                    ; loopVar++)
-                       Player[i].y += Player[i].y_speed;
+					Player[i].y = (int)(Player[i].y);
+				}
+				else if (Player[i].y_speed < 0)
+				{
+					Player[i].ground = false;
+					Player[i].y_speed = -1;
 
-                   Player[i].y = (int) (Player[i].y);
+					//todo see if while or if is better
+					//trying out for 3 loops
+					for (int loopVar = 0; loopVar < HIT_LOOPS &&
+						(!blocked(Player[i].x + 25, Player[i].y + Player[i].y_speed + 13, Player[i].x + 38, Player[i].y + Player[i].y_speed + 64))
+						; loopVar++)
+						Player[i].y += Player[i].y_speed;
+				}
+				Player[i].y_speed = 1;
+			}
 
-                }
-                else if (Player[i].y_speed < 0)
-                {
-                    Player[i].ground = false;
-                    Player[i].y_speed = -1;
+			//horizontal collision detection
+			bool block_x = blocked(Player[i].x + Player[i].x_speed + 23, Player[i].y + 13, Player[i].x + Player[i].x_speed + 40, Player[i].y + 64);
 
-                    //todo see if while or if is better
-                    //trying out for 3 loops
-                    for (int loopVar = 0; loopVar < HIT_LOOPS &&
-                    		(!blocked(Player[i].x + 25, Player[i].y+Player[i].y_speed + 13, Player[i].x + 38, Player[i].y+Player[i].y_speed + 64))
-                    				; loopVar++)
-                       Player[i].y += Player[i].y_speed;
-                }
+			//horizontal movement
+			if (!block_x)
+			{//not blocked, walk
+				Player[i].x += (Player[i].x_speed);
 
-                Player[i].y_speed = 1;
-             }
-
-             //horizontal collision detection
-             bool block_x = blocked(Player[i].x + Player[i].x_speed + 23, Player[i].y +13, Player[i].x + Player[i].x_speed + 40, Player[i].y + 64);
-
-             //horizontal movement
-             if (!block_x)
-             {//not blocked, walk
-                Player[i].x += (Player[i].x_speed);
-
-                //move tiles background
-                if (i == MyID){
+				//move tiles background
+				if (i == MyID) {
 
 					back_offsetx[1] -= 0.02;
 					back_offsetx[2] -= 0.05;
 					back_offsetx[3] -= 0.1;
 
 					if (camera_x > 0)
-                	{
+					{
 
-						back_offsetx[1] -= (Player[i].x_speed)/3.3;
-						back_offsetx[2] -= (Player[i].x_speed)/2.2;
-						back_offsetx[3] -= (Player[i].x_speed)/1.75;
-                	}
+						back_offsetx[1] -= (Player[i].x_speed) / 3.3;
+						back_offsetx[2] -= (Player[i].x_speed) / 2.2;
+						back_offsetx[3] -= (Player[i].x_speed) / 1.75;
+					}
 
-						if (back_offsetx[1] > back_img[1].w)
-						   back_offsetx[1] -= back_img[1].w;
+					if (back_offsetx[1] > back_img[1].w)
+						back_offsetx[1] -= back_img[1].w;
 
-						if (back_offsetx[1] < -back_img[1].w)
-						   back_offsetx[1] += back_img[1].w;
+					if (back_offsetx[1] < -back_img[1].w)
+						back_offsetx[1] += back_img[1].w;
 
-						if (back_offsetx[2] > back_img[2].w)
-						   back_offsetx[2] -= back_img[2].w;
-
-						if (back_offsetx[2] < -back_img[2].w)
-						  back_offsetx[2] += back_img[2].w;
-
-
-						if (back_offsetx[3] > back_img[3].w)
-						   back_offsetx[3] -= back_img[3].w;
-
-						if (back_offsetx[3] < -back_img[3].w)
-						   back_offsetx[3] += back_img[3].w;
-                }
-             }
-
-             //yourself
-             if (i == MyID )
-             {
-
-                 if (LEFT && !Player[MyID].attacking && Player[MyID].x_speed != -2)
-                 {
-                    Player[MyID].x_speed = -2;
-                    Player[MyID].facing_right = false;
-                    char *p, b1, b2, b3, b4;
-                    std::string Packet = "0";
-                    Packet += MOVE_LEFT;
-                    Packet += "41445555";
-                    //break up the int as 4 bytes
-                    p=(char*)&Player[MyID].x;
-                    b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-                    //spit out each of the bytes
-                    Packet[2] = b1;
-                    Packet[3] = b2;
-                    Packet[4] = b3;
-                    Packet[5] = b4;
-
-                    p=(char*)&Player[MyID].y;
-                    b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-
-                    Packet[6]  = b1;
-                    Packet[7]  = b2;
-                    Packet[8]  = b3;
-                    Packet[9] = b4;
-
-                    //printf("y: %i\n", numy);
-
-                    Packet[0] = Packet.length();
-                    PiSock.Send(Packet);
-                 }
-                 if (RIGHT && !Player[MyID].attacking && Player[MyID].x_speed != 2)
-                 {
-
-
-                    Player[MyID].x_speed = 2;
-                    Player[MyID].facing_right = true;
-                    char *p, b1, b2, b3, b4;
-                    std::string Packet = "0";
-                    Packet += MOVE_RIGHT;
-                    Packet += "41445555";
-                    //break up the int as 4 bytes
-                    p=(char*)&Player[MyID].x;
-                    b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-                    //spit out each of the bytes
-                    Packet[2] = b1;
-                    Packet[3] = b2;
-                    Packet[4] = b3;
-                    Packet[5] = b4;
-
-                    p=(char*)&Player[MyID].y;
-                    b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-
-                    Packet[6]  = b1;
-                    Packet[7]  = b2;
-                    Packet[8]  = b3;
-                    Packet[9] = b4;
-
-                    //printf("y: %i\n", numy);
-
-                    Packet[0] = Packet.length();
-                    PiSock.Send(Packet);
-                 }
-
-
-                 if (LEFT == RIGHT)
-                 {
-                    if (Player[i].x_speed != 0)
-                       Player[i].x_speed = 0;
-                 }
-
-
-                 //cosmetic updates
-                 if (SDL_GetTicks() - cosmeticTicker >= (unsigned int)cosmeticTime)
-                 {
-                     //coordinates
-                     std::stringstream ss;
-					 ss << (int)current_map;
-					 ss << ": (";
-                     ss << (int)Player[i].x;
-                     ss << ",";
-                     ss << (int)Player[i].y;
-					 ss << ")";
-                     std::string cs = "Map " + ss.str();
-                     Message[50].SetText(cs);
-
-                     //hp, xp
-                     std::stringstream ss_hp, ss_xp;
-                     ss_hp << (int)Player[MyID].hp;
-                     ss_hp << "/";
-                     ss_hp << (int)Player[MyID].max_hp;
-                     ss_xp << (int)Player[MyID].xp;
-                     ss_xp << "/";
-                     ss_xp << (int)Player[MyID].max_xp;
-                     std::string s_hp = "" +ss_hp.str();
-                     std::string s_xp = "" +ss_xp.str();
-                     Message[51].SetText(s_xp);
-                     Message[52].SetText(s_hp);
-
-                     //stats
-                     //stat points
-                     std::stringstream ss0;
-                     std::string sp_string;
-                     ss0 << (unsigned int)Player[MyID].stat_points;
-                     sp_string = "" + ss0.str();
-                     Message[79].SetText(sp_string);
-
-                     std::stringstream ss00;
-                     ss00 << "Points: ";
-                     ss00 << (unsigned int)Player[MyID].stat_points;
-                     Message[54].SetText(ss00.str());
-
-                     //regen
-                     std::stringstream ss1;
-                     std::string hp_string;
-                     ss1 << (unsigned int)Player[MyID].regen;
-                     hp_string = "" + ss1.str();
-                     Message[80].SetText(hp_string);
-
-                     //attack
-                     std::stringstream ss2;
-                     std::string ap_string;
-                     ss2 << (unsigned int)Player[MyID].strength;
-                     ap_string = "" + ss2.str();
-                     Message[81].SetText(ap_string);
-
-                     //defend
-                     std::stringstream ss3;
-                     std::string dp_string;
-                     ss3 << (unsigned int)Player[MyID].defence;
-                     dp_string = "" + ss3.str();
-                     Message[82].SetText(dp_string);
-
-
-                     //correct placement
-
-                     Message[51].pos_x = 250 - numDigits((int)Player[MyID].xp)*11;
-                     Message[52].pos_x = 250 - numDigits((int)Player[MyID].hp)*11;
-
-                     //level
-                     std::stringstream ss_lev;
-                     ss_lev << "Level:  ";
-                     ss_lev << (int)Player[MyID].level;
-                     std::string s_lev = "" + ss_lev.str();
-                     Message[53].SetText(s_lev);
-
-
-                     if (popup_gui_menu == 7)
-                     {
-
-                         std::stringstream stat_str;
-
-                         //hp bonus stats
-                         stat_str.str("");
-                         stat_str << "+" << Item[Player[MyID].equipI[selectedEquipItem]].hp;
-                         Message[162].SetText(stat_str.str());
-
-                         //sp bonus stats
-                         stat_str.str("");
-                         stat_str << "+" << Item[Player[MyID].equipI[selectedEquipItem]].sp;
-                         Message[163].SetText(stat_str.str());
-
-
-                         //dp bonus stats
-                         stat_str.str("");
-                         stat_str << "+" << Item[Player[MyID].equipI[selectedEquipItem]].dp;
-                         Message[164].SetText(stat_str.str());
-
-
-                         //descriptor [165]
-                         stat_str.str("");
-                         stat_str << Item[Player[MyID].equipI[selectedEquipItem]].descr;
-                         Message[165].SetText(stat_str.str());
-
-                      }
-
-                     //party
-                     int buddy = 0;
-                     for (int pp = 0; pp < MAX_CLIENTS; pp++)
-                     {
-                         if (Player[pp].Status)
-                         {
-                             if (Player[MyID].party >= 0 && Player[pp].party == Player[MyID].party)
-                             {
-                            	 Player[MyID].nametag.R = 0.2;
-                            	 Player[MyID].nametag.G = 0.9;
-                            	 Player[MyID].nametag.B = 0.2;
-
-                                if (MyID != pp)
-                                {
-                                    //set username in buddy container
-                                    std::stringstream buddyName;
-                                    buddyName << Player[pp].Nick;
-                                    buddyName << " ";
-                                    buddyName << (int)Player[pp].level;
-                                    Message[166+buddy].SetText(buddyName.str());
-
-                                    //set user coords in buddy container
-                                    std::stringstream buddyCoords;
-                                    buddyCoords << "(";
-                                    buddyCoords << (int)Player[pp].x;
-                                    buddyCoords << ",";
-                                    buddyCoords << (int)Player[pp].y;
-                                    buddyCoords << ")";
-                                    Message[171+buddy].SetText(buddyCoords.str());
-
-                                    /* set the arrow direction */
-                                    int left  =  (int)(Player[MyID].x  - Player[pp].x);
-                                    int right =  (int)(Player[pp].x  - Player[MyID].x);
-                                    int down  =  (int)(Player[pp].y  - Player[MyID].y);
-                                    int up    =  (int)(Player[MyID].y - Player[pp].y);
-                                    int d = 0;
-
-                                    if (up >= 0 && left >= 0)
-                                    {
-                                           d = 1;
-                                           if ( 0.41421356237 * up - left < 0 )
-                                           {
-                                               if (up < left)
-                                                  d = 7;
-                                               else
-                                                  d = 0;
-                                           }
-                                    }
-                                    if (up >= 0 && right >= 0)
-                                    {
-                                           d = 1;
-                                           if ( 0.41421356237 * up - right < 0 )
-                                           {
-                                               if (up < right)
-                                                  d = 2;
-                                               else
-                                                  d = 3;
-                                           }
-                                    }
-                                    if (down >= 0 && left >= 0)
-                                    {
-                                           d = 5;
-                                           if ( 0.41421356237 * down - left < 0 )
-                                           {
-                                               if (down < left)
-                                                  d = 7;
-                                               else
-                                                  d = 6;
-                                           }
-                                    }
-                                    if (down >= 0 && right >= 0)
-                                    {
-                                           d = 5;
-                                           if ( 0.41421356237 * down - right < 0 )
-                                           {
-                                               if (down < right)
-                                                  d = 3;
-                                               else
-                                                  d = 4;
-                                           }
-                                    }
-
-
-                                    Player[pp].arrow = d;
-                                    /* done pointing arrow */
-
-                                    buddy++;
-                                }
-
-
-                             }
-                             else //(not in party)
-                             {
-                            	 Player[MyID].nametag.R = 1;
-                            	 Player[MyID].nametag.G = 1;
-                            	 Player[MyID].nametag.B = 1;
-                             }
-                         }//end ident
-                     }
-
-
-                     cosmeticTicker = SDL_GetTicks();
-                 }
-             }
-
-
-
-
-             //animation
-             if ((Player[i].x_speed != 0 && Player[i].ground) || Player[i].attacking)
-             {
-                //if it is time to change the frame
-                if (!Player[i].attacking && SDL_GetTicks() - Player[i].animation_ticker >= (unsigned int)animation_speed)
-                {
-                   Player[i].current_frame++;
-
-                   if (Player[i].current_frame >= 6)
-                      Player[i].current_frame = 0;
-
-                   Player[i].animation_ticker = SDL_GetTicks();
-                }
-                //if it is time to change the frame
-                if (Player[i].attacking && SDL_GetTicks() - Player[i].attack_ticker >= (unsigned int)attack_speed)
-                {
-                   Player[i].current_frame++;
-
-                   if (Player[i].current_frame >= 6)
-                   {
-                      Player[i].current_frame = 0;
-                      if (Player[i].attacking)
-                         Player[i].attacking = false;
-                   }
-                   Player[i].attack_ticker = SDL_GetTicks();
-                }
-             }
-             else // reset to standing frame!
-                Player[i].current_frame = 0;
-
-         }//end (Player[i].Status && Player[i].current_map == current_map)
-
-
-         for (int i = 0; i < 256; i++)
-         if (map[current_map]->ItemObj[i].status)
-         {
-            // printf("(%.2f,%.2f)\n", map[current_map]->ItemObj[i].x, map[current_map]->ItemObj[i].y);
-             //horizontal collision detection
-             bool block_x = blocked(
-            		 	map[current_map]->ItemObj[i].x + map[current_map]->ItemObj[i].x_speed,
-            		 	map[current_map]->ItemObj[i].y ,
-            		 	map[current_map]->ItemObj[i].x + map[current_map]->ItemObj[i].x_speed + Item[(int)map[current_map]->ItemObj[i].itemID].w,
-            		 	map[current_map]->ItemObj[i].y + Item[(int)map[current_map]->ItemObj[i].itemID].h);
-
-             if (map[current_map]->ItemObj[i].y_speed < 10)
-                 map[current_map]->ItemObj[i].y_speed += GRAVITY;
-
-             //verical collision detection
-             bool block_y = blocked(
-            		 map[current_map]->ItemObj[i].x + map[current_map]->ItemObj[i].x_speed,
-            		 map[current_map]->ItemObj[i].y+map[current_map]->ItemObj[i].y_speed,
-            		 map[current_map]->ItemObj[i].x + Item[(int)map[current_map]->ItemObj[i].itemID].w,
-            		 map[current_map]->ItemObj[i].y+map[current_map]->ItemObj[i].y_speed + Item[(int)map[current_map]->ItemObj[i].itemID].h);
-
-
-             //vertical movement
-             if (!block_y)
-                map[current_map]->ItemObj[i].y += map[current_map]->ItemObj[i].y_speed;
-             else{
-                map[current_map]->ItemObj[i].y_speed = 0;
-                map[current_map]->ItemObj[i].x_speed *= 0.5;
-             }
-
-
-             //horizontal movement
-             if (!block_x)
-             {//not blocked, move
-                map[current_map]->ItemObj[i].x += map[current_map]->ItemObj[i].x_speed;
-             } else {
-               map[current_map]->ItemObj[i].x_speed = 0;
-             }
-
-         }
+					if (back_offsetx[2] > back_img[2].w)
+						back_offsetx[2] -= back_img[2].w;
+
+					if (back_offsetx[2] < -back_img[2].w)
+						back_offsetx[2] += back_img[2].w;
+
+
+					if (back_offsetx[3] > back_img[3].w)
+						back_offsetx[3] -= back_img[3].w;
+
+					if (back_offsetx[3] < -back_img[3].w)
+						back_offsetx[3] += back_img[3].w;
+				}
+			}
+
+			//yourself
+			if (i == MyID)
+			{
+
+				if (LEFT && !Player[MyID].attacking && Player[MyID].x_speed != -2)
+				{
+					Player[MyID].x_speed = -2;
+					Player[MyID].facing_right = false;
+					char *p, b1, b2, b3, b4;
+					std::string Packet = "0";
+					Packet += MOVE_LEFT;
+					Packet += "41445555";
+					//break up the int as 4 bytes
+					p = (char*)&Player[MyID].x;
+					b1 = p[0]; b2 = p[1]; b3 = p[2]; b4 = p[3];
+
+					//spit out each of the bytes
+					Packet[2] = b1;
+					Packet[3] = b2;
+					Packet[4] = b3;
+					Packet[5] = b4;
+
+					p = (char*)&Player[MyID].y;
+					b1 = p[0]; b2 = p[1]; b3 = p[2]; b4 = p[3];
+
+
+					Packet[6] = b1;
+					Packet[7] = b2;
+					Packet[8] = b3;
+					Packet[9] = b4;
+
+					//printf("y: %i\n", numy);
+
+					Packet[0] = Packet.length();
+					PiSock.Send(Packet);
+				}
+				if (RIGHT && !Player[MyID].attacking && Player[MyID].x_speed != 2)
+				{
+
+
+					Player[MyID].x_speed = 2;
+					Player[MyID].facing_right = true;
+					char *p, b1, b2, b3, b4;
+					std::string Packet = "0";
+					Packet += MOVE_RIGHT;
+					Packet += "41445555";
+					//break up the int as 4 bytes
+					p = (char*)&Player[MyID].x;
+					b1 = p[0]; b2 = p[1]; b3 = p[2]; b4 = p[3];
+
+					//spit out each of the bytes
+					Packet[2] = b1;
+					Packet[3] = b2;
+					Packet[4] = b3;
+					Packet[5] = b4;
+
+					p = (char*)&Player[MyID].y;
+					b1 = p[0]; b2 = p[1]; b3 = p[2]; b4 = p[3];
+
+
+					Packet[6] = b1;
+					Packet[7] = b2;
+					Packet[8] = b3;
+					Packet[9] = b4;
+
+					//printf("y: %i\n", numy);
+
+					Packet[0] = Packet.length();
+					PiSock.Send(Packet);
+				}
+
+
+				if (LEFT == RIGHT)
+				{
+					if (Player[i].x_speed != 0)
+						Player[i].x_speed = 0;
+				}
+
+
+				//cosmetic updates
+				if (SDL_GetTicks() - cosmeticTicker >= (unsigned int)cosmeticTime)
+				{
+					//coordinates
+					std::stringstream ss;
+					ss << (int)current_map;
+					ss << ": (";
+					ss << (int)Player[i].x;
+					ss << ",";
+					ss << (int)Player[i].y;
+					ss << ")";
+					std::string cs = "Map " + ss.str();
+					Message[50].SetText(cs);
+
+					//hp, xp
+					std::stringstream ss_hp, ss_xp;
+					ss_hp << (int)Player[MyID].hp;
+					ss_hp << "/";
+					ss_hp << (int)Player[MyID].max_hp;
+					ss_xp << (int)Player[MyID].xp;
+					ss_xp << "/";
+					ss_xp << (int)Player[MyID].max_xp;
+					std::string s_hp = "" + ss_hp.str();
+					std::string s_xp = "" + ss_xp.str();
+					Message[51].SetText(s_xp);
+					Message[52].SetText(s_hp);
+
+					//stats
+					//stat points
+					std::stringstream ss0;
+					std::string sp_string;
+					ss0 << (unsigned int)Player[MyID].stat_points;
+					sp_string = "" + ss0.str();
+					Message[79].SetText(sp_string);
+
+					std::stringstream ss00;
+					ss00 << "Points: ";
+					ss00 << (unsigned int)Player[MyID].stat_points;
+					Message[54].SetText(ss00.str());
+
+					//regen
+					std::stringstream ss1;
+					std::string hp_string;
+					ss1 << (unsigned int)Player[MyID].regen;
+					hp_string = "" + ss1.str();
+					Message[80].SetText(hp_string);
+
+					//attack
+					std::stringstream ss2;
+					std::string ap_string;
+					ss2 << (unsigned int)Player[MyID].strength;
+					ap_string = "" + ss2.str();
+					Message[81].SetText(ap_string);
+
+					//defend
+					std::stringstream ss3;
+					std::string dp_string;
+					ss3 << (unsigned int)Player[MyID].defence;
+					dp_string = "" + ss3.str();
+					Message[82].SetText(dp_string);
+
+
+					//correct placement
+
+					Message[51].pos_x = 250 - numDigits((int)Player[MyID].xp) * 11;
+					Message[52].pos_x = 250 - numDigits((int)Player[MyID].hp) * 11;
+
+					//level
+					std::stringstream ss_lev;
+					ss_lev << "Level:  ";
+					ss_lev << (int)Player[MyID].level;
+					std::string s_lev = "" + ss_lev.str();
+					Message[53].SetText(s_lev);
+
+
+					if (popup_gui_menu == 7)
+					{
+
+						std::stringstream stat_str;
+
+						//hp bonus stats
+						stat_str.str("");
+						stat_str << "+" << Item[Player[MyID].equipI[selectedEquipItem]].hp;
+						Message[162].SetText(stat_str.str());
+
+						//sp bonus stats
+						stat_str.str("");
+						stat_str << "+" << Item[Player[MyID].equipI[selectedEquipItem]].sp;
+						Message[163].SetText(stat_str.str());
+
+
+						//dp bonus stats
+						stat_str.str("");
+						stat_str << "+" << Item[Player[MyID].equipI[selectedEquipItem]].dp;
+						Message[164].SetText(stat_str.str());
+
+
+						//descriptor [165]
+						stat_str.str("");
+						stat_str << Item[Player[MyID].equipI[selectedEquipItem]].descr;
+						Message[165].SetText(stat_str.str());
+
+					}
+
+					//party
+					int buddy = 0;
+					for (int pp = 0; pp < MAX_CLIENTS; pp++)
+					{
+						if (Player[pp].Status)
+						{
+							if (Player[MyID].party >= 0 && Player[pp].party == Player[MyID].party)
+							{
+								Player[MyID].nametag.R = 0.2;
+								Player[MyID].nametag.G = 0.9;
+								Player[MyID].nametag.B = 0.2;
+
+								if (MyID != pp)
+								{
+									//set username in buddy container
+									std::stringstream buddyName;
+									buddyName << Player[pp].Nick;
+									buddyName << " ";
+									buddyName << (int)Player[pp].level;
+									Message[166 + buddy].SetText(buddyName.str());
+
+									//set user coords in buddy container
+									std::stringstream buddyCoords;
+									buddyCoords << "(";
+									buddyCoords << (int)Player[pp].x;
+									buddyCoords << ",";
+									buddyCoords << (int)Player[pp].y;
+									buddyCoords << ")";
+									Message[171 + buddy].SetText(buddyCoords.str());
+
+									/* set the arrow direction */
+									int left = (int)(Player[MyID].x - Player[pp].x);
+									int right = (int)(Player[pp].x - Player[MyID].x);
+									int down = (int)(Player[pp].y - Player[MyID].y);
+									int up = (int)(Player[MyID].y - Player[pp].y);
+									int d = 0;
+
+									if (up >= 0 && left >= 0)
+									{
+										d = 1;
+										if (0.41421356237 * up - left < 0)
+										{
+											if (up < left)
+												d = 7;
+											else
+												d = 0;
+										}
+									}
+									if (up >= 0 && right >= 0)
+									{
+										d = 1;
+										if (0.41421356237 * up - right < 0)
+										{
+											if (up < right)
+												d = 2;
+											else
+												d = 3;
+										}
+									}
+									if (down >= 0 && left >= 0)
+									{
+										d = 5;
+										if (0.41421356237 * down - left < 0)
+										{
+											if (down < left)
+												d = 7;
+											else
+												d = 6;
+										}
+									}
+									if (down >= 0 && right >= 0)
+									{
+										d = 5;
+										if (0.41421356237 * down - right < 0)
+										{
+											if (down < right)
+												d = 3;
+											else
+												d = 4;
+										}
+									}
+
+
+									Player[pp].arrow = d;
+									/* done pointing arrow */
+
+									buddy++;
+								}
+
+
+							}
+							else //(not in party)
+							{
+								Player[MyID].nametag.R = 1;
+								Player[MyID].nametag.G = 1;
+								Player[MyID].nametag.B = 1;
+							}
+						}//end ident
+					}
+
+
+					cosmeticTicker = SDL_GetTicks();
+				}
+			}
+
+
+
+
+			//animation
+			if ((Player[i].x_speed != 0 && Player[i].ground) || Player[i].attacking)
+			{
+				//if it is time to change the frame
+				if (!Player[i].attacking && SDL_GetTicks() - Player[i].animation_ticker >= (unsigned int)animation_speed)
+				{
+					Player[i].current_frame++;
+
+					if (Player[i].current_frame >= 6)
+						Player[i].current_frame = 0;
+
+					Player[i].animation_ticker = SDL_GetTicks();
+				}
+				//if it is time to change the frame
+				if (Player[i].attacking && SDL_GetTicks() - Player[i].attack_ticker >= (unsigned int)attack_speed)
+				{
+					Player[i].current_frame++;
+
+					if (Player[i].current_frame >= 6)
+					{
+						Player[i].current_frame = 0;
+						if (Player[i].attacking)
+							Player[i].attacking = false;
+					}
+					Player[i].attack_ticker = SDL_GetTicks();
+				}
+			}
+			else // reset to standing frame!
+				Player[i].current_frame = 0;
+
+		}//end (Player[i].Status && Player[i].current_map == current_map)
+	}
+	//end players
+
+	//items
+	for (int i = 0; i < 256; i++)
+	{
+		if (map[current_map]->ItemObj[i].status)
+		{
+			// printf("(%.2f,%.2f)\n", map[current_map]->ItemObj[i].x, map[current_map]->ItemObj[i].y);
+				//horizontal collision detection
+			bool block_x = blocked(
+				map[current_map]->ItemObj[i].x + map[current_map]->ItemObj[i].x_speed,
+				map[current_map]->ItemObj[i].y,
+				map[current_map]->ItemObj[i].x + map[current_map]->ItemObj[i].x_speed + Item[(int)map[current_map]->ItemObj[i].itemID].w,
+				map[current_map]->ItemObj[i].y + Item[(int)map[current_map]->ItemObj[i].itemID].h);
+
+			if (map[current_map]->ItemObj[i].y_speed < 10)
+				map[current_map]->ItemObj[i].y_speed += GRAVITY;
+
+			//verical collision detection
+			bool block_y = blocked(
+				map[current_map]->ItemObj[i].x + map[current_map]->ItemObj[i].x_speed,
+				map[current_map]->ItemObj[i].y + map[current_map]->ItemObj[i].y_speed,
+				map[current_map]->ItemObj[i].x + Item[(int)map[current_map]->ItemObj[i].itemID].w,
+				map[current_map]->ItemObj[i].y + map[current_map]->ItemObj[i].y_speed + Item[(int)map[current_map]->ItemObj[i].itemID].h);
+
+
+			//vertical movement
+			if (!block_y)
+				map[current_map]->ItemObj[i].y += map[current_map]->ItemObj[i].y_speed;
+			else {
+				map[current_map]->ItemObj[i].y_speed = 0;
+				map[current_map]->ItemObj[i].x_speed *= 0.5;
+			}
+
+
+			//horizontal movement
+			if (!block_x)
+			{//not blocked, move
+				map[current_map]->ItemObj[i].x += map[current_map]->ItemObj[i].x_speed;
+			}
+			else {
+				map[current_map]->ItemObj[i].x_speed = 0;
+			}
+
+		}
+	}
+	//end items
+
+	//Sign reading collision detection
+	if (enableSIGN && (Player[MyID].x_speed != 0 || Player[MyID].y_speed != 1))
+	{
+		for (int i = 0; i < map[current_map]->num_signs; i++)
+		{
+			float rangeX = (std::abs)(Player[MyID].x - map[current_map]->Sign[i].x + map[current_map]->Sign[i].w/2.0);
+			float rangeY = (std::abs)(Player[MyID].y - map[current_map]->Sign[i].y + map[current_map]->Sign[i].h/2.0);
+			float distance = sqrt((rangeX*rangeX) + (rangeY*rangeY));
+			bool inRange;
+			inRange = (distance < 32);
+			if (inRange) {
+				bool isNew = ((current_sign.hasBeenClosed) == (map[current_map]->Sign[i].hasBeenClosed));
+				if (isNew) {
+					if (popup_sign == false) {
+						current_sign = map[current_map]->Sign[i];
+					}
+				}
+				if (!current_sign.triggered && !(current_sign.hasBeenClosed)) {
+					if (popup_sign == false) {
+						current_sign.triggered = true;
+						popup_menu = 0;
+						popup_sign = true;
+						popup_npc = false;
+					}
+				}
+			}
+		}
+
+		float rangeX = (std::abs)(Player[MyID].x - current_sign.x + current_sign.w / 2.0);
+		float rangeY = (std::abs)(Player[MyID].y - current_sign.y + current_sign.h / 2.0);
+		float distance = sqrt((rangeX*rangeX) + (rangeY*rangeY));
+		bool inRange = (distance < 48);
+		if (!inRange && current_sign.triggered) {
+			popup_sign = false;
+			current_sign.hasBeenClosed = false;
+		}
+		if (distance > 48) {
+			current_sign.triggered = false;
+			current_sign.hasBeenClosed = false;
+		}
+
+	}
 }
 
 void TryToLogin()
