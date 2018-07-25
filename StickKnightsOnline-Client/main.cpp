@@ -1186,19 +1186,11 @@ void Button::handle_events(int ID)
 
                                    if (PiSock.Data[1] == REGISTER_SUCCESS)
                                    {
-                                       Message[0].SetText("The username has been created!");
-                                       Message[1].SetText("Logging in now...");
-                                       drawText(0);
-                                       drawText(1);
-
-                                       SDL_Delay(2000);
-
                                        //set the first sign
                                        current_sign = map[current_map]->Sign[0];
                                        popup_sign = true;
 
                                        PiSock.Data = "";
-
                                        TryToLogin();
                                    }
                                    else if (PiSock.Data[1] == REGISTER_FAIL_DOUBLE)
@@ -8776,7 +8768,6 @@ void physics()
 
 void TryToLogin()
 {
-
 	   // this works for now
 	   networkLock = true;
 
@@ -8793,7 +8784,6 @@ void TryToLogin()
        for (int i = 0; i < MAX_RETRY_LOGIN; i++)
        {
     	   printf("TryToLogin: i=%i\n", i);
-    	   SDL_Delay(500);
 		   PiSock.Send(Message1);
 		   //printf("sent yer login message. :3\n");
 
@@ -8857,51 +8847,43 @@ void TryToLogin()
 			   Player[MyID].Nick = username;
 			   SetUsername(MyID);
 			   Player[MyID].animation_ticker = SDL_GetTicks();
-
-			   //clear username and password
-			   //username = password = "";
-
-			   //what map are you on bro?
-			   //no dont it makes the loading screen warp around
-			   //Player[MyID].current_map = current_map = PiSock.Data[3];
-			   //save an extra packet
-			   		   PiSock.Data = PiSock.Data.substr(PiSock.Data[0]);
-
-			   		   printf("turning network lock off...\n");
-			   		   networkLock = false;
-
-			   return;
+			   break;
 		   }
 		   else if (PiSock.Data[1] == LOGIN_FAIL_DOUBLE)
 		   {
 			  Message[0].SetText("The username is already online. Please try again.");
 			  Message[1].SetText("If your character is stuck online, tell a staff member.");
-
+			  drawText(0);
+			  drawText(1);
+			  break;
 		   }
 		   else if (PiSock.Data[1] == LOGIN_FAIL_NONE)
 		   {
 			  Message[0].SetText("Wrong username or password.");
 			  Message[1].SetText("    Please try again...");
-
-			  //save an extra packet
-				PiSock.Data = PiSock.Data.substr(PiSock.Data[0]);
-
-				printf("turning network lock off...\n");
-				networkLock = false;
-				return;
+			  drawText(0);
+			  drawText(1);
+			  break;
 		   }
 		   else if (PiSock.Data[1] == LOGIN_FAIL_BANNED)
 		   {
 			  Message[0].SetText("The username is banned.");
 			  Message[1].SetText("Please try a different account.");
+			  drawText(0);
+			  drawText(1);
+			  break;
 		   }
+		   
+		   //wait a bit for more packets to come in
+		   SDL_Delay(100);
+       }//end for login attemtps
 
-		   //save an extra packet
-		   PiSock.Data = PiSock.Data.substr(PiSock.Data[0]);
+	   //save an extra packet
+	   PiSock.Data = PiSock.Data.substr(PiSock.Data[0]);
 
-		   printf("turning network lock off...\n");
-		   networkLock = false;
-       }
+	   printf("turning network lock off...\n");
+	   networkLock = false;
+	   return;
 }
 
 void QuitMenus()
