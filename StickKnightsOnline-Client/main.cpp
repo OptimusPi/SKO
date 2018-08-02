@@ -2803,13 +2803,28 @@ int getTrophyAttackOffsetY(int frame)
 {
 	switch (frame)
 	{
-		case 0:	return  72; break;
-		case 1:	return  72; break;
-		case 2:	return  72; break;
-		case 3:	return  72; break;
-		case 4:	return  71; break;
-		case 5:	return  71; break;
-		case 6:	return  71; break;
+		case 0:	return  48; break;
+		case 1:	return  48; break;
+		case 2:	return  48; break;
+		case 3:	return  48; break;
+		case 4:	return  49; break;
+		case 5:	return  49; break;
+		case 6:	return  49; break;
+	}
+	return 0;
+}
+
+int getTrophyUnarmedAttackOffsetY(int frame)
+{
+	switch (frame)
+	{
+		case 0:	return  42; break;
+		case 1:	return  35; break;
+		case 2:	return  31; break;
+		case 3:	return  31; break;
+		case 4:	return  31; break;
+		case 5:	return  45; break;
+		case 6:	return  49; break;
 	}
 	return 0;
 }
@@ -2819,12 +2834,27 @@ int getTrophyAttackOffsetX(int frame)
 	switch (frame)
 	{
 		case 0:	return  4; break;
-		case 1:	return  5; break;
-		case 2:	return  8; break;
+		case 1:	return  4; break;
+		case 2:	return  4; break;
 		case 3:	return  7; break;
-		case 4:	return  5; break;
-		case 5:	return  4; break;
-		case 6:	return  4; break;
+		case 4:	return  6; break;
+		case 5:	return  5; break;
+		case 6:	return  6; break;
+	}
+	return 0;
+}
+
+int getTrophyUnarmedAttackOffsetX(int frame)
+{
+	switch (frame)
+	{
+		case 0:	return   1; break;
+		case 1:	return   0; break;
+		case 2:	return  -1; break;
+		case 3:	return  -9; break;
+		case 4:	return -17; break;
+		case 5:	return -15; break;
+		case 6:	return  -3; break;
 	}
 	return 0;
 }
@@ -2836,10 +2866,10 @@ int getTrophyWalkOffsetX(int frame)
 		case 0:	return   4; break;
 		case 1:	return   7; break;
 		case 2:	return   4; break;
-		case 3:	return    -2; break;
-		case 4:	return    -7; break;
-		case 5:	return    2; break;
-		case 6:	return    0; break;
+		case 3:	return  -2; break;
+		case 4:	return  -7; break;
+		case 5:	return   2; break;
+		case 6:	return   0; break;
 	}
 	return 0;
 }
@@ -3315,8 +3345,21 @@ construct_frame()
                {
 
 
-					trophy_offset_x = getTrophyAttackOffsetX(Player[i].current_frame);
-					trophy_offset_y = getTrophyAttackOffsetY(Player[i].current_frame);
+				   
+				   if (Player[i].equip[0] != 0)
+				   {
+					   //with weapon
+					   trophy_offset_x = getTrophyAttackOffsetX(Player[i].current_frame);
+					   trophy_offset_y = getTrophyAttackOffsetY(Player[i].current_frame);
+				   }
+				   else {
+					   //without weapon
+					   trophy_offset_x = getTrophyUnarmedAttackOffsetX(Player[i].current_frame);
+					   trophy_offset_y = getTrophyUnarmedAttackOffsetY(Player[i].current_frame);
+				   }
+
+					
+
 
 					  //always draw trophies! :D
 					if (Player[i].equip[2] != 0)
@@ -3336,7 +3379,7 @@ construct_frame()
 						   }
 					}
 
-                  if (Player[i].equip[0] == 0)
+                  if (Player[i].equip[0] == 0) //no weapon
                   {
 
                        if (Player[i].facing_right)
@@ -3352,7 +3395,7 @@ construct_frame()
                     			   getSpriteAttack(Player[i].current_frame));
                        }
                   }
-                  else
+                  else // yes weapon
                   {
                       if (Player[i].facing_right)
                       {
@@ -4297,16 +4340,18 @@ int pressKey(int key)
 
 
        case 'r':
-    	   Packet = "0";
-    	   Packet += CAST_SPELL;
-    	   Packet[0] = Packet.length();
+		   if (chat_box == 4 && !Player[MyID].attacking)
+		   {
+			   Packet = "0";
+			   Packet += CAST_SPELL;
+			   Packet[0] = Packet.length();
 
-    	   PiSock.Send(Packet);
-	   break;
+			   PiSock.Send(Packet);
+			   break;
+		   }
 
        case SDLK_LEFT:
        case 'a':
-
             if (chat_box == 4 && !Player[MyID].attacking && Player[MyID].x_speed != -2)
             {
             	LEFT = true;
