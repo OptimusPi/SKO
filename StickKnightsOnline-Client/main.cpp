@@ -2803,13 +2803,13 @@ int getTrophyAttackOffsetY(int frame)
 {
 	switch (frame)
 	{
-		case 0:	return  72; break;
-		case 1:	return  72; break;
-		case 2:	return  72; break;
-		case 3:	return  72; break;
-		case 4:	return  71; break;
-		case 5:	return  71; break;
-		case 6:	return  71; break;
+		case 0:	return  48; break;
+		case 1:	return  48; break;
+		case 2:	return  48; break;
+		case 3:	return  48; break;
+		case 4:	return  47; break;
+		case 5:	return  47; break;
+		case 6:	return  47; break;
 	}
 	return 0;
 }
@@ -2836,10 +2836,10 @@ int getTrophyWalkOffsetX(int frame)
 		case 0:	return   4; break;
 		case 1:	return   7; break;
 		case 2:	return   4; break;
-		case 3:	return    -2; break;
-		case 4:	return    -7; break;
-		case 5:	return    2; break;
-		case 6:	return    0; break;
+		case 3:	return  -2; break;
+		case 4:	return  -7; break;
+		case 5:	return   2; break;
+		case 6:	return   0; break;
 	}
 	return 0;
 }
@@ -4297,16 +4297,18 @@ int pressKey(int key)
 
 
        case 'r':
-    	   Packet = "0";
-    	   Packet += CAST_SPELL;
-    	   Packet[0] = Packet.length();
+		   if (chat_box == 4 && !Player[MyID].attacking)
+		   {
+			   Packet = "0";
+			   Packet += CAST_SPELL;
+			   Packet[0] = Packet.length();
 
-    	   PiSock.Send(Packet);
-	   break;
+			   PiSock.Send(Packet);
+			   break;
+		   }
 
        case SDLK_LEFT:
        case 'a':
-
             if (chat_box == 4 && !Player[MyID].attacking && Player[MyID].x_speed != -2)
             {
             	LEFT = true;
