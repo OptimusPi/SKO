@@ -2783,6 +2783,11 @@ int getHatAttackOffsetY(int frame)
 	return -11;
 }
 
+int getHatUnarmedAttackOffsetY(int frame)
+{
+	return getHatAttackOffsetY(frame);
+}
+
 int getHatAttackOffsetX(int frame)
 {
 	switch (frame)
@@ -2796,6 +2801,22 @@ int getHatAttackOffsetX(int frame)
 		case 6:	return  1; break;
 	}
 	return 0;
+}
+
+int getHatUnarmedAttackOffsetX(int frame)
+{
+
+	switch (frame)
+	{
+		case 0:	return -1; break;
+		case 1:	return -1; break;
+		case 2:	return -3; break;
+		case 3:	return -1; break;
+		case 4:	return  2; break;
+		case 5:	return  0; break;
+		case 6:	return  0; break;
+	}
+	return 60;
 }
 
 
@@ -3498,8 +3519,18 @@ construct_frame()
 
             	   if (Player[i].attacking)
             	   {
-            		   hat_offset_x = getHatAttackOffsetX(Player[i].current_frame);
-            		   hat_offset_y = getHatAttackOffsetY(Player[i].current_frame);
+					   //Armed attack
+					   if (Player[i].equip[0] != 0)
+					   {
+						   hat_offset_x = getHatAttackOffsetX(Player[i].current_frame);
+						   hat_offset_y = getHatAttackOffsetY(Player[i].current_frame);
+					   }
+					   ///Unarmed Attack
+					   else 
+					   {
+						   hat_offset_x = getHatUnarmedAttackOffsetX(Player[i].current_frame);
+						   hat_offset_y = getHatUnarmedAttackOffsetY(Player[i].current_frame);
+					   }
             	   }
             	   else
             	   {
