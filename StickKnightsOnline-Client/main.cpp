@@ -7826,16 +7826,12 @@ int main (int argc, char *argv[])
 
     loadContent();
 
-	if (!enableSND || !enableMUS)
+	if (enableSND && enableMUS)
 	{
-		printf("not playing music because either sound or music is mute.\n");
-		if (Mix_PausedMusic() == 1 )
-		{
-			if (music != NULL && Mix_PlayMusic(music, -1) == -1)
-				printf("ERROR PLAYING MUSIC!!");
-			else
-				printf("music played ok.");
-		}
+		if (music != NULL && Mix_PlayMusic(music, -1) == -1)
+			printf("ERROR PLAYING MUSIC!!");
+		else
+			printf("music played ok.");
 	}
 
     //start drawing
