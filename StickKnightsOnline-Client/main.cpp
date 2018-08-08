@@ -7249,12 +7249,12 @@ int main (int argc, char *argv[])
 		return 1;
 	}
 
-    //Initialize SDL_mixer
-    if( Mix_OpenAudio( 48000, MIX_DEFAULT_FORMAT, 2, 1024 ) == -1 )
-    {
-        printf("ERROR! COULD NOT INIT SOUND!\n");
-        enableSND = false;
-    }
+	//Initialize SDL_mixer
+	if (Mix_OpenAudio(48000, MIX_DEFAULT_FORMAT, 2, 1024) == -1)
+	{
+		printf("ERROR! COULD NOT INIT SOUND!\n");
+		enableSND = false;
+	}
 
 
 
@@ -7824,22 +7824,14 @@ int main (int argc, char *argv[])
         Player[i] = SKO_Player();
     }
 
-
     loadContent();
 
-    if (music != NULL && Mix_PlayMusic( music, -1 ) == -1)
-		printf("ERROR PLAYING MUSIC!!");
-	else
-		printf("music played ok.");
-
-	if (!enableSND || !enableMUS)
+	if (enableSND && enableMUS)
 	{
-		printf("not playing music because either sound or music is mute.\n");
-		if (Mix_PausedMusic() != 1 )
-		{
-			//pause the music
-			Mix_PauseMusic();
-		}
+		if (music != NULL && Mix_PlayMusic(music, -1) == -1)
+			printf("ERROR PLAYING MUSIC!!");
+		else
+			printf("music played ok.");
 	}
 
     //start drawing
