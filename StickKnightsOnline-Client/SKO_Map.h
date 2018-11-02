@@ -6,7 +6,11 @@
 
 #include <fstream>
 #include <cstring>
+#if WINDOWS_OS == MY_OS
 #include "SDL.h"
+#else
+#include "sdl/SDL.h"
+#endif
 #include "SKO_Stall.h"
 #include "SKO_Target.h"
 #include "SKO_Shop.h"

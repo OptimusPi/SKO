@@ -1,6 +1,10 @@
 #include <string>
 #include <cstdlib>
+#if WINDOWS_OS == MY_OS
 #include "SDL.h"
+#else
+#include "sdl/SDL.h"
+#endif
 #include "SDL_image.h"
 #include "SDL_opengl.h"
 

@@ -3,7 +3,11 @@
 
 
 #include <iostream>
+#if WINDOWS_OS == MY_OS
 #include "SDL.h"
+#else
+#include "sdl/SDL.h"
+#endif
 
 /*
  * KE_Engine 

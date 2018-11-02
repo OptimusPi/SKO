@@ -1,5 +1,10 @@
 #include "SDL_net.h"
-#include "SDL.h"
+#if WINDOWS_OS == MY_OS
+	#include "SDL.h"
+#else
+	#include "sdl/SDL.h"
+#endif
+
 #include <iostream>
 #include <string>
 #include <stdio.h>
