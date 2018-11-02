@@ -33,14 +33,16 @@ bool KE_Socket::Connect(std::string Hostname, int port)
    /* Resolve the host we are connecting to */
 	if (SDLNet_ResolveHost(&ip, Hostname.c_str(), port))
 	{
-		fprintf(stderr, "SDLNet_ResolveHost: %s\n", SDLNet_GetError());
+		std::string error = SDLNet_GetError();
+		fprintf(stderr, "SDLNet_ResolveHost: %s\n", error.c_str());
 		return false;
 	}
  
 	/* Open a connection with the IP provided (listen on the host's port) */
 	if (!(sock = SDLNet_TCP_Open(&ip)))
 	{
-		fprintf(stderr, "SDLNet_TCP_Open: %s\n", SDLNet_GetError());
+		std::string error = SDLNet_GetError();
+		fprintf(stderr, "SDLNet_TCP_Open: %s\n", error.c_str());
 		return false;
 	}
 	

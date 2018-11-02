@@ -32,7 +32,6 @@
 #include "SKO_NPC.h"
 #include "KE_Socket.h"
 #include "KE_Timestep.h"
-#include "md5.h"
 #include "InputBox.h"
 #include "SKO_Stall.h"
 #include "SKO_Shop.h"
@@ -42,6 +41,10 @@
 #include "SKO_Sprite.h"
 #include "INIReader.h"
 #include "OPI_Image.h"
+#include "md5.h"
+
+#include "hash/hasher.h"
+
 
 // Maximum number of clients allowed to connect
 #define MAX_CLIENTS 16
@@ -1173,8 +1176,7 @@ void Button::handle_events(int ID)
                                    packet += REGISTER;
                                    packet += username;
                                    packet += " ";
-                                   //packet += KE_Hash(password);
-                                   packet += md5(password);
+                                   packet += Hasher::Hash(password);
                                    packet[0] = packet.length();
                                    PiSock.Send(packet);
 
@@ -7230,6 +7232,11 @@ void loadContent(){
 		contentLoaded = true;
 }
 
+
+
+
+
+
 #if WINDOWS_OS == MY_OS
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLine, int nCmdShow)
@@ -8838,15 +8845,15 @@ void TryToLogin()
 {
 	   // this works for now
 	   networkLock = true;
-
+	   int a = SDL_GetTicks();
       //building the packet to send
        std::string Message1 = "0";
        Message1 += LOGIN;
        Message1 += username;
        Message1 += " ";
-       Message1 += md5(password);
+       Message1 += Hasher::Hash(password);
        Message1[0] = Message1.length();
-
+	   int b = SDL_GetTicks();
        int MAX_RETRY_LOGIN = 10;
 
        for (int i = 0; i < MAX_RETRY_LOGIN; i++)

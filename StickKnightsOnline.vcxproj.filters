@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="StickKnightsOnline-Client\md5.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="StickKnightsOnline-Client\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -75,6 +72,12 @@
     <ClCompile Include="StickKnightsOnline-Client\INIReader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="StickKnightsOnline-Client\hash\hasher.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="StickKnightsOnline-Client\md5.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="StickKnightsOnline-Client\operating_system.windows.h">
@@ -87,9 +90,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="StickKnightsOnline-Client\operating_system.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="StickKnightsOnline-Client\md5.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="StickKnightsOnline-Client\ini.h">
@@ -152,6 +152,39 @@
     <ClInclude Include="StickKnightsOnline-Client\INIReader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="StickKnightsOnline-Client\easy-encryption\b64.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StickKnightsOnline-Client\easy-encryption\encrypt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StickKnightsOnline-Client\easy-encryption\vigenere.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StickKnightsOnline-Client\libbcrypt\bcrypt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StickKnightsOnline-Client\libbcrypt\BCrypt.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StickKnightsOnline-Client\libbcrypt\crypt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StickKnightsOnline-Client\libbcrypt\crypt_blowfish.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StickKnightsOnline-Client\libbcrypt\crypt_gensalt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StickKnightsOnline-Client\libbcrypt\ow-crypt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StickKnightsOnline-Client\hash\hasher.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StickKnightsOnline-Client\md5.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Makefile" />
@@ -159,6 +192,7 @@
     <None Include="Makefile.mac" />
     <None Include="Makefile.windows" />
     <None Include="StickKnightsOnline-Client\DAT\config.ini" />
+    <None Include="StickKnightsOnline-Client\easy-encryption\LICENSE" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="readme.txt" />

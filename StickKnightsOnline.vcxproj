@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="StickKnightsOnline-Client\hash\hasher.cpp" />
     <ClCompile Include="StickKnightsOnline-Client\ini.cpp" />
     <ClCompile Include="StickKnightsOnline-Client\INIReader.cpp" />
     <ClCompile Include="StickKnightsOnline-Client\InputBox.cpp" />
@@ -41,11 +42,21 @@
     <ClCompile Include="StickKnightsOnline-Client\SKO_Target.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="StickKnightsOnline-Client\easy-encryption\b64.h" />
+    <ClInclude Include="StickKnightsOnline-Client\easy-encryption\encrypt.h" />
+    <ClInclude Include="StickKnightsOnline-Client\easy-encryption\vigenere.h" />
+    <ClInclude Include="StickKnightsOnline-Client\hash\hasher.h" />
     <ClInclude Include="StickKnightsOnline-Client\ini.h" />
     <ClInclude Include="StickKnightsOnline-Client\INIReader.h" />
     <ClInclude Include="StickKnightsOnline-Client\InputBox.h" />
     <ClInclude Include="StickKnightsOnline-Client\KE_Socket.h" />
     <ClInclude Include="StickKnightsOnline-Client\KE_Timestep.h" />
+    <ClInclude Include="StickKnightsOnline-Client\libbcrypt\bcrypt.h" />
+    <ClInclude Include="StickKnightsOnline-Client\libbcrypt\BCrypt.hpp" />
+    <ClInclude Include="StickKnightsOnline-Client\libbcrypt\crypt.h" />
+    <ClInclude Include="StickKnightsOnline-Client\libbcrypt\crypt_blowfish.h" />
+    <ClInclude Include="StickKnightsOnline-Client\libbcrypt\crypt_gensalt.h" />
+    <ClInclude Include="StickKnightsOnline-Client\libbcrypt\ow-crypt.h" />
     <ClInclude Include="StickKnightsOnline-Client\md5.h" />
     <ClInclude Include="StickKnightsOnline-Client\operating_system.h" />
     <ClInclude Include="StickKnightsOnline-Client\operating_system.linux.h" />
@@ -73,6 +84,7 @@
     <None Include="Makefile.mac" />
     <None Include="Makefile.windows" />
     <None Include="StickKnightsOnline-Client\DAT\config.ini" />
+    <None Include="StickKnightsOnline-Client\easy-encryption\LICENSE" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="readme.txt" />
