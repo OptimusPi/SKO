@@ -1,26 +1,16 @@
 #include "hasher.h"
 #include "../md5.h"
 
-#if !defined(__LITTLE_ENDIAN__) and !defined(__BIG_ENDIAN__)
-#define __LITTLE_ENDIAN__
-#endif
 
 namespace {
 	union Converter32 {
 		uint32_t bit_32;
 		struct {
 
-#ifdef __LITTLE_ENDIAN__
 			uint8_t byte3;
 			uint8_t byte2;
 			uint8_t byte1;
 			uint8_t byte0;
-#else
-			uint8_t byte0;
-			uint8_t byte1;
-			uint8_t byte2;
-			uint8_t byte3;
-#endif
 
 		} bit_8;
 	};

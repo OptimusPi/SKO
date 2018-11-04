@@ -3,10 +3,12 @@
 
 
 #include <iostream>
-#if WINDOWS_OS == MY_OS
-#include "SDL.h"
+
+#include "operating_system.h"
+#ifdef WINDOWS_OS
+	#include "SDL.h"
 #else
-#include "sdl/SDL.h"
+	#include <SDL/SDL.h>
 #endif
 
 /*

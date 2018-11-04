@@ -80,15 +80,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="StickKnightsOnline-Client\operating_system.windows.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="StickKnightsOnline-Client\operating_system.mac.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="StickKnightsOnline-Client\operating_system.linux.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="StickKnightsOnline-Client\operating_system.h">
       <Filter>Header Files</Filter>
     </ClInclude>

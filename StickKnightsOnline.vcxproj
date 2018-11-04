@@ -59,9 +59,6 @@
     <ClInclude Include="StickKnightsOnline-Client\libbcrypt\ow-crypt.h" />
     <ClInclude Include="StickKnightsOnline-Client\md5.h" />
     <ClInclude Include="StickKnightsOnline-Client\operating_system.h" />
-    <ClInclude Include="StickKnightsOnline-Client\operating_system.linux.h" />
-    <ClInclude Include="StickKnightsOnline-Client\operating_system.mac.h" />
-    <ClInclude Include="StickKnightsOnline-Client\operating_system.windows.h" />
     <ClInclude Include="StickKnightsOnline-Client\OPI_Image.h" />
     <ClInclude Include="StickKnightsOnline-Client\OPI_Text.h" />
     <ClInclude Include="StickKnightsOnline-Client\SDLMain.h" />

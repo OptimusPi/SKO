@@ -1,12 +1,17 @@
 #include <string>
 #include <cstdlib>
-#if WINDOWS_OS == MY_OS
-#include "SDL.h"
+
+#include "operating_system.h"
+
+#ifdef WINDOWS_OS
+	#include "SDL.h"
+	#include "SDL_image.h"
+	#include "SDL_opengl.h"
 #else
-#include "sdl/SDL.h"
+	#include <SDL/SDL.h>
+	#include <SDL/SDL_image.h>
 #endif
-#include "SDL_image.h"
-#include "SDL_opengl.h"
+
 
 
 #ifndef __OPI_IMAGE_H_

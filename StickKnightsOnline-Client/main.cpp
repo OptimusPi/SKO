@@ -9,6 +9,7 @@
 
 #define HAVE_STRUCT_TIMESPEC
 
+#include "operating_system.h"
 
 #include <cstdio>
 #include <ctime>
@@ -17,10 +18,10 @@
 #include <sstream>
 #include <cmath>
 #include "SDL_opengl.h"
-#if WINDOWS_OS == MY_OS
-#include "SDL.h"
+#ifdef WINDOWS_OS
+	#include "SDL.h"
 #else
-#include "sdl/SDL.h"
+	#include <SDL/SDL.h>
 #endif
 #include "SDL_image.h"
 #include "SDL_opengl.h"
@@ -40,7 +41,6 @@
 #include "SKO_Stall.h"
 #include "SKO_Shop.h"
 #include "SKO_Map.h"
-#include "operating_system.h"
 #include "SKO_item_defs.h"
 #include "SKO_Sprite.h"
 #include "INIReader.h"
@@ -400,8 +400,8 @@ SDL_Surface *load_image_basic( std::string filename )
 #define ICON_BIG            1
 
 
-#if MY_OS == WINDOWS_OS
-#include <windows.h>
+#ifdef WINDOWS_OS
+	#include <windows.h>
 #endif
 
 void screenOptions()
@@ -7241,7 +7241,7 @@ void loadContent(){
 
 
 
-#if WINDOWS_OS == MY_OS
+#ifdef WINDOWS_OS
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLine, int nCmdShow)
 
@@ -7885,11 +7885,11 @@ int main (int argc, char *argv[])
 
           while (timestep->Check())
           {
-			#if MY_OS == WINDOWS_OS
+			#ifdef WINDOWS_OS
         	 HandleUI();
 			#endif
 
-			#if MY_OS == MAC_OS
+			#ifdef MAC_OS
 			 HandleUI();
 			#endif
 
@@ -8014,7 +8014,7 @@ int numDigits(int num)
 
 void physics()
 {
-#if MY_OS == LINUX_OS
+#ifdef LINUX_OS
 	HandleUI();
 #endif
 	if (menu != STATE_PLAY)
