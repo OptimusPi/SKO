@@ -6,7 +6,7 @@
 	#include "SDL_net.h"
 #else
 	#include <SDL/SDL.h>
-	#include <SDL/DL_net.h>
+	#include <SDL/SDL_net.h>
 #endif
 
 #include <iostream>

@@ -7,7 +7,12 @@
 	#include "SDL.h"
 	#include "SDL_image.h"
 	#include "SDL_opengl.h"
-#else
+#elif defined MAC_OS
+	#include <OpenGL/gl.h>
+	#include <SDL/SDL.h>
+	#include <SDL/SDL_image.h>
+#elif defined LINUX_OS
+	#include <GL/gl.h>
 	#include <SDL/SDL.h>
 	#include <SDL/SDL_image.h>
 #endif

@@ -17,16 +17,28 @@
 #include <fstream>
 #include <sstream>
 #include <cmath>
-#include "SDL_opengl.h"
+
 #ifdef WINDOWS_OS
 	#include "SDL.h"
-#else
+	#include "SDL_image.h"
+	#include "SDL_opengl.h"
+	#include "SDL_mixer.h"
+	#include "SDL_main.h"
+	#include "SDL_opengl.h"
+#elif defined MAC_OS
 	#include <SDL/SDL.h>
+	#include <SDL/SDL_image.h>
+	#include <SDL/SDL_mixer.h>
+	#include <SDL/SDL_main.h>
+	#include <OpenGL/gl.h>
+#elif defined LINUX_OS
+	#include <SDL/SDL.h>
+	#include <SDL/SDL_image.h>
+	#include <SDL/SDL_mixer.h>
+	#include <SDL/SDL_main.h>
+	#include <GL/gl.h>
 #endif
-#include "SDL_image.h"
-#include "SDL_opengl.h"
-#include "SDL_mixer.h"
-#include "SDL_main.h"
+
 #include "pthread.h"
 
 #include "OPI_Text.h"
