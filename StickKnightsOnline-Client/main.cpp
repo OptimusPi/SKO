@@ -82,10 +82,6 @@ bool contentLoaded = false;
 //login and out
 std::string username, password;
 
-#define WINDOWS_OS 1
-#define LINUX_OS 2
-#define MAC_OS 3
-
 
 
 //packet codes
