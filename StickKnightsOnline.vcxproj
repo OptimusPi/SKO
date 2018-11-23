@@ -126,7 +126,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <LibraryPath>StickKnightsOnline-Dependencies\pthread\lib\x86;StickKnightsOnline-Dependencies\SDL_mixer\lib\x86;StickKnightsOnline-Dependencies\SDL_net\lib\x86;StickKnightsOnline-Dependencies\SDL_image\lib\x86;StickKnightsOnline-Dependencies\SDL\lib\x86;$(LibraryPath)</LibraryPath>
-    <IncludePath>StickKnightsOnline-Dependencies\pthread\include;StickKnightsOnline-Dependencies\SDL_net\include;StickKnightsOnline-Dependencies\SDL_mixer\include;StickKnightsOnline-Dependencies\SDL_image\include;StickKnightsOnline-Dependencies\SDL\include;$(IncludePath)</IncludePath>
+    <IncludePath>StickKnightsOnline-Dependencies\pthread\include;StickKnightsOnline-Dependencies\SDL_net\include;StickKnightsOnline-Dependencies\SDL_mixer\include;StickKnightsOnline-Dependencies\SDL_image\include;StickKnightsOnline-Dependencies\SDL\include;StickKnightsOnline-Dependencies\Argon2\include;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)\StickKnightsOnline-Client</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -149,8 +149,8 @@
       <TargetMachine>MachineX86</TargetMachine>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>pthreadVC2.lib;SDL.lib;SDL_net.lib;SDL_image.lib;SDL_mixer.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>StickKnightsOnline-Dependencies\SDL_image\lib;Debug;StickKnightsOnline-Dependencies\SDL_mixer\lib;StickKnightsOnline-Dependencies\SDL_net\lib;StickKnightsOnline-Dependencies\pthread\lib\x86</AdditionalLibraryDirectories>
+      <AdditionalDependencies>pthreadVC2.lib;SDL.lib;SDL_net.lib;SDL_image.lib;SDL_mixer.lib;opengl32.lib;Argon2RefDll.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>StickKnightsOnline-Dependencies\SDL_image\lib;Debug;StickKnightsOnline-Dependencies\SDL_mixer\lib;StickKnightsOnline-Dependencies\SDL_net\lib;StickKnightsOnline-Dependencies\pthread\lib\x86;StickKnightsOnline-Dependencies\Argon2\lib</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
       <Command>"$(SolutionDir)rcedit\rcedit.exe"  "$(SolutionDir)StickKnightsOnline-Client\StickKnightsOnline.exe" --set-icon "$(SolutionDir)StickKnightsOnline-Client\sko.ico"</Command>
