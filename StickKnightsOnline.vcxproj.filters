@@ -143,9 +143,6 @@
     <ClInclude Include="StickKnightsOnline-Client\INIReader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="StickKnightsOnline-Client\libbcrypt\ow-crypt.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="StickKnightsOnline-Client\md5.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -162,7 +159,6 @@
     <None Include="Makefile.mac" />
     <None Include="Makefile.windows" />
     <None Include="StickKnightsOnline-Client\DAT\config.ini" />
-    <None Include="StickKnightsOnline-Client\easy-encryption\LICENSE" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="readme.txt" />

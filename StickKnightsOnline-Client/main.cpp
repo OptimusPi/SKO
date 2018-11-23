@@ -8841,7 +8841,6 @@ void TryToLogin()
 {
 	   // this works for now
 	   networkLock = true;
-	   int a = SDL_GetTicks();
       //building the packet to send
        std::string Message1 = "0";
        Message1 += LOGIN;
@@ -8849,7 +8848,6 @@ void TryToLogin()
        Message1 += " ";
        Message1 += Hash(toLower(username) + password);
        Message1[0] = Message1.length();
-	   int b = SDL_GetTicks();
        int MAX_RETRY_LOGIN = 10;
 
        for (int i = 0; i < MAX_RETRY_LOGIN; i++)
