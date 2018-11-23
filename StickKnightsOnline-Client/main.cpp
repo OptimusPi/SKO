@@ -9,6 +9,7 @@
 
 #define HAVE_STRUCT_TIMESPEC
 
+#include "operating_system.h"
 
 #include <cstdio>
 #include <ctime>
@@ -16,12 +17,29 @@
 #include <fstream>
 #include <sstream>
 #include <cmath>
-#include "SDL_opengl.h"
-#include "SDL.h"
-#include "SDL_image.h"
-#include "SDL_opengl.h"
-#include "SDL_mixer.h"
-#include "SDL_main.h"
+#include <cctype>
+
+#ifdef WINDOWS_OS
+	#include "SDL.h"
+	#include "SDL_image.h"
+	#include "SDL_opengl.h"
+	#include "SDL_mixer.h"
+	#include "SDL_main.h"
+	#include "SDL_opengl.h"
+#elif defined MAC_OS
+	#include <SDL/SDL.h>
+	#include <SDL/SDL_image.h>
+	#include <SDL/SDL_mixer.h>
+	#include <SDL/SDL_main.h>
+	#include <OpenGL/gl.h>
+#elif defined LINUX_OS
+	#include <SDL/SDL.h>
+	#include <SDL/SDL_image.h>
+	#include <SDL/SDL_mixer.h>
+	#include <SDL/SDL_main.h>
+	#include <GL/gl.h>
+#endif
+
 #include "pthread.h"
 
 #include "OPI_Text.h"
@@ -32,16 +50,16 @@
 #include "SKO_NPC.h"
 #include "KE_Socket.h"
 #include "KE_Timestep.h"
-#include "md5.h"
 #include "InputBox.h"
 #include "SKO_Stall.h"
 #include "SKO_Shop.h"
 #include "SKO_Map.h"
-#include "operating_system.h"
 #include "SKO_item_defs.h"
 #include "SKO_Sprite.h"
 #include "INIReader.h"
 #include "OPI_Image.h"
+#include "md5.h"
+#include "hasher.h"
 
 // Maximum number of clients allowed to connect
 #define MAX_CLIENTS 16
@@ -62,10 +80,6 @@ bool contentLoaded = false;
 
 //login and out
 std::string username, password;
-
-#define WINDOWS_OS 1
-#define LINUX_OS 2
-#define MAC_OS 3
 
 
 
@@ -327,8 +341,9 @@ bool draw_gui = true, draw_chat = true, draw_chat_back = true;
 
 bool doneUpdating = false;
 
-
+std::string toLower(std::string);
 void inventory();
+
 
 void setTitle()
 {
@@ -393,8 +408,8 @@ SDL_Surface *load_image_basic( std::string filename )
 #define ICON_BIG            1
 
 
-#if MY_OS == WINDOWS_OS
-#include <windows.h>
+#ifdef WINDOWS_OS
+	#include <windows.h>
 #endif
 
 void screenOptions()
@@ -1173,8 +1188,7 @@ void Button::handle_events(int ID)
                                    packet += REGISTER;
                                    packet += username;
                                    packet += " ";
-                                   //packet += KE_Hash(password);
-                                   packet += md5(password);
+                                   packet += Hash(toLower(username) + password);
                                    packet[0] = packet.length();
                                    PiSock.Send(packet);
 
@@ -6061,7 +6075,6 @@ void* Network(void *arg)
                    if (a != MyID)
                    {
                       Player[a] = SKO_Player();
-
                    }
 
                    //hold the result...
@@ -7134,29 +7147,25 @@ void* Network(void *arg)
      }
      return NULL;
 }
-void* PhysicsLoop(void *arg){
+void* PhysicsLoop(void *arg)
+{
+	KE_Timestep *timestep = new KE_Timestep(60);
 
+	while (!done)
+	{
+		//update the timestep
+		timestep->Update();
 
-         KE_Timestep *timestep = new KE_Timestep(60);
+		while (timestep->Check())
+		{
+			physics();
+		}
 
-         while (!done)
-         {
-              //update the timestep
-              timestep->Update();
-
-              while (timestep->Check())
-              {
-                 physics();
-              }
-
-
-              /* Don't run too fast */
-              SDL_Delay(1);
-         }
-
-
-         return NULL;
-    }
+		/* Don't run too fast */
+		SDL_Delay(1);
+	}
+	return NULL;
+}
 
 void Graphics();
 
@@ -7165,72 +7174,60 @@ void Graphics();
  * 	load all content from files
  *
  */
-void loadContent(){
-//	//music
+void loadContent()
+{
+	//music
+	music = Mix_LoadMUS("SND/menu.ogg");
 
-	    music = Mix_LoadMUS("SND/menu.ogg");
+	//sound effects
+	item_pickup_noise = Mix_LoadWAV("SND/item_pickup.wav");
+	items_drop_noise = Mix_LoadWAV("SND/items_drop.wav");
+	grunt_noise = Mix_LoadWAV("SND/grunt.wav");
+	login_noise = Mix_LoadWAV("SND/login.wav");
+	logout_noise= Mix_LoadWAV("SND/logout.wav");
+	hit1 = Mix_LoadWAV("SND/hit1.wav");
+	hit2 = Mix_LoadWAV("SND/hit2.wav");
+	hit3 = Mix_LoadWAV("SND/hit3.wav");
+	attack_noise = Mix_LoadWAV("SND/attack.wav");
 
-	    //If there was a problem loading the music
-	    if( music == NULL ) {
-	        printf("ERROR! COULD NOT LOAD MUSIC!\n");
-	    }
+	//TODO move this
+	std::string mapConfigLoc = "MAP";
 
+	//load maps and all they contain
+	//targets, enemies, stalls, shops
+	for (int mp = 0; mp < NUM_MAPS; mp++)
+	{
+		std::stringstream ss1;
+		ss1 << "map" << mp;
+		std::string mapFile = ss1.str();
+		printf("mapFile: %s\n", mapFile.c_str());
+		map[mp] = new SKO_Map(mapConfigLoc, mapFile);   //
+	}
+	////
+	//tile images for the map
+	for  (int i = 0; i < 256; i++)//check if file exists, etc.
+	{
+			char szFilename[24];
+			sprintf(szFilename, "IMG/TILE/tile%i.png", i);
+			std::ifstream checker (szFilename);
 
-	    //sound effects
-	    item_pickup_noise = Mix_LoadWAV("SND/item_pickup.wav");
-	    items_drop_noise = Mix_LoadWAV("SND/items_drop.wav");
-	    grunt_noise = Mix_LoadWAV("SND/grunt.wav");
-	    login_noise = Mix_LoadWAV("SND/login.wav");
-	    logout_noise= Mix_LoadWAV("SND/logout.wav");
-	    hit1 = Mix_LoadWAV("SND/hit1.wav");
-	    hit2 = Mix_LoadWAV("SND/hit2.wav");
-	    hit3 = Mix_LoadWAV("SND/hit3.wav");
-	    attack_noise = Mix_LoadWAV("SND/attack.wav");
+			if (checker.is_open())
+			{
+				checker.close();
+				tile_img[i].setImage(szFilename);
+			}
+			else 
+			{
+				printf("Loaded %i tile images.", i);
+				break;
+			}
+	}
 
-
-
-
-
-	    //TODO move this
-	    std::string mapConfigLoc = "MAP";
-
-
-	    //load maps and all they contain
-	    //targets, enemies, stalls, shops
-	    for (int mp = 0; mp < NUM_MAPS; mp++)
-	    {
-	    	std::stringstream ss1;
-	    	ss1 << "map" << mp;
-	    	std::string mapFile = ss1.str();
-
-
-	    	printf("mapFile: %s\n", mapFile.c_str());
-
-	        map[mp] = new SKO_Map(mapConfigLoc, mapFile);   //
-	    }
-////
-	    //tile images for the map
-	    for  (int i = 0; i < 256; i++)//check if file exists, etc.
-	    {
-	         char szFilename[24];
-	         sprintf(szFilename, "IMG/TILE/tile%i.png", i);
-	         std::ifstream checker (szFilename);
-	         if (checker.is_open())
-	         {
-	            checker.close();
-	            tile_img[i].setImage(szFilename);
-	         }
-	         else {
-	        	printf("Loaded %i tile images.", i);
-	            break;
-	         }
-	    }
-
-		//content is now loaded so draw
-		contentLoaded = true;
+	//content is now loaded so draw
+	contentLoaded = true;
 }
 
-#if WINDOWS_OS == MY_OS
+#ifdef WINDOWS_OS
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLine, int nCmdShow)
 
@@ -7238,13 +7235,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLi
 
 #else
 
-
 int main (int argc, char *argv[])
 {
 
 #endif
 
-	if (SDL_Init(SDL_INIT_EVERYTHING) == -1){
+	std::string hashTestResult = Hash(toLower("pASsWoRD"));
+	printf("Testing hasher...%s\r\n", hashTestResult.c_str());
+
+	if (hashTestResult != "Quq6He1Ku8vXTw4hd0cXeEZAw0nqbpwPxZn50NcOVbk=")
+	{
+		printf("The hasher does not seem to be working properly. Check argon2 version.\r\n");
+		return 1;
+	}
+
+	if (SDL_Init(SDL_INIT_EVERYTHING) == -1)
+	{
 		SDL_Quit();
 		return 1;
 	}
@@ -7874,11 +7880,11 @@ int main (int argc, char *argv[])
 
           while (timestep->Check())
           {
-			#if MY_OS == WINDOWS_OS
+			#ifdef WINDOWS_OS
         	 HandleUI();
 			#endif
 
-			#if MY_OS == MAC_OS
+			#ifdef MAC_OS
 			 HandleUI();
 			#endif
 
@@ -8003,7 +8009,7 @@ int numDigits(int num)
 
 void physics()
 {
-#if MY_OS == LINUX_OS
+#ifdef LINUX_OS
 	HandleUI();
 #endif
 	if (menu != STATE_PLAY)
@@ -8043,12 +8049,9 @@ void physics()
 		//vertical movement
 		if (!block_y)
 		{//not blocked, fall
-
-		   //animation
+			//animation
 			map[current_map]->Enemy[i].ground = false;
-
 			map[current_map]->Enemy[i].y += map[current_map]->Enemy[i].y_speed;
-
 		}
 		else
 		{  //blocked, stop
@@ -8838,15 +8841,13 @@ void TryToLogin()
 {
 	   // this works for now
 	   networkLock = true;
-
       //building the packet to send
        std::string Message1 = "0";
        Message1 += LOGIN;
        Message1 += username;
        Message1 += " ";
-       Message1 += md5(password);
+       Message1 += Hash(toLower(username) + password);
        Message1[0] = Message1.length();
-
        int MAX_RETRY_LOGIN = 10;
 
        for (int i = 0; i < MAX_RETRY_LOGIN; i++)
@@ -9009,3 +9010,12 @@ void Kill()
 }
 
 
+std::string toLower(std::string myString)
+{
+	const int length = myString.length();
+	for (int i = 0; i != length; ++i)
+	{
+		myString[i] = std::tolower(myString[i]);
+	}
+	return myString;
+}

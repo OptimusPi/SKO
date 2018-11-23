@@ -3,7 +3,13 @@
 
 
 #include <iostream>
-#include "SDL.h"
+
+#include "operating_system.h"
+#ifdef WINDOWS_OS
+	#include "SDL.h"
+#else
+	#include <SDL/SDL.h>
+#endif
 
 /*
  * KE_Engine 

@@ -1,8 +1,22 @@
 #include <string>
 #include <cstdlib>
-#include "SDL.h"
-#include "SDL_image.h"
-#include "SDL_opengl.h"
+
+#include "operating_system.h"
+
+#ifdef WINDOWS_OS
+	#include "SDL.h"
+	#include "SDL_image.h"
+	#include "SDL_opengl.h"
+#elif defined MAC_OS
+	#include <OpenGL/gl.h>
+	#include <SDL/SDL.h>
+	#include <SDL/SDL_image.h>
+#elif defined LINUX_OS
+	#include <GL/gl.h>
+	#include <SDL/SDL.h>
+	#include <SDL/SDL_image.h>
+#endif
+
 
 
 #ifndef __OPI_IMAGE_H_

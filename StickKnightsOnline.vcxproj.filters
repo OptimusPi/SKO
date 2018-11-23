@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="StickKnightsOnline-Client\md5.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="StickKnightsOnline-Client\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -75,21 +72,15 @@
     <ClCompile Include="StickKnightsOnline-Client\INIReader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="StickKnightsOnline-Client\md5.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="StickKnightsOnline-Client\base64.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="StickKnightsOnline-Client\operating_system.windows.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="StickKnightsOnline-Client\operating_system.mac.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="StickKnightsOnline-Client\operating_system.linux.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="StickKnightsOnline-Client\operating_system.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="StickKnightsOnline-Client\md5.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="StickKnightsOnline-Client\ini.h">
@@ -152,6 +143,15 @@
     <ClInclude Include="StickKnightsOnline-Client\INIReader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="StickKnightsOnline-Client\md5.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StickKnightsOnline-Client\hasher.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StickKnightsOnline-Client\base64.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Makefile" />
@@ -162,5 +162,6 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="readme.txt" />
+    <Text Include="StickKnightsOnline-Client\help.txt" />
   </ItemGroup>
 </Project>

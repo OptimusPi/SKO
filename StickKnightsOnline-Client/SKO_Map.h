@@ -3,10 +3,16 @@
 
 
 
-
+#include "operating_system.h"
 #include <fstream>
 #include <cstring>
-#include "SDL.h"
+
+#ifdef WINDOWS_OS
+	#include "SDL.h"
+#else
+	#include <SDL/SDL.h>
+#endif
+
 #include "SKO_Stall.h"
 #include "SKO_Target.h"
 #include "SKO_Shop.h"
@@ -19,8 +25,6 @@
 #include <cstring>
 #include "INIReader.h"
 #include <sstream>
-
-
 
 #define MAX_TILES 32000
 
@@ -55,14 +59,10 @@ class SKO_Map
         SKO_Target Target[25];
         SKO_NPC	NPC[20];
 
-      //initialize stuff!
-      void init(int mp);
-      
       //constructors
 	  void init();
       SKO_Map();
       SKO_Map(std::string location, std::string mapName);
-      
 };
 
 #endif
