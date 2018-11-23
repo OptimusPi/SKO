@@ -17,6 +17,7 @@
 #include <fstream>
 #include <sstream>
 #include <cmath>
+#include <cctype>
 
 #ifdef WINDOWS_OS
 	#include "SDL.h"
@@ -59,7 +60,6 @@
 #include "OPI_Image.h"
 #include "md5.h"
 #include "hasher.h"
-
 
 // Maximum number of clients allowed to connect
 #define MAX_CLIENTS 16
@@ -341,8 +341,9 @@ bool draw_gui = true, draw_chat = true, draw_chat_back = true;
 
 bool doneUpdating = false;
 
-
+std::string toLower(std::string);
 void inventory();
+
 
 void setTitle()
 {
@@ -1187,7 +1188,7 @@ void Button::handle_events(int ID)
                                    packet += REGISTER;
                                    packet += username;
                                    packet += " ";
-                                   packet += Hash(password);
+                                   packet += Hash(toLower(username) + password);
                                    packet[0] = packet.length();
                                    PiSock.Send(packet);
 
@@ -7240,7 +7241,7 @@ int main (int argc, char *argv[])
 
 #endif
 
-	std::string hashTestResult = Hash("password");
+	std::string hashTestResult = Hash(toLower("pASsWoRD"));
 	printf("Testing hasher...%s\r\n", hashTestResult.c_str());
 
 	if (hashTestResult != "Quq6He1Ku8vXTw4hd0cXeEZAw0nqbpwPxZn50NcOVbk=")
@@ -8847,7 +8848,7 @@ void TryToLogin()
        Message1 += LOGIN;
        Message1 += username;
        Message1 += " ";
-       Message1 += Hash(password);
+       Message1 += Hash(toLower(username) + password);
        Message1[0] = Message1.length();
 	   int b = SDL_GetTicks();
        int MAX_RETRY_LOGIN = 10;
@@ -9012,3 +9013,12 @@ void Kill()
 }
 
 
+std::string toLower(std::string myString)
+{
+	const int length = myString.length();
+	for (int i = 0; i != length; ++i)
+	{
+		myString[i] = std::tolower(myString[i]);
+	}
+	return myString;
+}
