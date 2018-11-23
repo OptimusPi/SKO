@@ -6075,7 +6075,6 @@ void* Network(void *arg)
                    if (a != MyID)
                    {
                       Player[a] = SKO_Player();
-
                    }
 
                    //hold the result...
