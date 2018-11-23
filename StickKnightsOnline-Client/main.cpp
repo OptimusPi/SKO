@@ -58,8 +58,7 @@
 #include "INIReader.h"
 #include "OPI_Image.h"
 #include "md5.h"
-
-#include "hash/hasher.h"
+#include "hasher.h"
 
 
 // Maximum number of clients allowed to connect
@@ -1188,7 +1187,7 @@ void Button::handle_events(int ID)
                                    packet += REGISTER;
                                    packet += username;
                                    packet += " ";
-                                   packet += Hasher::Hash(password);
+                                   packet += Hash(password);
                                    packet[0] = packet.length();
                                    PiSock.Send(packet);
 
@@ -7148,29 +7147,25 @@ void* Network(void *arg)
      }
      return NULL;
 }
-void* PhysicsLoop(void *arg){
+void* PhysicsLoop(void *arg)
+{
+	KE_Timestep *timestep = new KE_Timestep(60);
 
+	while (!done)
+	{
+		//update the timestep
+		timestep->Update();
 
-         KE_Timestep *timestep = new KE_Timestep(60);
+		while (timestep->Check())
+		{
+			physics();
+		}
 
-         while (!done)
-         {
-              //update the timestep
-              timestep->Update();
-
-              while (timestep->Check())
-              {
-                 physics();
-              }
-
-
-              /* Don't run too fast */
-              SDL_Delay(1);
-         }
-
-
-         return NULL;
-    }
+		/* Don't run too fast */
+		SDL_Delay(1);
+	}
+	return NULL;
+}
 
 void Graphics();
 
@@ -7179,75 +7174,58 @@ void Graphics();
  * 	load all content from files
  *
  */
-void loadContent(){
-//	//music
+void loadContent()
+{
+	//music
+	music = Mix_LoadMUS("SND/menu.ogg");
 
-	    music = Mix_LoadMUS("SND/menu.ogg");
+	//sound effects
+	item_pickup_noise = Mix_LoadWAV("SND/item_pickup.wav");
+	items_drop_noise = Mix_LoadWAV("SND/items_drop.wav");
+	grunt_noise = Mix_LoadWAV("SND/grunt.wav");
+	login_noise = Mix_LoadWAV("SND/login.wav");
+	logout_noise= Mix_LoadWAV("SND/logout.wav");
+	hit1 = Mix_LoadWAV("SND/hit1.wav");
+	hit2 = Mix_LoadWAV("SND/hit2.wav");
+	hit3 = Mix_LoadWAV("SND/hit3.wav");
+	attack_noise = Mix_LoadWAV("SND/attack.wav");
 
-	    //If there was a problem loading the music
-	    if( music == NULL ) {
-	        printf("ERROR! COULD NOT LOAD MUSIC!\n");
-	    }
+	//TODO move this
+	std::string mapConfigLoc = "MAP";
 
+	//load maps and all they contain
+	//targets, enemies, stalls, shops
+	for (int mp = 0; mp < NUM_MAPS; mp++)
+	{
+		std::stringstream ss1;
+		ss1 << "map" << mp;
+		std::string mapFile = ss1.str();
+		printf("mapFile: %s\n", mapFile.c_str());
+		map[mp] = new SKO_Map(mapConfigLoc, mapFile);   //
+	}
+	////
+	//tile images for the map
+	for  (int i = 0; i < 256; i++)//check if file exists, etc.
+	{
+			char szFilename[24];
+			sprintf(szFilename, "IMG/TILE/tile%i.png", i);
+			std::ifstream checker (szFilename);
 
-	    //sound effects
-	    item_pickup_noise = Mix_LoadWAV("SND/item_pickup.wav");
-	    items_drop_noise = Mix_LoadWAV("SND/items_drop.wav");
-	    grunt_noise = Mix_LoadWAV("SND/grunt.wav");
-	    login_noise = Mix_LoadWAV("SND/login.wav");
-	    logout_noise= Mix_LoadWAV("SND/logout.wav");
-	    hit1 = Mix_LoadWAV("SND/hit1.wav");
-	    hit2 = Mix_LoadWAV("SND/hit2.wav");
-	    hit3 = Mix_LoadWAV("SND/hit3.wav");
-	    attack_noise = Mix_LoadWAV("SND/attack.wav");
+			if (checker.is_open())
+			{
+				checker.close();
+				tile_img[i].setImage(szFilename);
+			}
+			else 
+			{
+				printf("Loaded %i tile images.", i);
+				break;
+			}
+	}
 
-
-
-
-
-	    //TODO move this
-	    std::string mapConfigLoc = "MAP";
-
-
-	    //load maps and all they contain
-	    //targets, enemies, stalls, shops
-	    for (int mp = 0; mp < NUM_MAPS; mp++)
-	    {
-	    	std::stringstream ss1;
-	    	ss1 << "map" << mp;
-	    	std::string mapFile = ss1.str();
-
-
-	    	printf("mapFile: %s\n", mapFile.c_str());
-
-	        map[mp] = new SKO_Map(mapConfigLoc, mapFile);   //
-	    }
-////
-	    //tile images for the map
-	    for  (int i = 0; i < 256; i++)//check if file exists, etc.
-	    {
-	         char szFilename[24];
-	         sprintf(szFilename, "IMG/TILE/tile%i.png", i);
-	         std::ifstream checker (szFilename);
-	         if (checker.is_open())
-	         {
-	            checker.close();
-	            tile_img[i].setImage(szFilename);
-	         }
-	         else {
-	        	printf("Loaded %i tile images.", i);
-	            break;
-	         }
-	    }
-
-		//content is now loaded so draw
-		contentLoaded = true;
+	//content is now loaded so draw
+	contentLoaded = true;
 }
-
-
-
-
-
 
 #ifdef WINDOWS_OS
 
@@ -7257,13 +7235,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLi
 
 #else
 
-
 int main (int argc, char *argv[])
 {
 
 #endif
 
-	if (SDL_Init(SDL_INIT_EVERYTHING) == -1){
+	std::string hashTestResult = Hash("password");
+	printf("Testing hasher...%s\r\n", hashTestResult.c_str());
+
+	if (hashTestResult != "Quq6He1Ku8vXTw4hd0cXeEZAw0nqbpwPxZn50NcOVbk=")
+	{
+		printf("The hasher does not seem to be working properly. Check argon2 version.\r\n");
+		return 1;
+	}
+
+	if (SDL_Init(SDL_INIT_EVERYTHING) == -1)
+	{
 		SDL_Quit();
 		return 1;
 	}
@@ -8062,12 +8049,9 @@ void physics()
 		//vertical movement
 		if (!block_y)
 		{//not blocked, fall
-
-		   //animation
+			//animation
 			map[current_map]->Enemy[i].ground = false;
-
 			map[current_map]->Enemy[i].y += map[current_map]->Enemy[i].y_speed;
-
 		}
 		else
 		{  //blocked, stop
@@ -8863,7 +8847,7 @@ void TryToLogin()
        Message1 += LOGIN;
        Message1 += username;
        Message1 += " ";
-       Message1 += Hasher::Hash(password);
+       Message1 += Hash(password);
        Message1[0] = Message1.length();
 	   int b = SDL_GetTicks();
        int MAX_RETRY_LOGIN = 10;
