@@ -1,4 +1,5 @@
-All game resources to be placed in this folder.
+All game resources to be placed in this folder: \SKO\StickKnightsOnline-Client\
+
 This includes all images and sound resources for example that are not included
 in the git repository.
 
