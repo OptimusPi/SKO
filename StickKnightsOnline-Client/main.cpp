@@ -162,8 +162,8 @@ SDL_Event event = SDL_Event();
 #define PLAYER_CAMERA_Y 300
 
 //networking
-//SKO_Network Client;
 KE_Socket PiSock;
+SKO_Network Client;
 std::string  SERVER_IP;
 int SERVER_PORT;
 
@@ -1187,8 +1187,8 @@ void Button::handle_events(int ID)
 
                                 if (menu == STATE_CREATE) //creating account
                                 {
-									std::string result = "temp";
-									//std::string result = Client.createAccount(uMessage, pMessage);
+									//std::string result = "temp";
+									std::string result = Client.createAccount(uMessage, pMessage);
 
 									if (result == "success")
 									{
@@ -7917,6 +7917,7 @@ bool connect()
 
 
 	PiSock = KE_Socket();
+	Client.init(&PiSock);
 
 	if (!PiSock.Startup()){
 	   PiSock.Cleanup();
