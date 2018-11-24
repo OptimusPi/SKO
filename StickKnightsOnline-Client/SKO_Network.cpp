@@ -18,6 +18,7 @@ void SKO_Network::init(KE_Socket *tempSocket)
 	socket = tempSocket;
 }
 
+// Create an account
 std::string SKO_Network::createAccount(std::string desiredUsername, std::string desiredPassword)
 {
 	Hasher hasher1;
@@ -42,10 +43,29 @@ std::string SKO_Network::createAccount(std::string desiredUsername, std::string 
 	std::cout << socket->Data[1];
 	if (socket->Data[1] == REGISTER_SUCCESS) // 8 is REGISTER_SUCCESS
 	{
+		// Register successfully, return successful to the client
 		return "success";
 	}
 	else if (socket->Data[1] == REGISTER_FAIL_DOUBLE) // 9 is REGISTER_DOUBLE_DAIL
 	{
+		// Registration failed due to duplicate username in the database
 		return "username exists";
 	}
+}
+
+// Save the order of the inventory to allow players to re-arrange items
+// Receives a point to Player.inventory
+void SKO_Network::saveInventory(unsigned int inventory[24][2])
+{
+	std::string Packet = "0";
+	Packet += INVENTORY;
+
+	for (int i = 0; i < 24; i++)
+		Packet += inventory[i][0];
+	for (int i = 0; i < 24; i++)
+		Packet += inventory[i][1];
+
+	Packet[0] = Packet.length();
+
+	socket->Send(Packet);
 }

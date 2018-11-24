@@ -89,7 +89,7 @@ const char VERSION_CHECK = 255,
            PONG = 252,
            VERSION_MAJOR = 1,
            VERSION_MINOR = 2,
-           VERSION_PATCH = 0,
+           VERSION_PATCH = 1,
            VERSION_OS = MY_OS,
            PING = 0,
            CHAT = 1,
@@ -111,7 +111,8 @@ const char VERSION_CHECK = 255,
            STAT_HP = 18, STAT_XP = 19, STAT_LEVEL = 20, STAT_STR = 21, STAT_DEF = 22,
            STATMAX_HP = 23, STATMAX_XP = 24,
            RESPAWN = 26,
-           SPAWN_ITEM = 27, DESPAWN_ITEM = 28, POCKET_ITEM = 29, DEPOCKET_ITEM = 30, BANK_ITEM = 31, DEBANK_ITEM = 32,
+           SPAWN_ITEM = 27,
+			DESPAWN_ITEM = 28, POCKET_ITEM = 29, DEPOCKET_ITEM = 30, BANK_ITEM = 31, DEBANK_ITEM = 32,
            STAT_POINTS = 33, ATTACK = 34,
            ENEMY_ATTACK = 35, ENEMY_MOVE_LEFT = 36, ENEMY_MOVE_RIGHT = 37, ENEMY_MOVE_STOP = 38,
            USE_ITEM = 39, EQUIP = 40, TARGET_HIT = 41, STAT_REGEN = 42,
@@ -480,7 +481,7 @@ void SetUsername(int i)
 }
 
 
-
+/*
 void SaveInventory()
 {
      std::string Packet = "0";
@@ -494,7 +495,7 @@ void SaveInventory()
      Packet[0] = Packet.length();
 
      PiSock.Send(Packet);
-}
+}*/
 
 void inventory()
 {
@@ -503,7 +504,7 @@ void inventory()
 	   if (popup_menu == 1)
 	   {
 		   popup_menu = 0;
-		   SaveInventory();
+		   Client.saveInventory(Player[MyID].inventory);
 	   }
 	   else
 	   {
