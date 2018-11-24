@@ -282,6 +282,7 @@ bool LEFT = false;
 bool RIGHT = false;
 int keyTicker = 0;
 int keyRepeat = 0;
+bool actionKeyDown = false;
 
 
 //gravity
@@ -4385,15 +4386,21 @@ int pressKey(int key)
 
 
        case 'r':
-		   if (chat_box == 4 && !Player[MyID].attacking)
+		   // Check to see if the action key ('r') has been released before throwing again
+		   if (!actionKeyDown)
 		   {
-			   Packet = "0";
-			   Packet += CAST_SPELL;
-			   Packet[0] = Packet.length();
+			   actionKeyDown = true;
+			   if (chat_box == 4 && !Player[MyID].attacking)
+			   {
+				   Packet = "0";
+				   Packet += CAST_SPELL;
+				   Packet[0] = Packet.length();
 
-			   PiSock.Send(Packet);
-			   break;
+				   PiSock.Send(Packet);
+				   break;
+			   }
 		   }
+	   break;
 
        case SDLK_LEFT:
        case 'a':
@@ -5339,6 +5346,10 @@ void HandleUI()
                                 PiSock.Send(Packet);
                             }
                        break;
+					   case 'r':
+						   // Set the action key ('r') as released, so that objects can be thrown again
+						   actionKeyDown = false;
+					   break;
                        default: break;
                }
             break;
