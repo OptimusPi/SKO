@@ -10,7 +10,6 @@
 #define HAVE_STRUCT_TIMESPEC
 
 #include "operating_system.h"
-
 #include <cstdio>
 #include <ctime>
 #include <cstring>
@@ -41,7 +40,6 @@
 #endif
 
 #include "pthread.h"
-
 #include "OPI_Text.h"
 #include "SKO_Player.h"
 #include "SKO_Enemy.h"
@@ -65,26 +63,26 @@
 // Maximum number of clients allowed to connect
 #define MAX_CLIENTS 16
 
-//HIT_LOOPS is how many times to loop the collision detection adjustment (formerly while)
+// HIT_LOOPS is how many times to loop the collision detection adjustment (formerly while)
 #define HIT_LOOPS 3
 
-//UI_LOOPS is how many times to loop SDL Poll Event
+// UI_LOOPS is how many times to loop SDL Poll Event
 #define UI_LOOPS 100
 
-
-//debug flag for cheating to find bugs
+// Debug flag for cheating to find bugs
 bool DEBUG_FLAG = false;
 
-//loaded yet?
+// Loaded yet?
 bool loaded = false;
 bool contentLoaded = false;
 
-//login and out
+// LEETODO Look at making these part of the hasher function, no need for password to be in global namespace
+// Login and out
 std::string username, password;
-
 Hasher hasher;
 
-//packet codes
+// LEETODO I should be able to comment these out one by one to move tp the networking class
+// Packet Codes
 const char VERSION_CHECK = 255,
            LOADED = 254,
            SERVER_FULL = 253,
@@ -127,22 +125,20 @@ const char VERSION_CHECK = 255,
 		   MAKE_CLAN = 63,
 		   CAST_SPELL = 64;
 
-
-
-//network lock
+// LEETODO What does this do?
+// Network lock
 bool networkLock = false;
 
-//maps and stuff ! :)
+// Maps and stuff ! :)
 const char NUM_MAPS = 6;
 SKO_Map *map[NUM_MAPS];
 int current_map = 2;
 
-//sprites
+// Sprites
 SKO_Sprite EnemySprite[7];
 SKO_Sprite NpcSprite[1];
 
-
-//enemy respawn default
+// Enemy respawn default
 #define ENEMY_DEAD_X -1000
 #define ENEMY_DEAD_Y -1000
 
@@ -150,24 +146,23 @@ static bool connect();
 static void physics();
 static int numDigits(int num);
 
-
 void toggleFullscreen();
 
-/* The screen surface */
+// Screen surface
 SDL_Surface *screen;
 SDL_Event event = SDL_Event();
 
-//ceneter of screen for player
+// Center of screen for player
 #define PLAYER_CAMERA_X 480
 #define PLAYER_CAMERA_Y 300
 
-//networking
+// Networking
 KE_Socket PiSock;
 SKO_Network Client;
 std::string  SERVER_IP;
 int SERVER_PORT;
 
-//junk
+// Junk
 bool done;
 bool lclick = false;
 bool rclick = false;
@@ -175,16 +170,16 @@ long int cosmeticTicker;
 long int cosmeticTime = 100;
 bool connectError = false;
 
-//sounds
+// Sounds
 bool enableMUS = true;
 bool enableSFX = true;
 bool enableSND = true;
 int lastSfx = 0;//random sounds :)
 
-//default options
+// Default Options
 bool enableSIGN = true;
 
-//Exit points
+// Exit Points
 void Disconnect();
 void Done();
 void Kill();
@@ -198,12 +193,11 @@ double back_offsety[4];
 int offerIncrement = 1;
 int bankScroll = 0;
 
-//text
+// Text
+
 short int tSeek = 0, uSeek = 0, pSeek = 0, iSeek = 0;
 
 const int NAME_PASS_MAX = 36;
-
-
 
 char tMessage[MAX_T_MESSAGE];
 char uMessage[NAME_PASS_MAX];
@@ -212,8 +206,7 @@ char iMessage[20];
 char ppMessage[NAME_PASS_MAX];
 bool SHIFT;
 
-
-//what menu are you on
+// Current Menu
 const char STATE_TITLE = 0;
 const char STATE_LOGIN = 1;
 const char STATE_CREATE = 2;
