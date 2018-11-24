@@ -60,6 +60,7 @@
 #include "OPI_Image.h"
 #include "md5.h"
 #include "hasher.h"
+#include "SKO_Network.h"
 
 // Maximum number of clients allowed to connect
 #define MAX_CLIENTS 16
@@ -7272,8 +7273,6 @@ int main (int argc, char *argv[])
 		printf("ERROR! COULD NOT INIT SOUND!\n");
 		enableSND = false;
 	}
-
-
 
     std::ifstream optionFile("DAT/options.dat", std::ios::in|std::ios::binary|std::ios::ate);
 

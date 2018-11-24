@@ -33,6 +33,7 @@
     <ClCompile Include="StickKnightsOnline-Client\SKO_Item.cpp" />
     <ClCompile Include="StickKnightsOnline-Client\SKO_ItemObject.cpp" />
     <ClCompile Include="StickKnightsOnline-Client\SKO_Map.cpp" />
+    <ClCompile Include="StickKnightsOnline-Client\SKO_Network.cpp" />
     <ClCompile Include="StickKnightsOnline-Client\SKO_NPC.cpp" />
     <ClCompile Include="StickKnightsOnline-Client\SKO_Player.cpp" />
     <ClCompile Include="StickKnightsOnline-Client\SKO_Shop.cpp" />
@@ -60,6 +61,7 @@
     <ClInclude Include="StickKnightsOnline-Client\SKO_ItemObject.h" />
     <ClInclude Include="StickKnightsOnline-Client\SKO_item_defs.h" />
     <ClInclude Include="StickKnightsOnline-Client\SKO_Map.h" />
+    <ClInclude Include="StickKnightsOnline-Client\SKO_Network.h" />
     <ClInclude Include="StickKnightsOnline-Client\SKO_NPC.h" />
     <ClInclude Include="StickKnightsOnline-Client\SKO_Player.h" />
     <ClInclude Include="StickKnightsOnline-Client\SKO_Shop.h" />
