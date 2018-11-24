@@ -82,7 +82,7 @@ bool contentLoaded = false;
 //login and out
 std::string username, password;
 
-
+Hasher hasher;
 
 //packet codes
 const char VERSION_CHECK = 255,
@@ -162,6 +162,7 @@ SDL_Event event = SDL_Event();
 #define PLAYER_CAMERA_Y 300
 
 //networking
+//SKO_Network Client;
 KE_Socket PiSock;
 std::string  SERVER_IP;
 int SERVER_PORT;
@@ -1186,38 +1187,25 @@ void Button::handle_events(int ID)
 
                                 if (menu == STATE_CREATE) //creating account
                                 {
-                                   std::string packet = "0";
-                                   packet += REGISTER;
-                                   packet += username;
-                                   packet += " ";
-                                   packet += Hash(toLower(username) + password);
-                                   packet[0] = packet.length();
-                                   PiSock.Send(packet);
+									std::string result = "temp";
+									//std::string result = Client.createAccount(uMessage, pMessage);
 
-                                   //get messages from the server
-                                   if (PiSock.Connected)
-                                      if (PiSock.BReceive() == -1){
-                                         Done();
-                                      }
-
-                                   if (PiSock.Data[1] == REGISTER_SUCCESS)
-                                   {
-                                       //set the first sign
-                                       current_sign = map[current_map]->Sign[0];
-                                       popup_sign = true;
-
-                                       PiSock.Data = "";
-                                       TryToLogin();
-                                   }
-                                   else if (PiSock.Data[1] == REGISTER_FAIL_DOUBLE)
-                                   {
-                                       Message[0].SetText("The username already exists...");
-                                       Message[1].SetText("Please try a different character name.");
-                                       drawText(0);
-                                       drawText(1);
-                                   }
+									if (result == "success")
+									{
+										// Set the first sign
+										current_sign = map[current_map]->Sign[0];
+										popup_sign = true;
+										PiSock.Data = "";
+										TryToLogin();
+									}
+									else if (result == "username exists")
+									{
+										Message[0].SetText("The username already exists...");
+										Message[1].SetText("Please try a different character name.");
+										drawText(0);
+										drawText(1);
+									}
                                 }
-                                else
                                 if (menu == STATE_LOGIN)//logging in
                                 {
                                 	printf("going to login:\n");
@@ -7251,8 +7239,7 @@ int main (int argc, char *argv[])
 {
 
 #endif
-
-	std::string hashTestResult = Hash(toLower("pASsWoRD"));
+	std::string hashTestResult = hasher.Hash(toLower("pASsWoRD"));
 	printf("Testing hasher...%s\r\n", hashTestResult.c_str());
 
 	if (hashTestResult != "Quq6He1Ku8vXTw4hd0cXeEZAw0nqbpwPxZn50NcOVbk=")
@@ -8856,7 +8843,7 @@ void TryToLogin()
        Message1 += LOGIN;
        Message1 += username;
        Message1 += " ";
-       Message1 += Hash(toLower(username) + password);
+       Message1 += hasher.Hash(toLower(username) + password);
        Message1[0] = Message1.length();
        int MAX_RETRY_LOGIN = 10;
 
@@ -9018,6 +9005,7 @@ void Kill()
 	// at the time of writing SDL_Quit() causes a crash upon exit.
 	exit(0);
 }
+
 
 
 std::string toLower(std::string myString)

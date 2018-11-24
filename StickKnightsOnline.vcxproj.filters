@@ -81,6 +81,9 @@
     <ClCompile Include="StickKnightsOnline-Client\SKO_Network.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="StickKnightsOnline-Client\Hasher.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="StickKnightsOnline-Client\operating_system.h">

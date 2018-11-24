@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="StickKnightsOnline-Client\base64.cpp" />
+    <ClCompile Include="StickKnightsOnline-Client\Hasher.cpp" />
     <ClCompile Include="StickKnightsOnline-Client\ini.cpp" />
     <ClCompile Include="StickKnightsOnline-Client\INIReader.cpp" />
     <ClCompile Include="StickKnightsOnline-Client\InputBox.cpp" />
