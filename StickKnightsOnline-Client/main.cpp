@@ -509,7 +509,7 @@ void inventory()
 	   else
 	   {
 		  popup_menu = 1;
-		  SaveInventory();
+		  Client.saveInventory(Player[MyID].inventory);
 	   }
 	}
 
@@ -7137,7 +7137,7 @@ void* Network(void *arg)
                   pingRequestTicker = currentTime;
                   pingRequestTime = currentTime;
               }
-              else  if (!connectError) {
+              else {
                 Done();
               }
 
@@ -7962,13 +7962,14 @@ bool connect()
          Disconnect();
 
 
-   if (PiSock.Data[1] == VERSION_SUCCESS){
-	   Message[0].SetText("You are connected to the server!");
-	   Message[1].SetText(" ");
-      PiSock.Data = PiSock.Data.substr(PiSock.Data[0]);
-      printf("connect error = false :D\n");
-      return false;
-   }
+   if (PiSock.Data[1] == VERSION_SUCCESS) 
+   {
+		Message[0].SetText("You are connected to the server!");
+		Message[1].SetText(" ");
+		PiSock.Data = PiSock.Data.substr(PiSock.Data[0]);
+		printf("connect error = false :D\n");
+		return false;
+	}
 
 
    if (PiSock.Data[1] == VERSION_FAIL)
