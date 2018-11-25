@@ -158,10 +158,10 @@
     <ClInclude Include="StickKnightsOnline-Client\base64.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="StickKnightsOnline-Client\libbcrypt\ow-crypt.h">
+    <ClInclude Include="StickKnightsOnline-Client\SKO_Network.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="StickKnightsOnline-Client\SKO_Network.h">
+    <ClInclude Include="StickKnightsOnline-Client\Global.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -171,7 +171,6 @@
     <None Include="Makefile.mac" />
     <None Include="Makefile.windows" />
     <None Include="StickKnightsOnline-Client\DAT\config.ini" />
-    <None Include="StickKnightsOnline-Client\easy-encryption\LICENSE" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="readme.txt" />
