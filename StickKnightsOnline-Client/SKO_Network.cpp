@@ -44,6 +44,7 @@ std::string SKO_Network::createAccount(std::string desiredUsername, std::string 
 	if (socket->Data[1] == REGISTER_SUCCESS) // 8 is REGISTER_SUCCESS
 	{
 		// Register successfully, return successful to the client
+		socket->Data = "";
 		return "success";
 	}
 	else if (socket->Data[1] == REGISTER_FAIL_DOUBLE) // 9 is REGISTER_DOUBLE_DAIL
@@ -67,5 +68,21 @@ void SKO_Network::saveInventory(unsigned int inventory[24][2])
 
 	Packet[0] = Packet.length();
 
+	socket->Send(Packet);
+}
+
+// Allocate an unnasigned stat point to the desired stat
+void SKO_Network::allocateStatPoint(std::string desiredStat)
+{
+	std::string Packet = "0";
+	if (desiredStat == "health")
+		Packet += STAT_HP;
+	else if (desiredStat == "strength")
+		Packet += STAT_STR;
+	else if (desiredStat == "defense")
+		Packet += STAT_DEF;
+	else return; // Something weird happened
+	
+	Packet[0] = Packet.length();
 	socket->Send(Packet);
 }
