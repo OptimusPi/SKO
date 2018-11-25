@@ -366,7 +366,7 @@ void setTitle()
 	//get current date
 	time_t t = time(0);   // get time now
 	struct tm * now = localtime(&t);
-	
+
 	std::stringstream title;
 		title << "Stick Knights Online v"
 			  << (int)VERSION_MAJOR << "."
@@ -1237,7 +1237,7 @@ void Button::handle_events(int ID)
 									// Increase HP stat
 									guiHit = true;
 									Client.allocateStatPoint("health");
-                                     
+
                                  }
                            break;
                            case 12:
@@ -2464,13 +2464,13 @@ void Button::handle_events(int ID)
 								  }
 							   }
 
-						
+
                            break;
 
 						   //enable or disable auto sign reading
 						   case 46:
 							   (enableSIGN) = (!enableSIGN);
-						
+
 							   break;
 
                            //something unknown, but this shouldn't happen
@@ -2598,7 +2598,7 @@ void Button::handle_events(int ID)
                            }//end inside inventory click
                           break;
 
-			
+
                           default:
                           break;
 
@@ -3343,7 +3343,7 @@ construct_frame()
                {
 
 
-				   
+
 				   if (Player[i].equip[0] != 0)
 				   {
 					   //with weapon
@@ -3356,7 +3356,7 @@ construct_frame()
 					   trophy_offset_y = getTrophyUnarmedAttackOffsetY(Player[i].current_frame);
 				   }
 
-					
+
 
 
 					  //always draw trophies! :D
@@ -3503,7 +3503,7 @@ construct_frame()
 						   hat_offset_y = getHatAttackOffsetY(Player[i].current_frame);
 					   }
 					   ///Unarmed Attack
-					   else 
+					   else
 					   {
 						   hat_offset_x = getHatUnarmedAttackOffsetX(Player[i].current_frame);
 						   hat_offset_y = getHatUnarmedAttackOffsetY(Player[i].current_frame);
@@ -3809,7 +3809,7 @@ construct_frame()
                       {
 						  int itemAmount;
 						  itemAmount = Player[MyID].inventory[i][1];
-                    	  
+
 						  //center the item over your mouse
 						  if (itemAmount > 0) {
 							  offset_x -= 16;
@@ -4175,8 +4175,8 @@ construct_frame()
 					  // if buying, only draw items that are for sale. OR
 					  // if selling, only draw in the first item slot of the shop
 					  // and only draw it if a legit inventory slot is selected.
-                      if ((price > 0 && amount > 0 && shopBuyMode) 
-				       || (x == 0 && y == 0 && amount > 0 && item > 0 && !shopBuyMode)) 
+                      if ((price > 0 && amount > 0 && shopBuyMode)
+				       || (x == 0 && y == 0 && amount > 0 && item > 0 && !shopBuyMode))
                          DrawImage(782+(32-Item[item].w)/2+39*x, 278+(32-Item[item].h)/2+42*y, Item_img[item]);
 
 
@@ -5351,8 +5351,8 @@ void HandleUI()
 void* Network(void *arg)
 {
      //ping
-    
-    
+
+
     unsigned int currentTime = SDL_GetTicks();
 
     //int ping = 0;
@@ -5474,7 +5474,7 @@ void loadContent()
 				checker.close();
 				tile_img[i].setImage(szFilename);
 			}
-			else 
+			else
 			{
 				printf("Loaded %i tile images.", i);
 				break;
@@ -5554,7 +5554,7 @@ int main (int argc, char *argv[])
      	//read config.ini file and set all options
     	INIReader configFile("DAT/config.ini");
         if (configFile.ParseError() < 0) {
-		
+
 			if (configFile.ParseError() == -1)
 				printf("file open error. TIP: Line endings must be CRLF!");
 
@@ -5607,7 +5607,7 @@ int main (int argc, char *argv[])
     closeChatButton.setBounds(687+150, 4+372, 10,10);
     nextPageButton.setBounds(860, 372, 92, 43);
     leave_party_button.setBounds( 224+652, 45, 148, 32);
-	
+
 	enable_auto_signs_button.setBounds(169, 393, 34, 17);
 	disable_auto_signs_button.setBounds(206, 393, 34, 17);
 
@@ -5881,7 +5881,7 @@ int main (int argc, char *argv[])
     Item_img[ITEM_CANDY_CANE].setImage("IMG/ITEM/candy_cane.png");
     Item_img[ITEM_SKELETON_HELM].setImage("IMG/ITEM/skeleton_helmet.png");
 
-    
+
    // added on 2/10/2015
    Item_img[ITEM_TRAINING_HELM].setImage("IMG/ITEM/training_helmet.png");
 
@@ -6220,13 +6220,14 @@ bool connect()
          Disconnect();
 
 
-   if (PiSock.Data[1] == VERSION_SUCCESS){
-	   Message[0].SetText("You are connected to the server!");
-	   Message[1].SetText(" ");
-      PiSock.Data = PiSock.Data.substr(PiSock.Data[0]);
-      printf("connect error = false :D\n");
-      return false;
-   }
+   if (PiSock.Data[1] == VERSION_SUCCESS)
+   {
+		Message[0].SetText("You are connected to the server!");
+		Message[1].SetText(" ");
+		PiSock.Data = PiSock.Data.substr(PiSock.Data[0]);
+		printf("connect error = false :D\n");
+		return false;
+	}
 
 
    if (PiSock.Data[1] == VERSION_FAIL)
@@ -6541,7 +6542,7 @@ void physics()
 	//end npcs
 
 	//players
-	for (int i = 0; i < MAX_CLIENTS; i++) 
+	for (int i = 0; i < MAX_CLIENTS; i++)
 	{
 		if (Player[i].Status && Player[i].current_map == current_map)
 		{
@@ -7198,7 +7199,7 @@ void TryToLogin()
 			  drawText(1);
 			  break;
 		   }
-		   
+
 		   //wait a bit for more packets to come in
 		   SDL_Delay(100);
        }//end for login attemtps
