@@ -49,7 +49,6 @@
     <ClInclude Include="StickKnightsOnline-Client\InputBox.h" />
     <ClInclude Include="StickKnightsOnline-Client\KE_Socket.h" />
     <ClInclude Include="StickKnightsOnline-Client\KE_Timestep.h" />
-    <ClInclude Include="StickKnightsOnline-Client\libbcrypt\ow-crypt.h" />
     <ClInclude Include="StickKnightsOnline-Client\md5.h" />
     <ClInclude Include="StickKnightsOnline-Client\operating_system.h" />
     <ClInclude Include="StickKnightsOnline-Client\OPI_Image.h" />
@@ -74,7 +73,6 @@
     <None Include="Makefile.mac" />
     <None Include="Makefile.windows" />
     <None Include="StickKnightsOnline-Client\DAT\config.ini" />
-    <None Include="StickKnightsOnline-Client\easy-encryption\LICENSE" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="readme.txt" />

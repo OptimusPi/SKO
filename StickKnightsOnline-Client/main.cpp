@@ -4,7 +4,7 @@
   Programmed by    Nate Howard
   Networking by    Nate Howard / Todd Selaku
   C++, SDL, OpenGL, SDL_net (originally winsock2, but ported for Linux)
-  3/31/2016 setup in Visual Studio
+  3/31/2016 setup in Visual
 */
 
 #define HAVE_STRUCT_TIMESPEC
@@ -90,7 +90,7 @@ const char VERSION_CHECK = 255,
            PONG = 252,
            VERSION_MAJOR = 1,
            VERSION_MINOR = 2,
-           VERSION_PATCH = 0,
+           VERSION_PATCH = 1,
            VERSION_OS = MY_OS,
            PING = 0,
            CHAT = 1,
@@ -1309,6 +1309,7 @@ void Button::handle_events(int ID)
                                         {
                                            //select item
                                            selectedInventoryItem = itmx;
+										   hoveredInventoryItem = -1;
                                         }
 
                                         //trade items - OFFER MORE!!! :D
@@ -1485,17 +1486,12 @@ void Button::handle_events(int ID)
                                             PiSock.Send(tPacket);
                                         }
                                     }
-
-
-
                                 } // you have bank open
                                 if (menu == STATE_PLAY && popup_gui_menu == 6)
-                                {//you have bank open
-
+                                {//you have shop open
                                     //if within the bank box
                                     if (x > 776 && x < 1014 && y > 274 && y < 439)
                                     {guiHit = true;
-
                                         //calculate which item
                                         btmx = btmx/39;
                                         btmy = btmy/42;
@@ -1503,12 +1499,8 @@ void Button::handle_events(int ID)
 
                                         //select item
                                         selectedShopItem = btmx;
-
                                     }
-
-
-
-                                } // you have bank open
+                                } // you have shop open
 
                            break;
 
@@ -4031,8 +4023,6 @@ construct_frame()
                       if (amount > 0)
                          DrawImage(224+270+(32-Item[item].w)/2+39*x, 256+(32-Item[item].h)/2+56*y,Item_img[item]);
 
-
-
                       //selector box
                       if (i == selectedLocalItem)
                       {
@@ -4164,7 +4154,7 @@ construct_frame()
                   }
             }//end bank
             else if (popup_gui_menu == 6)
-            {//bank!
+            {//shop!
                DrawImage(768, 244, shop_gui_img);
 
                //selector for increment mass trading
@@ -4190,11 +4180,19 @@ construct_frame()
                       //
                       // shop
                       //
-                      int item;
-                      if (shopBuyMode)
-                         item = map[current_map]->Shop[currentShop].item[x][y][0];
-                      else
-                          item = Player[MyID].inventory[selectedInventoryItem][0];
+					  int item = 0;
+					  int amount = 0;
+
+					  if (shopBuyMode)
+					  {
+						  item = map[current_map]->Shop[currentShop].item[x][y][0];
+						  amount = 1;
+					  }
+					  else
+					  {
+						  item = Player[MyID].inventory[selectedInventoryItem][0];
+						  amount = Player[MyID].inventory[selectedInventoryItem][1];
+					  }
 
                       int price = 0;
 
@@ -4205,8 +4203,7 @@ construct_frame()
                          price = Item[item].price;
 
 
-
-                      if ((price > 0 && shopBuyMode) || (x == 0 && y == 0 && !shopBuyMode)) //(dont draw a ton of gold :/ (item #0 lol))
+                      if ((price > 0 && amount > 0 && shopBuyMode) || (x == 0 && y == 0 && !shopBuyMode)) //(dont draw a ton of gold :/ (item #0 lol))
                          DrawImage(782+(32-Item[item].w)/2+39*x, 278+(32-Item[item].h)/2+42*y, Item_img[item]);
 
 
@@ -4215,7 +4212,7 @@ construct_frame()
                       {
                          DrawImage(779+39*x, 277+42*y, inventorySelectorBox);
 
-                         if (price > 0)
+                         if (price > 0 && amount > 0)
                          {
                              std::stringstream ss;
                              ss << price;
@@ -6418,6 +6415,7 @@ void* Network(void *arg)
                        //find the item in inventory already
                        for (int i = 0; i < 24; i++)
                            if (Player[MyID].inventory[i][0] == item){
+							   Player[MyID].inventory[i][0] = 0;
                                Player[MyID].inventory[i][1] = 0;
                            }
                    }
