@@ -513,6 +513,7 @@ void inventory()
 	   else
 	   {
 		  popup_menu = 1;
+		  SaveInventory();
 	   }
 	}
 
@@ -1591,26 +1592,30 @@ void Button::handle_events(int ID)
                                           //drop items
                                       	  case 1:
                                       		guiHit = true;
-                                      		  amount = 1;
-											  amountStr = "";
-											  //parse the amount
-											  amount = atoi(iMessage);
 
-											  //break up the int as 4 bytes
-											  p=(char*)&amount;
-											  b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-											  packet = "0";
-											  packet += DROP_ITEM;
-											  packet += Player[MyID].inventory[selectedInventoryItem][0];
+											if (Player[MyID].inventory[selectedInventoryItem][1] > 0)
+											{
+												amount = 1;
+												amountStr = "";
+												//parse the amount
+												amount = atoi(iMessage);
 
-											  //how many to drop...could be lots
-											  packet += b1;
-											  packet += b2;
-											  packet += b3;
-											  packet += b4;
-											  packet[0] = packet.length();
+												//break up the int as 4 bytes
+												p = (char*)&amount;
+												b1 = p[0]; b2 = p[1]; b3 = p[2]; b4 = p[3];
+												packet = "0";
+												packet += DROP_ITEM;
+												packet += Player[MyID].inventory[selectedInventoryItem][0];
 
-											  PiSock.Send(packet);
+												//how many to drop...could be lots
+												packet += b1;
+												packet += b2;
+												packet += b3;
+												packet += b4;
+												packet[0] = packet.length();
+
+												PiSock.Send(packet);
+											}
                                     	  break;
 
 
