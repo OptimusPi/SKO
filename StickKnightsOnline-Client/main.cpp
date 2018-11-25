@@ -1190,7 +1190,6 @@ void Button::handle_events(int ID)
 										// Set the first sign
 										current_sign = map[current_map]->Sign[0];
 										popup_sign = true;
-										PiSock.Data = "";
 										TryToLogin();
 									}
 									else if (result == "username exists")
@@ -1247,32 +1246,28 @@ void Button::handle_events(int ID)
 
                            case 11:
                                 if (draw_gui && menu == STATE_PLAY && popup_menu == 2)
-                                 {guiHit = true;
-                                     std::string Packet = "0";
-                                     Packet += STAT_HP;
-                                     Packet[0] =  Packet.length();
-                                     PiSock.Send(Packet);
+                                {
+									// Increase HP stat
+									guiHit = true;
+									Client.allocateStatPoint("health");
+                                     
                                  }
                            break;
-
                            case 12:
                                 if (draw_gui && menu == STATE_PLAY && popup_menu == 2)
-                                 {guiHit = true;
-                                     std::string Packet = "0";
-                                     Packet += STAT_STR;
-                                     Packet[0] =  Packet.length();
-                                     PiSock.Send(Packet);
+								{
+									// Increase Strength stat
+									guiHit = true;
+									Client.allocateStatPoint("strength");
                                  }
                            break;
-
                            case 13:
                                 if (draw_gui && menu == STATE_PLAY && popup_menu == 2)
-                                 {guiHit = true;
-                                     std::string Packet = "0";
-                                     Packet += STAT_DEF;
-                                     Packet[0] =  Packet.length();
-                                     PiSock.Send(Packet);
-                                 }
+                                {
+									// Increase Defense stat
+									guiHit = true;
+									Client.allocateStatPoint("defense");
+                                }
                            break;
 
                            //inventory items or bank items

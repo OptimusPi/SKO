@@ -9,6 +9,7 @@ class SKO_Network
 		void init(KE_Socket*);
 
 		void saveInventory(unsigned int [24][2]);
+		void allocateStatPoint(std::string);
 
 		std::string createAccount(std::string, std::string);
 
