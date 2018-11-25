@@ -4202,8 +4202,11 @@ construct_frame()
                       else
                          price = Item[item].price;
 
-
-                      if ((price > 0 && amount > 0 && shopBuyMode) || (x == 0 && y == 0 && !shopBuyMode)) //(dont draw a ton of gold :/ (item #0 lol))
+					  // if buying, only draw items that are for sale. OR
+					  // if selling, only draw in the first item slot of the shop
+					  // and only draw it if a legit inventory slot is selected.
+                      if ((price > 0 && amount > 0 && shopBuyMode) 
+				       || (x == 0 && y == 0 && amount > 0 && item > 0 && !shopBuyMode)) 
                          DrawImage(782+(32-Item[item].w)/2+39*x, 278+(32-Item[item].h)/2+42*y, Item_img[item]);
 
 
@@ -4238,7 +4241,6 @@ construct_frame()
                              Message[139].pos_x = 1004 - (numDigits(price)-1)*8;
                              drawText(139);
                          }
-
                       }
 
 
@@ -6417,6 +6419,7 @@ void* Network(void *arg)
                            if (Player[MyID].inventory[i][0] == item){
 							   Player[MyID].inventory[i][0] = 0;
                                Player[MyID].inventory[i][1] = 0;
+							   Message[55 + i].SetText("");
                            }
                    }
 
