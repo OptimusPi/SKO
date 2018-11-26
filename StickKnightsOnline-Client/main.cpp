@@ -1572,16 +1572,10 @@ void Button::handle_events(int ID)
                                     	  //clan buy
                                       	  case 10:
                                       		guiHit = true;
-											  //parse the clan name
+											  // Create a clan
 											  clanTag = (std::string)iMessage;
-
+											  Client.createClan((std::string)iMessage);
 											  //create clan attempt packet
-											  packet = "0";
-											  packet += MAKE_CLAN;
-											  packet += clanTag;
-											  packet[0] = packet.length();
-
-											  PiSock.Send(packet);
                                       	  break;
                                       }
                                    }

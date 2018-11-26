@@ -169,6 +169,17 @@ void SKO_Network::useItem(unsigned int item)
 	socket->Send(Packet);
 }
 
+// Send a clan creation request
+void SKO_Network::createClan(std::string clanName)
+{
+	std::string Packet = "0";
+	Packet += MAKE_CLAN;
+	Packet += clanName;
+	Packet[0] = Packet.length();
+
+	socket->Send(Packet);
+}
+
 //This will periodically check for the client ping to the server in milliseconds
 void SKO_Network::checkPing()
 {
