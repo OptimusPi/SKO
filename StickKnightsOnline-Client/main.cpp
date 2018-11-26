@@ -83,7 +83,7 @@ bool contentLoaded = false;
 // Login and out
 std::string username, password;
 Hasher hasher;
-
+void TryToLogin();
 // moved to being defined in global.h
 // Packet Codes
 /*const char VERSION_CHECK = 255,
@@ -129,10 +129,6 @@ Hasher hasher;
 		   MAKE_CLAN = 63,
 		   CAST_SPELL = 64;*/
 
-// LEETODO What does this do?
-// Network lock
-bool networkLock = false;
-
 // Maps and stuff ! :)
 const char NUM_MAPS = 6;
 SKO_Map *map[NUM_MAPS];
@@ -165,6 +161,7 @@ KE_Socket PiSock;
 SKO_Network Client;
 std::string  SERVER_IP;
 int SERVER_PORT;
+int MyID = -1;
 
 // Junk
 bool done;
@@ -185,7 +182,7 @@ bool enableSIGN = true;
 
 // Exit Points
 void Disconnect();
-void Done();
+void Reconnect();
 void Kill();
 
 bool tryingToConnect = true;
@@ -271,7 +268,6 @@ int hoveredShopItemY = -1;
 
 //players
 SKO_Player Player[MAX_CLIENTS];
-int MyID = -1;
 
 //items
 SKO_Item Item[256];
@@ -501,11 +497,6 @@ void inventory()
 	}
 
 }
-
-
-
-void TryToLogin();
-
 
 
 
@@ -1052,7 +1043,7 @@ void Button::handle_events(int ID)
 	//printf("handle_events(%i) guiHit: %i\n", ID, (int)guiHit);
 	if (guiHit) return;
 
-    //don't let people click buttons if they couldnt connect.
+    //don't let people click buttons if user could not connect or is trying to connect
     if ((connectError || tryingToConnect) && ID != 8)
        return;
 
@@ -1177,7 +1168,7 @@ void Button::handle_events(int ID)
 										// Set the first sign
 										current_sign = map[current_map]->Sign[0];
 										popup_sign = true;
-										TryToLogin();
+										Client.sendLoginRequest(uMessage, pMessage);
 									}
 									else if (result == "username exists")
 									{
@@ -1189,8 +1180,7 @@ void Button::handle_events(int ID)
                                 }
                                 if (menu == STATE_LOGIN)//logging in
                                 {
-                                	printf("going to login:\n");
-                                   TryToLogin();
+									TryToLogin();
                                 }
                            break;
 
@@ -1262,7 +1252,6 @@ void Button::handle_events(int ID)
 
                                 if (draw_gui && menu == STATE_PLAY && popup_menu == 1)
                                 {
-
                                     //if within the inventory box
                                     if (x > 8 && x < 246 && y > 252 && y < 473)
                                     {guiHit = true;
@@ -4762,21 +4751,20 @@ int pressKey(int key)
           chat_box = 3;
        }
 
-       if (menu == STATE_LOGIN)//logging in
-       {
-             //clear message in corner
-               Message[0].SetText("");
-               Message[1].SetText("");
-               drawText(0);
-               drawText(1);
+		if (menu == STATE_LOGIN)//logging in
+		{
+			//clear message in corner
+			Message[0].SetText("");
+			Message[1].SetText("");
+			drawText(0);
+			drawText(1);
 
-            username = uMessage;
-            password = pMessage;
+			username = uMessage;
+			password = pMessage;
 
-           TryToLogin();
-       }
-
-   }
+			TryToLogin();
+		}
+	}
    else if (key == SDLK_BACKSPACE)
    {
         returnKey = key;
@@ -5350,48 +5338,23 @@ void HandleUI()
 
 void* Network(void *arg)
 {
-     //ping
-
-
+    //ping
     unsigned int currentTime = SDL_GetTicks();
-
-    //int ping = 0;
-
-    //first update the game
-
 
     //connect normally
     connectError = connect();
     printf("connectError is: %i\n", connectError);
     tryingToConnect = false;
 
-
      while (!done)
      {
-    	 if (networkLock){
-    		 printf("Network is locked . . . \n");
-    		 SDL_Delay(10);
-    		 continue;
-    	 }
-
-    	 if (loaded){
-    	 		 ;//printf("Network debug breakpoint.\n");
-    	 } else {
-//    		 if (SDL_GetTicks() % 500 == 0)
-//    		 {
-//    		     printf("\nPiSock.Data is:");
-//			     for (unsigned int i = 0; i<PiSock.Data.length(); i++)
-//			     	printf("[%i]", PiSock.Data[i]);
-//
-//    		 }
-    	 }
-
     	   if (connectError){
     		   printf("312465288 ERRRRRRRRRRRRRRRRRRRRRRRRRRRR\n");
     		   SDL_Delay(100);
     		   HandleUI();
     		   continue;
     	   }
+
     	   if (!PiSock.Connected ){
     		   printf("12341234 ERRRRRRRRRRRRRRRRRRRRRRRRRRRR\n");
     		   if (menu !=STATE_DISCONNECT)
@@ -5400,6 +5363,7 @@ void* Network(void *arg)
     	   }
 
 		   Client.receivePacket(connectError);
+		   Client.checkPing();
            SDL_Delay(1);
      }
      return NULL;
@@ -6107,7 +6071,7 @@ int main (int argc, char *argv[])
 
     if (pthread_create(&networkThread, NULL, Network, 0)){
         printf("Could not create thread for Network...\n");
-        Kill();//system("PAUSE");
+        Kill();
     }
 
 
@@ -6116,7 +6080,7 @@ int main (int argc, char *argv[])
 
     if (pthread_create(&physicsThread, NULL, PhysicsLoop, 0)){
         printf("Could not create thread for Physics...\n");
-        Kill();//system("PAUSE");
+        Kill();
     }
 
     SDL_Delay(30);
@@ -6169,11 +6133,6 @@ void Graphics()
 bool firstTimeConnect = true;
 bool connect()
 {
-
-	 networkLock = true;
-
-
-
 	PiSock = KE_Socket();
 	Client.init(&PiSock);
 
@@ -6181,10 +6140,6 @@ bool connect()
 	   PiSock.Cleanup();
 	}
 	firstTimeConnect = false;
-
-
-
-	networkLock = false;
 
     //build packet now so we can shoot it off
     std::string packet = "0";
@@ -6202,13 +6157,10 @@ bool connect()
         Message[0].SetText("There was an error connecting to the server!");
         Message[1].SetText("Join chat for help. www.StickKnightsOnline.com/chat");
         printf("connect error = true! :S\n");
-
-        networkLock = false;
         return true;
     }
     else
     {
-       networkLock = false;
         PiSock.Connected = true;
     }
 
@@ -7094,124 +7046,6 @@ void physics()
 	}
 }
 
-void TryToLogin()
-{
-	   // this works for now
-	   networkLock = true;
-      //building the packet to send
-       std::string Message1 = "0";
-       Message1 += LOGIN;
-       Message1 += username;
-       Message1 += " ";
-       Message1 += hasher.Hash(toLower(username) + password);
-       Message1[0] = Message1.length();
-       int MAX_RETRY_LOGIN = 10;
-
-       for (int i = 0; i < MAX_RETRY_LOGIN; i++)
-       {
-    	   printf("TryToLogin: i=%i\n", i);
-		   PiSock.Send(Message1);
-		   //printf("sent yer login message. :3\n");
-
-
-	//       printf("try to login PiSock.Data is: (before)");
-	//   	   for (Uint32 di = 0; di < PiSock.Data.length(); di++)
-	//		   printf("[%i]", PiSock.Data[di]);
-	//	   printf("\n\n");
-
-		   //get messages from the server
-		   bool gotPacket = false;
-
-		   while (!gotPacket)
-		   {
-			   if (PiSock.Connected)
-			   {
-				  if (PiSock.Receive() == -1)
-					 Done();
-			   }
-			   else
-			   {
-				   Done();
-			   }
-
-			   if (PiSock.Data.length() > 0 && (int)PiSock.Data.length() >= PiSock.Data[0])
-			   {
-	//        	   printf("(1) got packet! try to login PiSock.Data is (after): length=%i data=", PiSock.Data.length());
-	//        	   for (Uint32 di = 0; di < PiSock.Data.length(); di++)
-	//        	  		   printf("[%i]", PiSock.Data[di]);
-	//        	  	   printf("\n\n");
-				   gotPacket = true;
-			   }
-
-			   SDL_Delay(10);
-		   }
-
-	//       printf("got packet! try to login PiSock.Data is (after): length=%i data=", PiSock.Data.length());
-	//	   for (int di = 0; di < PiSock.Data.length(); di++)
-	//		   printf("[%i]", PiSock.Data[di]);
-	//	   printf("\n\n");
-
-		   if (PiSock.Data[1] == LOGIN_SUCCESS)
-		   {
-
-			   printf("LOGIN_SUCCESS PiSock.Data is: ");
-			   for (Uint32 di = 0; di < PiSock.Data.length(); di++)
-				   printf("[%i]", PiSock.Data[di]);
-			   printf("\n");
-
-
-			   printf("setting loading state...");
-			   menu =  STATE_LOADING;//loading game
-
-
-			   //background.setImage(loading_img);
-
-			   MyID = PiSock.Data[2];
-
-			   Player[MyID].Status = true;
-			   chat_box = 4;//in-game chat (no chat status)
-			   Player[MyID].Nick = username;
-			   SetUsername(MyID);
-			   Player[MyID].animation_ticker = SDL_GetTicks();
-			   break;
-		   }
-		   else if (PiSock.Data[1] == LOGIN_FAIL_DOUBLE)
-		   {
-			  Message[0].SetText("The username is already online. Please try again.");
-			  Message[1].SetText("If your character is stuck online, tell a staff member.");
-			  drawText(0);
-			  drawText(1);
-			  break;
-		   }
-		   else if (PiSock.Data[1] == LOGIN_FAIL_NONE)
-		   {
-			  Message[0].SetText("Wrong username or password.");
-			  Message[1].SetText("    Please try again...");
-			  drawText(0);
-			  drawText(1);
-			  break;
-		   }
-		   else if (PiSock.Data[1] == LOGIN_FAIL_BANNED)
-		   {
-			  Message[0].SetText("The username is banned.");
-			  Message[1].SetText("Please try a different account.");
-			  drawText(0);
-			  drawText(1);
-			  break;
-		   }
-
-		   //wait a bit for more packets to come in
-		   SDL_Delay(100);
-       }//end for login attemtps
-
-	   //save an extra packet
-	   PiSock.Data = PiSock.Data.substr(PiSock.Data[0]);
-
-	   printf("turning network lock off...\n");
-	   networkLock = false;
-	   return;
-}
-
 void QuitMenus()
 {
 	//nullify the menus
@@ -7226,8 +7060,7 @@ void Disconnect()
 {
 	printf("disconnect() called ... \n");
 
-
-	//draw the last frame vefore closing.
+	//draw the last frame before closing.
 	//background.setImage(disconnect_img);
 	//printf("background image set to disconnect_image\n");
 	Graphics();
@@ -7237,12 +7070,50 @@ void Disconnect()
 
 	menu = STATE_DISCONNECT;
 	printf("menu is now STATE_DISCONNECT\n");
-	Done();
-
+	Reconnect();
+	TryToLogin();
 }
-void Done()
+
+void TryToLogin()
 {
-	printf("Done()");
+	std::string returnValue = Client.sendLoginRequest(username, password);
+
+	if (returnValue == "success")
+	{
+		menu = STATE_LOADING;
+
+		Player[MyID].Status = true;
+		chat_box = 4;//in-game chat (no chat status)
+		Player[MyID].Nick = username;
+		SetUsername(MyID);
+		Player[MyID].animation_ticker = SDL_GetTicks();
+	}
+	else if (returnValue == "already online")
+	{
+		Message[0].SetText("The username is already online. Please try again.");
+		Message[1].SetText("If your character is stuck online, tell a staff member.");
+		drawText(0);
+		drawText(1);
+	}
+	else if (returnValue == "login failed")
+	{
+		Message[0].SetText("Wrong username or password.");
+		Message[1].SetText("    Please try again...");
+		drawText(0);
+		drawText(1);
+	}
+	else if (returnValue == "banned")
+	{
+		Message[0].SetText("The username is banned.");
+		Message[1].SetText("Please try a different account.");
+		drawText(0);
+		drawText(1);
+	}
+}
+
+void Reconnect()
+{
+	printf("Reconnect()");
 
      //save your options
      saveOptions();
@@ -7255,8 +7126,6 @@ void Done()
 
 	  printf("done reconnecting\n");
 	  PiSock.Data = "";
-	  TryToLogin();
-
 }
 
 void Kill()

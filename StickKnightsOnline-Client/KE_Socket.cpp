@@ -81,7 +81,6 @@ void KE_Socket::Send(std::string packet)
 		 else {
 			 //TODO try to reconnect
 		 }
-
 }
 
 int KE_Socket::Receive()
@@ -105,7 +104,6 @@ int KE_Socket::Receive()
         } else {
         	Close();
         }
-        
     }
     
     return result;

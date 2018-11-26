@@ -19,7 +19,6 @@ Hasher::Hasher()
 std::string Hasher::Hash(std::string _password)
 {
 	std::string hashResult = "";
-	//const uint8_t SALTLEN = _salt.length();
 	uint8_t hash[HASHLEN];
 	uint8_t salt[SALTLEN];
 

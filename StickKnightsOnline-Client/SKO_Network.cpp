@@ -10,28 +10,37 @@
 
 SKO_Network::SKO_Network()
 {
+
 }
 
 void SKO_Network::init(KE_Socket *tempSocket)
 {
 	// Temporarily store a pointer to the PiSock object in main, whilst everything is migrated over to here
-	// This is gonna be a nightmare..
+	// This is gonna be a nightmare...
 	// When everything is migrated over I can move connect etc here and the socket can be a private variable of this class
 	// instead.  Hopefully that makes sense.
 	socket = tempSocket;
+
+	//TODO - move this to packet factory such as: PacketFactory.Create(PING) or something to be determined later
+	pingPacket = "20";
+	pingPacket[1] = PING;
+	pingPacket[0] = pingPacket.length();
 }
 
-// Create an account
+// Request to create an account
+// Returns a string indicating success or error type
 std::string SKO_Network::createAccount(std::string desiredUsername, std::string desiredPassword)
 {
-	Hasher hasher1;
+	std::string returnVal = "";
+	Hasher hasher;
+
 	// Build the packet
 	std::string packet = "0";
 	packet += REGISTER; // 3 is REGISTER
 	packet += desiredUsername;
 	packet += " ";
 	std::transform(desiredUsername.begin(), desiredUsername.end(), desiredUsername.begin(), ::tolower);
-	packet += hasher1.Hash(desiredUsername + desiredPassword);
+	packet += hasher.Hash(desiredUsername + desiredPassword);
 	packet[0] = packet.length();
 
 	// Send the packet
@@ -39,22 +48,80 @@ std::string SKO_Network::createAccount(std::string desiredUsername, std::string 
 
 	// Get messages from the server
 	if (socket->Connected)
+	{
 		if (socket->BReceive() == -1) {
-			//Done();
-			// Need to look at Done(), seems silly and used all over, think I can get away without it for now
+			Reconnect();
 		}
-	std::cout << socket->Data[1];
-	if (socket->Data[1] == REGISTER_SUCCESS) // 8 is REGISTER_SUCCESS
+	}
+	else
+	{
+		Reconnect();
+	}
+
+	int code = socket->Data[1];
+	socket->Data = "";
+	if (code == REGISTER_SUCCESS) // 8 is REGISTER_SUCCESS
 	{
 		// Register successfully, return successful to the client
-		socket->Data = "";
 		return "success";
 	}
-	else if (socket->Data[1] == REGISTER_FAIL_DOUBLE) // 9 is REGISTER_DOUBLE_DAIL
+	else if (code == REGISTER_FAIL_DOUBLE) // 9 is REGISTER_DOUBLE_DAIL
 	{
 		// Registration failed due to duplicate username in the database
 		return "username exists";
 	}
+}
+
+// Request to login
+// Returns a string indicating success or error type
+std::string SKO_Network::sendLoginRequest(std::string username, std::string password)
+{
+	std::string returnVal = "";
+	Hasher hasher;
+
+	//building the packet to send
+	std::string Message1 = "0";
+	Message1 += LOGIN;
+	Message1 += username;
+	Message1 += " ";
+	std::transform(username.begin(), username.end(), username.begin(), ::tolower);
+	Message1 += hasher.Hash(username + password);
+	Message1[0] = Message1.length();
+	socket->Send(Message1);
+
+	// Get messages from the server
+	if (socket->Connected)
+	{
+		if (socket->BReceive() == -1) {
+			Reconnect(); socket->Data = "";
+		}
+	}
+	else
+	{
+		Reconnect();
+	}
+
+	int code = socket->Data[1];
+	if (code == LOGIN_SUCCESS)
+	{
+		MyID = socket->Data[2];
+		returnVal = "success";
+	}
+	else if (code == LOGIN_FAIL_DOUBLE)
+	{
+		returnVal = "already online";
+	}
+	else if (code == LOGIN_FAIL_NONE)
+	{
+		returnVal = "login failed";
+	}
+	else if (code == LOGIN_FAIL_BANNED)
+	{
+		returnVal =  "banned";
+	}
+
+	socket->Data = "";
+	return returnVal;
 }
 
 // Save the order of the inventory to allow players to re-arrange items
@@ -90,22 +157,31 @@ void SKO_Network::allocateStatPoint(std::string desiredStat)
 	socket->Send(Packet);
 }
 
+//This will periodically check for the client ping to the server in milliseconds
+void SKO_Network::checkPing()
+{
+	//get the ping
+	if (menu == STATE_PLAY && (SDL_GetTicks() - pingRequestTicker) >= 950 && !pingWaiting)
+	{
+		unsigned int currentTime = SDL_GetTicks();
+
+		if (socket->Connected) {
+			socket->Send(pingPacket);
+			pingWaiting = true;
+
+			pingRequestTicker = currentTime;
+			pingRequestTime = currentTime;
+		}
+	}
+}
 
 void SKO_Network::receivePacket(bool connectErr)
 {
-	std::string pingPacket;
-	pingPacket = "20";
-	pingPacket[1] = PING;
-	//pingPacket += "HELLO-WORLD";
-	pingPacket[0] = pingPacket.length();
-	bool pingWaiting = false;
 	unsigned int currentTime;
 	int code = 0;
 	int data_len = 0;
 	int pack_len = 0;
 	int ping = 0;
-	int pingRequestTime = 0;
-	unsigned int pingRequestTicker = 0;
 
 	//get messages from the server
 	if (socket->Data.length() == 0 || socket->Data.length() < (unsigned int)socket->Data[0])
@@ -219,10 +295,8 @@ void SKO_Network::receivePacket(bool connectErr)
 							Message[15].B = 80 / 255.0;
 						}
 
-
 						//tell the counters that the ping came back
 						pingWaiting = false;
-
 			}
 			else if (code == LOADED)
 			{
@@ -250,7 +324,7 @@ void SKO_Network::receivePacket(bool connectErr)
 				if (Player[MyID].level == 255)
 				{
 					printf("ERROR: Your character did not load, so closing the connection and client. just try again.");
-					Done();
+					Reconnect();
 				}
 
 
@@ -1071,7 +1145,7 @@ void SKO_Network::receivePacket(bool connectErr)
 					printf("socket->Data is:\n");
 					for (unsigned int i = 0; i<socket->Data.length(); i++)
 						printf("[%i]", socket->Data[i]);
-					Done();
+					Reconnect();
 				}
 			}
 			else if (code == POCKET_ITEM)
@@ -1678,7 +1752,7 @@ void SKO_Network::receivePacket(bool connectErr)
 				else
 				{
 					printf("got INVENTORY packet but the length is not 48, it's %i.\n", inventory_order.length());
-					Done();
+					Reconnect();
 				}
 			}
 			else if (code == BUDDY_XP)
@@ -1802,10 +1876,9 @@ void SKO_Network::receivePacket(bool connectErr)
 				for (int i = 0; i < 12; i++)
 					Message[i + 3].SetText(chat_line[i]->c_str());
 			}//end chat
-			else {
-				;
-				printf("weird packet!");
-				printf("data was: ");
+			else 
+			{
+				//Unknown packets should not happen but might if they are parsed wrong or perhaps if the client is outdated
 				for (unsigned int i = 0; i < socket->Data.length(); i++)
 					printf("[%i]", socket->Data[i]);
 			}
@@ -1813,25 +1886,4 @@ void SKO_Network::receivePacket(bool connectErr)
 			//put the extra packet into just this one
 			socket->Data = newPacket;
 	}//end there was a full packet
-
-
-	 //get the ping
-	if (menu == STATE_PLAY && (SDL_GetTicks() - pingRequestTicker) >= 950 && !pingWaiting)
-	{
-
-		currentTime = SDL_GetTicks();
-
-		if (socket->Connected) {
-			socket->Send(pingPacket);
-			pingWaiting = true;
-
-			pingRequestTicker = currentTime;
-			pingRequestTime = currentTime;
-		}
-		else  if (!connectErr) {
-			Done();
-		}
-
-	}
-
 }

@@ -10,9 +10,16 @@ class SKO_Network
 		void receivePacket(bool);
 		void saveInventory(unsigned int [24][2]);
 		void allocateStatPoint(std::string);
-
+		void checkPing();
 		std::string createAccount(std::string, std::string);
-
+		std::string sendLoginRequest(std::string username, std::string password);
 	private:
+		//TCP Socket to SKO Server
 		KE_Socket *socket;
+
+		//ping stuff
+		unsigned long int pingRequestTime = 0;
+		unsigned long int pingRequestTicker = 0;
+		bool pingWaiting = false;
+		std::string pingPacket;
 };

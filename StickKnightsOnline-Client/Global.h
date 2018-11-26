@@ -20,8 +20,7 @@ extern Mix_Music *music;
 extern bool enableMUS;
 extern bool enableSND;
 extern bool enableSFX;
-extern int MyID;
-extern void Done();
+extern void Reconnect();
 extern int menu;
 extern const char STATE_TITLE;
 extern const char STATE_LOGIN;
@@ -55,6 +54,7 @@ extern int selectedLocalItem;
 extern int selectedRemoteItem;
 extern bool shopBuyMode;
 extern int currentShop;
+extern int MyID;
 
 const char	VERSION_CHECK = 255, LOADED = 254, SERVER_FULL = 253,
 PONG = 252, VERSION_MAJOR = 1, VERSION_MINOR = 2,
