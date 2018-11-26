@@ -1518,13 +1518,9 @@ void Button::handle_events(int ID)
 
                            case 19: // use button
                                 if (draw_gui && menu == STATE_PLAY && (popup_gui_menu == 0 || popup_gui_menu == 7) && popup_menu == 1)
-                                {guiHit = true;
-                                    std::string packet = "0";
-                                    packet += USE_ITEM;
-                                    packet += Player[MyID].inventory[selectedInventoryItem][0];
-                                    packet[0] = packet.length();
-
-                                    PiSock.Send(packet);
+                                {
+									guiHit = true;
+									Client.useItem(Player[MyID].inventory[selectedInventoryItem][0]);
                                 }
                            break;
 

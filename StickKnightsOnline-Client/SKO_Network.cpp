@@ -157,6 +157,18 @@ void SKO_Network::allocateStatPoint(std::string desiredStat)
 	socket->Send(Packet);
 }
 
+// This will attempt to use an item
+// The value passed in is the integer value from the inventory slot that the player is attempting to use
+void SKO_Network::useItem(unsigned int item)
+{
+	std::string Packet = "0";
+	Packet += USE_ITEM;
+	Packet += item;
+	Packet[0] = Packet.length();
+
+	socket->Send(Packet);
+}
+
 //This will periodically check for the client ping to the server in milliseconds
 void SKO_Network::checkPing()
 {

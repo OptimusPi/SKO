@@ -10,6 +10,7 @@ class SKO_Network
 		void receivePacket(bool);
 		void saveInventory(unsigned int [24][2]);
 		void allocateStatPoint(std::string);
+		void useItem(unsigned int);
 		void checkPing();
 		std::string createAccount(std::string, std::string);
 		std::string sendLoginRequest(std::string username, std::string password);
