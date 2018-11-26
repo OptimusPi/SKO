@@ -4340,12 +4340,7 @@ int pressKey(int key)
 			   actionKeyDown = true;
 			   if (chat_box == 4 && !Player[MyID].attacking)
 			   {
-				   Packet = "0";
-				   Packet += CAST_SPELL;
-				   Packet[0] = Packet.length();
-
-				   PiSock.Send(Packet);
-				   break;
+				   Client.castSpell();
 			   }
 		   }
 	   break;

@@ -180,6 +180,17 @@ void SKO_Network::createClan(std::string clanName)
 	socket->Send(Packet);
 }
 
+// Cast a spell
+// Currently only used for throwing trophies
+void SKO_Network::castSpell()
+{
+	std::string Packet = "0";
+	Packet += CAST_SPELL;
+	Packet[0] = Packet.length();
+
+	socket->Send(Packet);
+}
+
 //This will periodically check for the client ping to the server in milliseconds
 void SKO_Network::checkPing()
 {

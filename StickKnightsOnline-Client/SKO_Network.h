@@ -13,6 +13,7 @@ class SKO_Network
 		void useItem(unsigned int);
 		void createClan(std::string);
 		void checkPing();
+		void castSpell();
 		std::string createAccount(std::string, std::string);
 		std::string sendLoginRequest(std::string username, std::string password);
 	private:
