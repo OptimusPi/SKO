@@ -185,7 +185,7 @@ void Kill();
 
 bool tryingToConnect = true;
 InputBox inputBox = InputBox();
-int requestedPlayer = 0;
+unsigned char requestedPlayer = 0;
 int TILES_WIDE = 0, TILES_TALL = 0;
 double back_offsetx[4];
 double back_offsety[4];
@@ -1277,9 +1277,7 @@ void Button::handle_events(int ID)
                                                   amount = Player[MyID].localTrade[i][1];
 										   amount += offerIncrement;
 										   
-										   
-										   
-										   Client.sendTradeItemOffer(item, amount);
+										   Client.setTradeItemOffer(item, amount);
                                         }
                                         //bank items - OFFER MORE!!! :D
                                         if (clickWasRight && popup_gui_menu == 5 && Player[MyID].inventory[itmx][1] > 0)
@@ -1344,22 +1342,10 @@ void Button::handle_events(int ID)
 
 
                                             //offer one less
-                                            if (amount-offerIncrement >= 0) amount -= offerIncrement;
-                                            char * p=(char*)&amount;
-                                            char b1=p[0], b2=p[1], b3=p[2], b4=p[3];
+                                            if (amount-offerIncrement >= 0) 
+												amount -= offerIncrement;
 
-
-                                            std::string tPacket = "0";
-                                            tPacket += TRADE;
-                                            tPacket += OFFER;
-                                            tPacket += item;
-                                            tPacket += b1;
-                                            tPacket += b2;
-                                            tPacket += b3;
-                                            tPacket += b4;
-                                            tPacket[0] = tPacket.length();
-                                            PiSock.Send(tPacket);
-
+											Client.setTradeItemOffer(item, amount);
                                         }
                                     }
                                     //remote trade window
@@ -1698,15 +1684,11 @@ void Button::handle_events(int ID)
                                    if (x > 322 && x < 449 && y > 401 && y < 416)
                                    {
                                       //initiate trade
-                                      packet += TRADE;
-                                      packet += INVITE;
-                                      packet += requestedPlayer;
-                                      packet[0] = packet.length();
-                                      PiSock.Send(packet);
+									   Client.sendTradeInvite(requestedPlayer);
 
-                                      //close menus and wait for response...
-                                      popup_gui_menu = 0;
-                                      chat_box = 4;
+									   //close menus and wait for response.
+									   popup_gui_menu = 0;
+									   chat_box = 4;
                                    } else
                                    //party
                                    if (x > 322 && x < 449 && y > 425 && y < 440)
@@ -1747,39 +1729,25 @@ void Button::handle_events(int ID)
                                 // trade with this person?
                                 if (popup_gui_menu == 3)
                                 {
-                                   std::string packet = "0";
                                    //okay
                                    if (x > 305 && x < 358 &&  y < 476 && y > 459)
                                    {
-
-
+									   Client.acceptTradeInvite();
                                       //I want to trade. Close menus and ...
                                       popup_gui_menu = 0;
                                       chat_box = 4;
-
-                                      //send accept packet
-                                      packet += TRADE;
-                                      packet += ACCEPT;
-                                      packet[0] = packet.length();
-                                      PiSock.Send(packet);
-
                                    }
 
 
                                    //cancel
                                    if (x > 409 && x < 462 &&  y < 476  && y > 459)
                                    {
-                                      //don't want to trade. Close menus and ...
+                                      Client.cancelTrade();
+									  
+									  //don't want to trade. Close menus and ...
                                       popup_gui_menu = 0;
                                       chat_box = 4;
-
-                                      //send deny packet
-                                      packet += TRADE;
-                                      packet += CANCEL;
-                                      packet[0] = packet.length();
-                                      PiSock.Send(packet);
                                    }
-
                                 }
                                 // party with this person?
                                 if (popup_gui_menu == 8)
@@ -1887,11 +1855,7 @@ void Button::handle_events(int ID)
                            case 23:
                                 if (popup_gui_menu == 4)
                                 { guiHit = true;
-                                    std::string packet = "0";
-                                    packet += TRADE;
-                                    packet += CONFIRM;
-                                    packet[0] =  packet.length();
-                                    PiSock.Send(packet);
+									Client.confirmTrade();
                                 }
                            break;
 
@@ -1899,11 +1863,7 @@ void Button::handle_events(int ID)
                            case 24:
                                 if (popup_gui_menu == 4)
                                 { guiHit = true;
-                                    std::string packet = "0";
-                                    packet += TRADE;
-                                    packet += CANCEL;
-                                    packet[0] = packet.length();
-                                    PiSock.Send(packet);
+									Client.cancelTrade();
                                 }
                            break;
 

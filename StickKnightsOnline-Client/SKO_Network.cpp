@@ -192,8 +192,49 @@ void SKO_Network::castSpell()
 }
 
 
-//This will periodically check for the client ping to the server in milliseconds
-void SKO_Network::sendTradeItemOffer(unsigned char item, unsigned int amount)
+void SKO_Network::acceptTradeInvite()
+{
+	std::string packet = "";
+	//send accept packet
+	packet += TRADE;
+	packet += ACCEPT;
+	packet[0] = packet.length();
+	socket->Send(packet);
+}
+
+//Cancel trade / reject trade invite
+void SKO_Network::cancelTrade()
+{
+	std::string packet = "";
+	packet += TRADE;
+	packet += CANCEL;
+	packet[0] = packet.length();
+	socket->Send(packet);
+}
+
+//Confirm and complete trade
+void SKO_Network::confirmTrade()
+{
+	std::string packet = "";
+	packet += TRADE;
+	packet += CONFIRM;
+	packet[0] = packet.length();
+	socket->Send(packet);
+}
+
+//request to trade with another player
+void SKO_Network::sendTradeInvite(unsigned char playerId)
+{
+	std::string packet = "0";
+	packet += TRADE;
+	packet += INVITE;
+	packet += playerId;
+	packet[0] = packet.length();
+	socket->Send(packet);
+}
+
+//Set the offer amount for an item
+void SKO_Network::setTradeItemOffer(unsigned char item, unsigned int amount)
 {
 	//set the current offer for <item> to <amount>
 	std::string tPacket = "0";

@@ -16,7 +16,11 @@ class SKO_Network
 		void castSpell();
 
 		//Trading with other players
-		void sendTradeItemOffer(unsigned char item, unsigned int amount);
+		void cancelTrade();
+		void confirmTrade();
+		void acceptTradeInvite();
+		void sendTradeInvite(unsigned char playerId);
+		void setTradeItemOffer(unsigned char item, unsigned int amount);
 
 		//Client health check
 		void checkPing();
