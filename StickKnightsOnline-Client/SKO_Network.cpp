@@ -191,6 +191,65 @@ void SKO_Network::castSpell()
 	socket->Send(Packet);
 }
 
+
+//This will periodically check for the client ping to the server in milliseconds
+void SKO_Network::sendTradeItemOffer(unsigned char item, unsigned int amount)
+{
+	//set the current offer for <item> to <amount>
+	std::string tPacket = "0";
+	tPacket += TRADE;
+	tPacket += OFFER;
+	tPacket += item;
+	tPacket += getPacketInt(amount);
+	tPacket[0] = tPacket.length();
+	socket->Send(tPacket);
+}
+
+//Helper function
+std::string SKO_Network::getPacketFloat(float value)
+{
+	//convert 4-byte floating point value into a string of bytes 
+	char * bytes = (char*)&value;
+
+	//construct packet format string of bytes
+	std::string packetBytes = "";
+	packetBytes += bytes[0];
+	packetBytes += bytes[1];
+	packetBytes += bytes[2];
+	packetBytes += bytes[3];
+
+	//return a 4-byte string
+	return packetBytes;
+}
+std::string SKO_Network::getPacketInt(unsigned int value)
+{
+	//convert 4-byte integer value into a string of bytes 
+	char * bytes = (char*)&value;
+
+	//construct packet format string of bytes
+	std::string packetBytes = "";
+	packetBytes += bytes[0];
+	packetBytes += bytes[1];
+	packetBytes += bytes[2];
+	packetBytes += bytes[3];
+
+	//return a 4-byte string
+	return packetBytes;
+}
+std::string SKO_Network::getPacketShort(unsigned short value)
+{
+	//convert 2-byte short integer value into a string of bytes 
+	char * bytes = (char*)&value;
+
+	//construct packet format string of bytes
+	std::string packetBytes = "";
+	packetBytes += bytes[0];
+	packetBytes += bytes[1];
+
+	//return a 4-byte string
+	return packetBytes;
+}
+
 //This will periodically check for the client ping to the server in milliseconds
 void SKO_Network::checkPing()
 {
@@ -209,6 +268,7 @@ void SKO_Network::checkPing()
 	}
 }
 
+//Receive as much data that is ready, and process a single packet
 void SKO_Network::receivePacket(bool connectErr)
 {
 	unsigned int currentTime;

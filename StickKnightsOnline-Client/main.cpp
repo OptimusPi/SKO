@@ -146,8 +146,6 @@ static bool connect();
 static void physics();
 static int numDigits(int num);
 
-void toggleFullscreen();
-
 // Screen surface
 SDL_Surface *screen;
 SDL_Event event = SDL_Event();
@@ -1206,7 +1204,6 @@ void Button::handle_events(int ID)
 
                            //inventory_button
                            case 9:
-
                                 inventory();
                            break;
 
@@ -1278,25 +1275,11 @@ void Button::handle_events(int ID)
                                            for (unsigned int i = 0 ; i < 24; i++)
                                                if (Player[MyID].localTrade[i][0] == (unsigned int)item && Player[MyID].localTrade[i][1] > 0)
                                                   amount = Player[MyID].localTrade[i][1];
-
-
-                                            //offer one more
-                                            amount += offerIncrement;
-                                            char * p=(char*)&amount;
-                                            char b1=p[0], b2=p[1], b3=p[2], b4=p[3];
-
-
-                                            std::string tPacket = "0";
-                                            tPacket += TRADE;
-                                            tPacket += OFFER;
-                                            tPacket += item;
-                                            tPacket += b1;
-                                            tPacket += b2;
-                                            tPacket += b3;
-                                            tPacket += b4;
-                                            tPacket[0] = tPacket.length();
-                                            PiSock.Send(tPacket);
-
+										   amount += offerIncrement;
+										   
+										   
+										   
+										   Client.sendTradeItemOffer(item, amount);
                                         }
                                         //bank items - OFFER MORE!!! :D
                                         if (clickWasRight && popup_gui_menu == 5 && Player[MyID].inventory[itmx][1] > 0)

@@ -12,8 +12,16 @@ class SKO_Network
 		void allocateStatPoint(std::string);
 		void useItem(unsigned int);
 		void createClan(std::string);
-		void checkPing();
+		
 		void castSpell();
+
+		//Trading with other players
+		void sendTradeItemOffer(unsigned char item, unsigned int amount);
+
+		//Client health check
+		void checkPing();
+
+		//SKO account functions.
 		std::string createAccount(std::string, std::string);
 		std::string sendLoginRequest(std::string username, std::string password);
 	private:
@@ -25,4 +33,7 @@ class SKO_Network
 		unsigned long int pingRequestTicker = 0;
 		bool pingWaiting = false;
 		std::string pingPacket;
+		std::string getPacketFloat(float);
+		std::string getPacketInt(unsigned int);
+		std::string getPacketShort(unsigned short);
 };
