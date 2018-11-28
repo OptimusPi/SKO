@@ -5125,8 +5125,6 @@ int main (int argc, char *argv[])
      for (int i = 0; i < NUM_CHAT_LINES; i++)
     	 chat_line[i] = new std::string("");
 
-
-
      	//read config.ini file and set all options
     	INIReader configFile("DAT/config.ini");
         if (configFile.ParseError() < 0) {
