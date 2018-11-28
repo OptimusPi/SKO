@@ -142,7 +142,6 @@ SKO_Sprite NpcSprite[1];
 // #define ENEMY_DEAD_X -1000
 // #define ENEMY_DEAD_Y -1000
 
-static bool connect();
 static void physics();
 static int numDigits(int num);
 
@@ -155,7 +154,6 @@ SDL_Event event = SDL_Event();
 #define PLAYER_CAMERA_Y 300
 
 // Networking
-KE_Socket PiSock;
 SKO_Network Client;
 std::string  SERVER_IP;
 int SERVER_PORT;
@@ -180,16 +178,18 @@ bool enableSIGN = true;
 
 // Exit Points
 void Disconnect();
-void Reconnect();
 void Kill();
 
+//Connecting clientto server
 bool tryingToConnect = true;
+bool ConnectToSKOServer();
+
 InputBox inputBox = InputBox();
 unsigned char requestedPlayer = 0;
 int TILES_WIDE = 0, TILES_TALL = 0;
 double back_offsetx[4];
 double back_offsety[4];
-int offerIncrement = 1;
+unsigned int offerIncrement = 1;
 int bankScroll = 0;
 
 // Text
@@ -318,7 +318,7 @@ int hoverItemX = 0;
 int hoverItemY = 0;
 
 //equipment
-int selectedEquipItem = 0;
+unsigned char equipmentSlot = 0;
 
 int selectedLocalItem = 0;
 int selectedRemoteItem = 0;
@@ -1294,21 +1294,8 @@ void Button::handle_events(int ID)
 
                                             //offer this amount to the bank
                                             amount = offerIncrement;
-                                            char * p=(char*)&amount;
-                                            char b1=p[0], b2=p[1], b3=p[2], b4=p[3];
 
-
-                                            std::string tPacket = "0";
-                                            tPacket += BANK;
-                                            tPacket += BANK_ITEM;
-                                            tPacket += item;
-                                            tPacket += b1;
-                                            tPacket += b2;
-                                            tPacket += b3;
-                                            tPacket += b4;
-                                            tPacket[0] = tPacket.length();
-                                            PiSock.Send(tPacket);
-
+											Client.depositBankItem(item, amount);
                                         }
                                     }
 
@@ -1389,25 +1376,10 @@ void Button::handle_events(int ID)
                                         {
                                            int amount = Player[MyID].bank[btmx];
 
-
-                                            //offer negative because of withdrawling
                                            	if (amount >= offerIncrement)
                                            		amount = offerIncrement;
 
-                                            char * p=(char*)&amount;
-                                            char b1=p[0], b2=p[1], b3=p[2], b4=p[3];
-
-
-                                            std::string tPacket = "0";
-                                            tPacket += BANK;
-                                            tPacket += DEBANK_ITEM;
-                                            tPacket += btmx;
-                                            tPacket += b1; // amount
-                                            tPacket += b2; // |
-                                            tPacket += b3; // |
-                                            tPacket += b4; // |
-                                            tPacket[0] = tPacket.length();
-                                            PiSock.Send(tPacket);
+											Client.withdrawalBankItem(btmx, amount);
                                         }
                                     }
                                 } // you have bank open
@@ -1500,9 +1472,7 @@ void Button::handle_events(int ID)
                                    //okay
                                    if (x > 305 && x < 358 &&  y < 476 && y > 459)
                                    {
-                                	   int amount;
-                                	   std::string amountStr;
-							           std::string packet;
+                                	   unsigned int amount;
 							           std::string clanTag;
 									   char *p, b1, b2, b3, b4;
 
@@ -1514,26 +1484,11 @@ void Button::handle_events(int ID)
 
 											if (Player[MyID].inventory[selectedInventoryItem][1] > 0)
 											{
-												amount = 1;
-												amountStr = "";
-												//parse the amount
+												unsigned char itemId = Player[MyID].inventory[selectedInventoryItem][0];
+												//parse the amount the user typed into the GUI textbox
 												amount = atoi(iMessage);
-
-												//break up the int as 4 bytes
-												p = (char*)&amount;
-												b1 = p[0]; b2 = p[1]; b3 = p[2]; b4 = p[3];
-												packet = "0";
-												packet += DROP_ITEM;
-												packet += Player[MyID].inventory[selectedInventoryItem][0];
-
-												//how many to drop...could be lots
-												packet += b1;
-												packet += b2;
-												packet += b3;
-												packet += b4;
-												packet[0] = packet.length();
-
-												PiSock.Send(packet);
+												
+												Client.dropItem(itemId, amount);
 											}
                                     	  break;
 
@@ -1633,12 +1588,7 @@ void Button::handle_events(int ID)
                                         if (popup_gui_menu != 5 && x > x1 && x < x2 && y > y1 && y < y2)
                                         {
                                            printf("shop\n");
-                                           std::string packet = "0";
-                                           packet += SHOP;
-                                           packet += INVITE;
-                                           packet += i;
-                                           packet[0] = packet.length();
-                                           PiSock.Send(packet);
+										   Client.openShop(i);
                                            return;
                                         }
                                     }
@@ -1694,11 +1644,7 @@ void Button::handle_events(int ID)
                                    if (x > 322 && x < 449 && y > 425 && y < 440)
                                    {
                                       //initiate party
-                                      packet += PARTY;
-                                      packet += INVITE;
-                                      packet += requestedPlayer;
-                                      packet[0] = packet.length();
-                                      PiSock.Send(packet);
+									   Client.sendPartyInvite(requestedPlayer);
 
                                       //close menus and wait for response...
                                       popup_gui_menu = 0;
@@ -1707,12 +1653,7 @@ void Button::handle_events(int ID)
                                    //clan
                                    if (x > 322 && x < 449 && y > 449 && y < 464)
                                    {
-                                      //initiate trade
-                                      packet += CLAN;
-                                      packet += INVITE;
-                                      packet += requestedPlayer;
-                                      packet[0] = packet.length();
-                                      PiSock.Send(packet);
+									   Client.sendClanInvite(requestedPlayer);
 
                                       //close menus and wait for response...
                                       popup_gui_menu = 0;
@@ -1752,22 +1693,15 @@ void Button::handle_events(int ID)
                                 // party with this person?
                                 if (popup_gui_menu == 8)
                                 {
-                                   std::string packet = "0";
                                    //okay
                                    if (x > 305 && x < 358 &&  y < 476 && y > 459)
                                    {
-
                                       //I want to party. Close menus and ...
                                       popup_gui_menu = 0;
                                       chat_box = 4;
 
-
                                       //send accept packet
-                                      packet += PARTY;
-                                      packet += ACCEPT;
-                                      packet[0] = packet.length();
-                                      PiSock.Send(packet);
-
+									  Client.acceptPartyInvite();
                                    }
 
 
@@ -1779,47 +1713,34 @@ void Button::handle_events(int ID)
                                       chat_box = 4;
 
                                       //send deny packet
-                                      packet += PARTY;
-                                      packet += CANCEL;
-                                      packet[0] = packet.length();
-                                      PiSock.Send(packet);
+									  Client.cancelParty();
                                    }
 
                                 }
-                                // clan with this person?
-							   if (popup_gui_menu == 11)
-							   {
-								  std::string packet = "0";
-								  //okay
-								  if (x > 305 && x < 358 &&  y < 476 && y > 459)
-								  {
-									 //I want to party. Close menus and ...
-									 popup_gui_menu = 0;
-									 chat_box = 4;
+								// clan with this person?
+								if (popup_gui_menu == 11)
+								{
+									//okay
+									if (x > 305 && x < 358 &&  y < 476 && y > 459)
+									{
+									Client.acceptClanInvite();
 
-									 //send accept packet
-									 packet += CLAN;
-									 packet += ACCEPT;
-									 packet[0] = packet.length();
-									 PiSock.Send(packet);
-								  }
+									//I want to party. Close menus and ...
+									popup_gui_menu = 0;
+									chat_box = 4;
+									}
 
+									//cancel
+									if (x > 409 && x < 462 &&  y < 476  && y > 459)
+									{
+										Client.acceptClanInvite();
 
-								  //cancel
-								  if (x > 409 && x < 462 &&  y < 476  && y > 459)
-								  {
-									 //don't want to trade. Close menus and ...
-									 popup_gui_menu = 0;
-									 chat_box = 4;
+										//don't want to trade. Close menus and ...
+										popup_gui_menu = 0;
+										chat_box = 4;
+									}
+							    }
 
-									 //send deny packet
-									 packet += CLAN;
-									 packet += CANCEL;
-									 packet[0] = packet.length();
-									 PiSock.Send(packet);
-								  }
-
-							   }
                                 //exit the game?
                                 if (popup_gui_menu == 9){
                                 	//okay
@@ -1918,22 +1839,9 @@ void Button::handle_events(int ID)
                                    int item = selectedBankItem;
                                    int amount = Player[MyID].bank[selectedBankItem];
 
-
-                                   char * p=(char*)&amount;
-                                   char b1=p[0], b2=p[1], b3=p[2], b4=p[3];
-
                                    if (amount > 0)
                                    {
-                                       std::string tPacket = "0";
-                                       tPacket += BANK;
-                                       tPacket += DEBANK_ITEM;
-                                       tPacket += item;
-                                       tPacket += b1;
-                                       tPacket += b2;
-                                       tPacket += b3;
-                                       tPacket += b4;
-                                       tPacket[0] = tPacket.length();
-                                       PiSock.Send(tPacket);
+									   Client.withdrawalBankItem(item, amount);
                                    }
                                }
                            break;
@@ -1944,11 +1852,7 @@ void Button::handle_events(int ID)
                                {guiHit = true;
                                   popup_gui_menu = 0;
                                   {
-                                  std::string packet = "0";
-                                  packet += BANK;
-                                  packet += CANCEL;
-                                  packet[0] = packet.length();
-                                  PiSock.Send(packet);
+									  Client.closeBank();
                                   }
                                }
                            break;
@@ -2027,11 +1931,7 @@ void Button::handle_events(int ID)
                                {guiHit = true;
                                   popup_gui_menu = 0;
                                   {
-                                  std::string packet = "0";
-                                  packet += SHOP;
-                                  packet += CANCEL;
-                                  packet[0] = packet.length();
-                                  PiSock.Send(packet);
+									  Client.closeShop();
                                   }
                                }
                            break;
@@ -2047,30 +1947,20 @@ void Button::handle_events(int ID)
                                 //accept shop transaction!! BUY/SELL
                                 if (popup_gui_menu == 6)
                                 {guiHit = true;
-                                    std::string packet = "0";
-                                    packet += SHOP;
-                                    int item = 0, amount = 0;
+                                   
+									unsigned char item = 0;
+									unsigned int amount = 0;
 
-                                    //find item position
-
-
-
-
+                                   //find item position
                                    //buy items!
                                    if (shopBuyMode)
                                    {
-                                       //request buy mode
-                                       packet += BUY;
-
                                        //find the item & amount
                                        item = selectedShopItem;
-
                                    }
                                    else // SELL ! :D
                                    {
                                         //request sell mode
-                                        packet += SELL;
-
                                         int i = 0;
                                         for (int y = 0; y < 4; y ++)
                                         {
@@ -2086,27 +1976,13 @@ void Button::handle_events(int ID)
                                         //find the item
                                         item = Player[MyID].inventory[i][0];
                                    }
-
-
                                    amount = offerIncrement;
 
-
-                                   //add item type
-                                   packet += item;
-
-                                   //add the amount
-                                   //break up the int as 4 bytes
-                                   char *p=(char*)&amount;
-                                   char b1,b2,b3,b4;
-                                   b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-                                   packet += b1;
-                                   packet += b2;
-                                   packet += b3;
-                                   packet += b4;
-
-                                   packet[0] = packet.length();
-                                   PiSock.Send(packet);
+                                   //Send to SKO Network
+								   if (shopBuyMode)
+									   Client.buyItem(item, amount);
+								   else
+									   Client.sellItem(item, amount);
                                 }
                            break;
 
@@ -2236,26 +2112,22 @@ void Button::handle_events(int ID)
                                    //select hat
                                    if (x > 459 && x < 496 && y > 273 && y < 306)
                                    {guiHit = true;
-                                         selectedEquipItem = 1;
+                                         equipmentSlot = 1;
                                    }
                                    else //select sword
                                    if (x > 459 && x < 496 && y > 347 && y < 380)
                                    {guiHit = true;
-                                         selectedEquipItem = 0;
+                                         equipmentSlot = 0;
                                    }
                                    else //select trophy 327, 317
 								   if (x > 327 && x < 359 && y > 317 && y < 349)
 								   {guiHit = true;
-										selectedEquipItem = 2;
+										equipmentSlot = 2;
 								   }
                                    else
                                    if (x > 429 && x < 501 && y > 480 && y < 495)
                                    {guiHit = true;
-                                         std::string packet = "0";
-                                         packet += EQUIP;//unequip trololo
-                                         packet += selectedEquipItem;
-                                         packet[0] = packet.length();
-                                         PiSock.Send(packet);
+										Client.unequipItem(equipmentSlot);
                                    }
                                 }
                            break;
@@ -2263,11 +2135,7 @@ void Button::handle_events(int ID)
                            case 42:
                                    if (Player[MyID].party >= 0)
                                    {
-                                         std::string packet = "0";
-                                         packet += PARTY;
-                                         packet += CANCEL;
-                                         packet[0] = packet.length();
-                                         PiSock.Send(packet);
+									   Client.cancelParty();
                                    }
                            break;
 
@@ -2333,35 +2201,18 @@ void Button::handle_events(int ID)
 								  //okay
 								  if (x > 305 && x < 358 &&  y < 476 && y > 459)
 								  {
-								   int amount;
-								   std::string amountStr;
-								   std::string packet;
-								   char *p, b1, b2, b3, b4;
+								   unsigned int amount = 0;
+								   unsigned char itemId = 0;
 
 									 switch (popup_gui_menu)
 									 {
 										 //drop items
 										  case 1:
-											  amount = 1;
-											  amountStr = "";
-											  //parse the amount
+											  //parse the amount the user typed into the GUI textbox
 											  amount = atoi(iMessage);
+											  itemId = Player[MyID].inventory[selectedInventoryItem][0];
 
-											  //break up the int as 4 bytes
-											  p=(char*)&amount;
-											  b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-											  packet = "0";
-											  packet += DROP_ITEM;
-											  packet += Player[MyID].inventory[selectedInventoryItem][0];
-
-											  //how many to drop...could be lots
-											  packet += b1;
-											  packet += b2;
-											  packet += b3;
-											  packet += b4;
-											  packet[0] = packet.length();
-
-											  PiSock.Send(packet);
+											  Client.dropItem(itemId, amount);
 									      break;
 
 									  //clan buy
@@ -3782,7 +3633,7 @@ construct_frame()
 
 
                      //where to draw the selector
-                     switch (selectedEquipItem)
+                     switch (equipmentSlot)
                      {
                             case 0://sword
                                     DrawImage(459, 347, inventorySelectorBox);
@@ -4292,85 +4143,30 @@ int pressKey(int key)
        case 'a':
             if (chat_box == 4 && !Player[MyID].attacking && Player[MyID].x_speed != -2)
             {
+				//Send action to server
+				Client.playerAction("left", Player[MyID].x, Player[MyID].y);
+
+				//Client prediction physics
             	LEFT = true;
             	RIGHT = false;
 
                 Player[MyID].x_speed = -2;
                 Player[MyID].facing_right = false;
-
-                Packet = "0";
-                Packet += MOVE_LEFT;
-                Packet += "41445555";
-
-                //break up the int as 4 bytes
-                p=(char*)&Player[MyID].x;
-                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-                //spit out each of the bytes
-                Packet[2] = b1;
-                Packet[3] = b2;
-                Packet[4] = b3;
-                Packet[5] = b4;
-
-                p=(char*)&Player[MyID].y;
-                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-
-                Packet[6]  = b1;
-                Packet[7]  = b2;
-                Packet[8]  = b3;
-                Packet[9]  = b4;
-
-                //printf("y: %i\n", numy);
-
-                Packet[0] = Packet.length();
-                PiSock.Send(Packet);
             }
        break;
 
        case SDLK_RIGHT:
        case 'd':
-
             if (chat_box == 4 && !Player[MyID].attacking && Player[MyID].x_speed != 2)
             {
+				//send action to SKO network
+				Client.playerAction("right", Player[MyID].x, Player[MyID].y);
+
+				//Client prediction physics
                 RIGHT = true;
                 LEFT = false;
                 Player[MyID].x_speed = 2;
                 Player[MyID].facing_right = true;
-
-                Packet = "0";
-                Packet += MOVE_RIGHT;
-                Packet += "41445555";
-
-                //break up the int as 4 bytes
-                p=(char*)&Player[MyID].x;;
-                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-                //spit out each of the bytes
-                Packet[2] = b1;
-                Packet[3] = b2;
-                Packet[4] = b3;
-                Packet[5] = b4;
-
-                p=(char*)&Player[MyID].y;
-                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-
-                Packet[6]  = b1;
-                Packet[7]  = b2;
-                Packet[8]  = b3;
-                Packet[9]  = b4;
-
-                //printf("y: %i\n", numy);
-               // printf("MOVE_RIGHT ");
-               //
-               // for (int i = 2; i < 10; i++)
-               //     printf("[%i]", Packet[i]);
-               //
-               // printf("(%i,%i)\n", Player[MyID].x, Player[MyID].y);
-
-                Packet[0] = Packet.length();
-                PiSock.Send(Packet);
             }
 
        break;
@@ -4383,35 +4179,15 @@ int pressKey(int key)
        case 's':
             if(chat_box == 4 && Player[MyID].ground && !Player[MyID].attacking)
             {
+				//send action to SKO network
+			    Client.playerAction("attack", Player[MyID].x, Player[MyID].y);
+
                if (enableSND && enableSFX)
                      Mix_PlayChannel( -1, attack_noise, 0 );
 
                Player[MyID].attacking = true;
                Player[MyID].current_frame = 0;
                Player[MyID].x_speed = 0;
-
-               //tell everyone you attacked
-               std::string Packet = "0";
-               Packet += ATTACK;
-               Packet += "00001111";
-
-               //break up the int as 4 bytes
-                p=(char*)&Player[MyID].x;
-                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-                Packet[2] = b1;
-                Packet[3] = b2;
-                Packet[4] = b3;
-                Packet[5] = b4;
-
-                p=(char*)&Player[MyID].y;
-                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-                Packet[6] = b1;
-                Packet[7] = b2;
-                Packet[8] = b3;
-                Packet[9] = b4;
-
-               Packet[0] = Packet.length();
-               PiSock.Send(Packet);
             }
        break;
        default:
@@ -4424,40 +4200,11 @@ int pressKey(int key)
             //verical collision detection
             if (blocked(Player[MyID].x + 25, Player[MyID].y+Player[MyID].y_speed + 0 + 0.15, Player[MyID].x + 38, Player[MyID].y+Player[MyID].y_speed + 64 +0.15))
             {
+				//Send action to SKO network
+				Client.playerAction("jump", Player[MyID].x, Player[MyID].y);
+
                 //fly
                 Player[MyID].y_speed = -6;
-
-                //send packet
-                Packet = "0";
-                Packet += MOVE_JUMP;
-                Packet += "42445555";
-
-                //break up the int as 4 bytes
-                p=(char*)&Player[MyID].x;
-                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-
-                //printf("x: %i ", numx);
-
-                //spit out each of the bytes
-                Packet[2] = b1;
-                Packet[3] = b2;
-                Packet[4] = b3;
-                Packet[5] = b4;
-
-                p=(char*)&Player[MyID].y;
-                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-
-                Packet[6] = b1;
-                Packet[7] = b2;
-                Packet[8] = b3;
-                Packet[9] = b4;
-
-                //printf("y: %i\n", numy);
-
-                Packet[0] = Packet.length();
-                PiSock.Send(Packet);
             }
        break;
     }
@@ -4652,26 +4399,16 @@ int pressKey(int key)
    {
        if (chat_box == 3)
        {
-           //build new message
-           std::string message = "0";
-           message += CHAT;
-           message += tMessage;
+		   if (tMessage[0] == '&')
+			   DEBUG_FLAG = true;
+		   else if (tMessage[0] > 0)
+			   Client.sendChat(tMessage);
 
-           message[0] = message.length();
-
-           //printf(">>>>>> CHAT >>>>> [%i]", clock());
-
-           if (tMessage[0] == '&')
-        	   DEBUG_FLAG = true;
-           else if (message.length() > 2)//len,chat
-              PiSock.Send(message);
-
-
+		   //clear chat bar
            for (int i = 0; i < MAX_T_MESSAGE-2; i++)
                tMessage[i] = 0;
 
            tSeek = 0;
-
            chat_box = 4;
        }
        else if (chat_box == 4)
@@ -5160,38 +4897,8 @@ void HandleUI()
                     	   LEFT = false;
                             if (chat_box == 4 && !RIGHT && !Player[MyID].attacking)
                             {
-
-                                Packet = "0";
-                                Packet += MOVE_STOP;
-                                Packet +="42445555";
-
-
-                                //break up the int as 4 bytes
-                                p=(char*)&Player[MyID].x;
-                                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-
-                                //printf("x: %i ", numx);
-
-                                //spit out each of the bytes
-                                Packet[2] = b1;
-                                Packet[3] = b2;
-                                Packet[4] = b3;
-                                Packet[5] = b4;
-
-                                p=(char*)&Player[MyID].y;
-                                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-
-                                Packet[6] = b1;
-                                Packet[7] = b2;
-                                Packet[8] = b3;
-                                Packet[9] = b4;
-
-                                //printf("y: %i\n", numy);
-                                Packet[0] = Packet.length();
-
-                                PiSock.Send(Packet);
+								//send action to SKO network
+								Client.playerAction("stop", Player[MyID].x, Player[MyID].y);
                             }
                        break;
                        case SDLK_RIGHT:
@@ -5199,36 +4906,8 @@ void HandleUI()
                             RIGHT = false;
                             if (chat_box == 4 && !LEFT && !Player[MyID].attacking)
                             {
-                                Packet = "0";
-                                Packet += MOVE_STOP;
-                                Packet +="42445555";
-
-                                //break up the int as 4 bytes
-                                p=(char*)&Player[MyID].x;
-                                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-
-                                //printf("x: %i ", numx);
-
-                                //spit out each of the bytes
-                                Packet[2] = b1;
-                                Packet[3] = b2;
-                                Packet[4] = b3;
-                                Packet[5] = b4;
-
-                                p=(char*)&Player[MyID].y;
-                                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-
-                                Packet[6] = b1;
-                                Packet[7] = b2;
-                                Packet[8] = b3;
-                                Packet[9] = b4;
-
-                                //printf("y: %i\n", numy);
-                                Packet[0] = Packet.length();
-
-                                PiSock.Send(Packet);
+								//send action to SKO network
+								Client.playerAction("stop", Player[MyID].x, Player[MyID].y);
                             }
                        break;
 					   case 'r':
@@ -5266,35 +4945,40 @@ void HandleUI()
 
 void* Network(void *arg)
 {
-    //ping
-    unsigned int currentTime = SDL_GetTicks();
+	//ping
+	unsigned int currentTime = SDL_GetTicks();
 
-    //connect normally
-    connectError = connect();
-    printf("connectError is: %i\n", connectError);
-    tryingToConnect = false;
+	//connect normally
+	connectError = ConnectToSKOServer();
+	tryingToConnect = false;
 
-     while (!done)
-     {
-    	   if (connectError){
-    		   printf("312465288 ERRRRRRRRRRRRRRRRRRRRRRRRRRRR\n");
-    		   SDL_Delay(100);
-    		   HandleUI();
-    		   continue;
-    	   }
+	while (!done)
+	{
+		// If client could not connect upon opening the game
+		// patiently reconnect until a connection is made or the user exists the game.
+		if (connectError)
+		{
+			HandleUI();
+			if (Client.TryReconnect(1, 1000)){
+				connectError = false;
+			}
+			continue;
+		}
 
-    	   if (!PiSock.Connected ){
-    		   printf("12341234 ERRRRRRRRRRRRRRRRRRRRRRRRRRRR\n");
-    		   if (menu !=STATE_DISCONNECT)
-    		   	   Disconnect();
-    		   	   continue;
-    	   }
+		// If the client disconnects during gameplay
+		// Try reconnecting and displaying 
+		if (!Client.isConnected())
+		{
+			if (menu !=STATE_DISCONNECT)
+				Disconnect();
+			continue;
+		}
 
-		   Client.receivePacket(connectError);
-		   Client.checkPing();
-           SDL_Delay(1);
-     }
-     return NULL;
+	Client.receivePacket(connectError);
+	Client.checkPing();
+	SDL_Delay(1);
+	}
+	return NULL;
 }
 
 void* PhysicsLoop(void *arg)
@@ -6058,68 +5742,33 @@ void Graphics()
        SDL_GL_SwapBuffers();
 }
 
-bool firstTimeConnect = true;
-bool connect()
+bool ConnectToSKOServer()
 {
-	PiSock = KE_Socket();
-	Client.init(&PiSock);
+	Client.init(SERVER_IP, SERVER_PORT);
 
-	if (!PiSock.Startup()){
-	   PiSock.Cleanup();
-	}
-	firstTimeConnect = false;
-
-    //build packet now so we can shoot it off
-    std::string packet = "0";
-        packet += VERSION_CHECK;
-        packet += VERSION_MAJOR;
-        packet += VERSION_MINOR;
-        packet += VERSION_PATCH;
-        packet += VERSION_OS;
-        packet[0] = packet.length();
-
-    if (!PiSock.Connect(SERVER_IP, SERVER_PORT))
+    if (Client.connect() == "error")
     {
-        PiSock.Connected = false;
-        PiSock.Cleanup();
         Message[0].SetText("There was an error connecting to the server!");
         Message[1].SetText("Join chat for help. www.StickKnightsOnline.com/chat");
-        printf("connect error = true! :S\n");
         return true;
     }
-    else
-    {
-        PiSock.Connected = true;
-    }
 
-    //send version now!
-    PiSock.Send(packet);
+	std::string returnValue = Client.sendVersion(VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
 
-   if (PiSock.Connected)
-      if (PiSock.BReceive() == -1)
-         Disconnect();
-
-
-   if (PiSock.Data[1] == VERSION_SUCCESS)
+   if (returnValue == "version correct")
    {
 		Message[0].SetText("You are connected to the server!");
 		Message[1].SetText(" ");
-		PiSock.Data = PiSock.Data.substr(PiSock.Data[0]);
-		printf("connect error = false :D\n");
 		return false;
-	}
-
-
-   if (PiSock.Data[1] == VERSION_FAIL)
-   {
-       Message[0].SetText("New Update! Close the game and re-open it please.");
-       Message[1].SetText("If that doesn't work please visit StickKnights.com and reinstall.");
-       connectError = true;
-
-       return true;
    }
-
-   if (PiSock.Data[1] == SERVER_FULL)
+   else if (returnValue == "version error")
+   {
+       Message[0].SetText("Version error. Close the game and re-open it please.");
+       Message[1].SetText("If that doesn't work please visit StickKnightsOnline.com and reinstall.");
+       connectError = true;
+       return false;
+   }
+   else if (returnValue == "server full")
    {
        Message[0].SetText("The server is full!");
        Message[1].SetText("Join chat for help. www.StickKnightsOnline.com/chat");
@@ -6127,7 +5776,6 @@ bool connect()
    }
 
    return true;
-
 }
 
 int numDigits(int num)
@@ -6562,81 +6210,27 @@ void physics()
 			//yourself
 			if (i == MyID)
 			{
-
 				if (LEFT && !Player[MyID].attacking && Player[MyID].x_speed != -2)
 				{
+					//send action to SKO network
+					Client.playerAction("left", Player[MyID].x, Player[MyID].y);
+
+					//Client prediction physics
 					Player[MyID].x_speed = -2;
 					Player[MyID].facing_right = false;
-					char *p, b1, b2, b3, b4;
-					std::string Packet = "0";
-					Packet += MOVE_LEFT;
-					Packet += "41445555";
-					//break up the int as 4 bytes
-					p = (char*)&Player[MyID].x;
-					b1 = p[0]; b2 = p[1]; b3 = p[2]; b4 = p[3];
-
-					//spit out each of the bytes
-					Packet[2] = b1;
-					Packet[3] = b2;
-					Packet[4] = b3;
-					Packet[5] = b4;
-
-					p = (char*)&Player[MyID].y;
-					b1 = p[0]; b2 = p[1]; b3 = p[2]; b4 = p[3];
-
-
-					Packet[6] = b1;
-					Packet[7] = b2;
-					Packet[8] = b3;
-					Packet[9] = b4;
-
-					//printf("y: %i\n", numy);
-
-					Packet[0] = Packet.length();
-					PiSock.Send(Packet);
 				}
 				if (RIGHT && !Player[MyID].attacking && Player[MyID].x_speed != 2)
 				{
+					//send action to SKO network
+					Client.playerAction("right", Player[MyID].x, Player[MyID].y);
 
-
+					//Client prediction physics
 					Player[MyID].x_speed = 2;
 					Player[MyID].facing_right = true;
-					char *p, b1, b2, b3, b4;
-					std::string Packet = "0";
-					Packet += MOVE_RIGHT;
-					Packet += "41445555";
-					//break up the int as 4 bytes
-					p = (char*)&Player[MyID].x;
-					b1 = p[0]; b2 = p[1]; b3 = p[2]; b4 = p[3];
-
-					//spit out each of the bytes
-					Packet[2] = b1;
-					Packet[3] = b2;
-					Packet[4] = b3;
-					Packet[5] = b4;
-
-					p = (char*)&Player[MyID].y;
-					b1 = p[0]; b2 = p[1]; b3 = p[2]; b4 = p[3];
-
-
-					Packet[6] = b1;
-					Packet[7] = b2;
-					Packet[8] = b3;
-					Packet[9] = b4;
-
-					//printf("y: %i\n", numy);
-
-					Packet[0] = Packet.length();
-					PiSock.Send(Packet);
 				}
-
 
 				if (LEFT == RIGHT)
-				{
-					if (Player[i].x_speed != 0)
-						Player[i].x_speed = 0;
-				}
-
+					Player[i].x_speed = 0;
 
 				//cosmetic updates
 				if (SDL_GetTicks() - cosmeticTicker >= (unsigned int)cosmeticTime)
@@ -6720,24 +6314,24 @@ void physics()
 
 						//hp bonus stats
 						stat_str.str("");
-						stat_str << "+" << Item[Player[MyID].equipI[selectedEquipItem]].hp;
+						stat_str << "+" << Item[Player[MyID].equipI[equipmentSlot]].hp;
 						Message[162].SetText(stat_str.str());
 
 						//sp bonus stats
 						stat_str.str("");
-						stat_str << "+" << Item[Player[MyID].equipI[selectedEquipItem]].sp;
+						stat_str << "+" << Item[Player[MyID].equipI[equipmentSlot]].sp;
 						Message[163].SetText(stat_str.str());
 
 
 						//dp bonus stats
 						stat_str.str("");
-						stat_str << "+" << Item[Player[MyID].equipI[selectedEquipItem]].dp;
+						stat_str << "+" << Item[Player[MyID].equipI[equipmentSlot]].dp;
 						Message[164].SetText(stat_str.str());
 
 
 						//descriptor [165]
 						stat_str.str("");
-						stat_str << Item[Player[MyID].equipI[selectedEquipItem]].descr;
+						stat_str << Item[Player[MyID].equipI[equipmentSlot]].descr;
 						Message[165].SetText(stat_str.str());
 
 					}
@@ -6986,19 +6580,12 @@ void QuitMenus()
 
 void Disconnect()
 {
-	printf("disconnect() called ... \n");
-
-	//draw the last frame before closing.
-	//background.setImage(disconnect_img);
-	//printf("background image set to disconnect_image\n");
-	Graphics();
-	printf("Graphics() called.\n");
-
-	QuitMenus();
-
+	//Disconnection screen
 	menu = STATE_DISCONNECT;
-	printf("menu is now STATE_DISCONNECT\n");
-	Reconnect();
+	QuitMenus();
+	Graphics();
+
+	Client.TryReconnect(10, 500);
 	TryToLogin();
 }
 
@@ -7039,22 +6626,7 @@ void TryToLogin()
 	}
 }
 
-void Reconnect()
-{
-	printf("Reconnect()");
 
-     //save your options
-     saveOptions();
-
-
-      printf("trying to reconnect...\n");
-      int retries = 10;
-      int i = 0;
-	  do {	  i++; SDL_Delay(500);} while (connect() && i < retries);
-
-	  printf("done reconnecting\n");
-	  PiSock.Data = "";
-}
 
 void Kill()
 {

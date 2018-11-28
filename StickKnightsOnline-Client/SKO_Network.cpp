@@ -13,28 +13,96 @@ SKO_Network::SKO_Network()
 
 }
 
-void SKO_Network::init(KE_Socket *tempSocket)
+std::string SKO_Network::init(std::string server, unsigned short port)
 {
 	// Temporarily store a pointer to the PiSock object in main, whilst everything is migrated over to here
 	// This is gonna be a nightmare...
 	// When everything is migrated over I can move connect etc here and the socket can be a private variable of this class
 	// instead.  Hopefully that makes sense.
-	socket = tempSocket;
+	socket = new KE_Socket();
+
+	if (!socket->Startup()) {
+		socket->Cleanup();
+		return "error";
+	}
+
+	//Set server connection details
+	this->server = server;
+	this->port = port;
 
 	//TODO - move this to packet factory such as: PacketFactory.Create(PING) or something to be determined later
 	pingPacket = "20";
 	pingPacket[1] = PING;
 	pingPacket[0] = pingPacket.length();
+
+	return "connected";
+}
+
+//Open socket to this port
+std::string SKO_Network::connect()
+{
+	if (!socket->Connect(this->server, this->port))
+	{
+		socket->Cleanup();
+		return "error";
+	}
+
+	return "success";
+}
+
+//Send client version to validate newest software version
+std::string SKO_Network::sendVersion(unsigned char major, unsigned char minor, unsigned char patch)
+{
+	std::string packet = "0";
+	packet += VERSION_CHECK;
+	packet += VERSION_MAJOR;
+	packet += VERSION_MINOR;
+	packet += VERSION_PATCH;
+	packet += VERSION_OS;
+	packet[0] = packet.length();
+	socket->Send(packet);
+
+	if (!isConnected())
+		return "error";
+	if (socket->BReceive() == -1)
+		return "error";
+
+	if (socket->Data[1] == VERSION_SUCCESS)
+	{
+		socket->Data = socket->Data.substr(socket->Data[0]);
+		return "version correct";
+	}
+
+	if (socket->Data[1] == VERSION_FAIL)
+		return "version error";
+
+	if (socket->Data[1] == SERVER_FULL)
+		return "server full";
+}
+
+bool SKO_Network::isConnected()
+{
+	return socket->Connected;
+}
+
+bool SKO_Network::TryReconnect(unsigned int retries, unsigned int sleep)
+{
+	int attempt = 0;
+	do { 
+		attempt++; 
+		SDL_Delay(sleep); 
+	} while (connect() != "success" && attempt < retries);
+
+	socket->Data = "";
+	return isConnected();
 }
 
 // Request to create an account
 // Returns a string indicating success or error type
 std::string SKO_Network::createAccount(std::string desiredUsername, std::string desiredPassword)
 {
-	std::string returnVal = "";
+	std::string returnValue = "";
 	Hasher hasher;
-
-	// Build the packet
 	std::string packet = "0";
 	packet += REGISTER; // 3 is REGISTER
 	packet += desiredUsername;
@@ -47,15 +115,13 @@ std::string SKO_Network::createAccount(std::string desiredUsername, std::string 
 	socket->Send(packet);
 
 	// Get messages from the server
-	if (socket->Connected)
+	if (!socket->Connected || socket->BReceive() == -1)
+		returnValue = "error";
+
+	if (returnValue == "error")
 	{
-		if (socket->BReceive() == -1) {
-			Reconnect();
-		}
-	}
-	else
-	{
-		Reconnect();
+		TryReconnect(10, 200);
+		return returnValue;
 	}
 
 	int code = socket->Data[1];
@@ -90,15 +156,9 @@ std::string SKO_Network::sendLoginRequest(std::string username, std::string pass
 	socket->Send(Message1);
 
 	// Get messages from the server
-	if (socket->Connected)
-	{
-		if (socket->BReceive() == -1) {
-			Reconnect(); socket->Data = "";
-		}
-	}
-	else
-	{
-		Reconnect();
+	if (!socket->Connected ||socket->BReceive() == -1) {
+		TryReconnect(10, 200); 
+		socket->Data = "";
 	}
 
 	int code = socket->Data[1];
@@ -124,6 +184,47 @@ std::string SKO_Network::sendLoginRequest(std::string username, std::string pass
 	return returnVal;
 }
 
+// Send a clan creation request
+void SKO_Network::createClan(std::string clanName)
+{
+	std::string Packet = "0";
+	Packet += MAKE_CLAN;
+	Packet += clanName;
+	Packet[0] = Packet.length();
+
+	socket->Send(Packet);
+}
+
+//Decline clan invite from another player
+void SKO_Network::cancelClanInvite()
+{
+	std::string packet = "0";
+	packet += CLAN;
+	packet += CANCEL;
+	packet[0] = packet.length();
+	socket->Send(packet);
+}
+
+// Join clan of another player
+void SKO_Network::acceptClanInvite()
+{
+	std::string packet = "0";
+	packet += CLAN;
+	packet += ACCEPT;
+	packet[0] = packet.length();
+	socket->Send(packet);
+}
+
+void SKO_Network::sendClanInvite(unsigned char requestedPlayer)
+{
+	std::string packet = "";
+	packet += CLAN;
+	packet += INVITE;
+	packet += requestedPlayer;
+	packet[0] = packet.length();
+	socket->Send(packet);
+}
+
 // Save the order of the inventory to allow players to re-arrange items
 // Receives a point to Player.inventory
 void SKO_Network::saveInventory(unsigned int inventory[24][2])
@@ -137,7 +238,6 @@ void SKO_Network::saveInventory(unsigned int inventory[24][2])
 		Packet += inventory[i][1];
 
 	Packet[0] = Packet.length();
-
 	socket->Send(Packet);
 }
 
@@ -157,27 +257,40 @@ void SKO_Network::allocateStatPoint(std::string desiredStat)
 	socket->Send(Packet);
 }
 
-// This will attempt to use an item
-// The value passed in is the integer value from the inventory slot that the player is attempting to use
-void SKO_Network::useItem(unsigned int item)
+// This will unequip an item and put it in your inventory
+// The value passed in is the selected equipment slot
+void SKO_Network::unequipItem(unsigned char selectedEquipItem)
 {
 	std::string Packet = "0";
-	Packet += USE_ITEM;
-	Packet += item;
+	Packet += EQUIP;
+	Packet += selectedEquipItem;
 	Packet[0] = Packet.length();
-
 	socket->Send(Packet);
 }
 
-// Send a clan creation request
-void SKO_Network::createClan(std::string clanName)
+// This will attempt to use an item
+// The value passed in is the integer value from the inventory slot that the player is attempting to use
+void SKO_Network::useItem(unsigned int itemId)
 {
 	std::string Packet = "0";
-	Packet += MAKE_CLAN;
-	Packet += clanName;
+	Packet += USE_ITEM;
+	Packet += itemId;
 	Packet[0] = Packet.length();
-
 	socket->Send(Packet);
+}
+
+//Drop one or more items in a stack onto the ground
+void SKO_Network::dropItem(unsigned char itemId, unsigned int amount)
+{
+	std::string packet = "0";
+	packet += DROP_ITEM;
+	packet += itemId;
+
+	//how many to drop...could be lots
+	packet += getPacketInt(amount);
+	packet[0] = packet.length();
+
+	socket->Send(packet);
 }
 
 // Cast a spell
@@ -191,11 +304,38 @@ void SKO_Network::castSpell()
 	socket->Send(Packet);
 }
 
+void SKO_Network::sendPartyInvite(unsigned char playerId)
+{
+	std::string packet = "0";
+	packet += PARTY;
+	packet += INVITE;
+	packet += playerId;
+	packet[0] = packet.length();
+	socket->Send(packet);
+}
+
+void SKO_Network::acceptPartyInvite()
+{
+	std::string packet = "0";
+	//send accept packet
+	packet += TRADE;
+	packet += ACCEPT;
+	packet[0] = packet.length();
+	socket->Send(packet);
+}
+
+void SKO_Network::cancelParty()
+{
+	std::string packet = "0";
+	packet += PARTY;
+	packet += CANCEL;
+	packet[0] = packet.length();
+	socket->Send(packet);
+}
 
 void SKO_Network::acceptTradeInvite()
 {
 	std::string packet = "";
-	//send accept packet
 	packet += TRADE;
 	packet += ACCEPT;
 	packet[0] = packet.length();
@@ -246,7 +386,118 @@ void SKO_Network::setTradeItemOffer(unsigned char item, unsigned int amount)
 	socket->Send(tPacket);
 }
 
-//Helper function
+void SKO_Network::openShop(unsigned char shopId)
+{
+	std::string packet = "0";
+	packet += SHOP;
+	packet += INVITE;
+	packet += shopId;
+	packet[0] = packet.length();
+	socket->Send(packet);
+}
+
+//Close the currently opened shop.
+void SKO_Network::closeShop()
+{
+	std::string packet = "0";
+	packet += SHOP;
+	packet += CANCEL;
+	packet[0] = packet.length();
+	socket->Send(packet);
+}
+
+//Buy a shop item
+void SKO_Network::buyItem(unsigned char itemSelectionId, unsigned int amount)
+{
+	std::string packet = "0";
+	packet += SHOP;
+	packet += BUY;
+	packet += itemSelectionId;
+	packet += getPacketInt(amount);
+	socket->Send(packet);
+}
+
+//Sell an inventory item to a shop
+void SKO_Network::sellItem(unsigned char itemId, unsigned int amount)
+{
+	std::string packet = "0";
+	packet += SHOP;
+	packet += SELL;
+	packet += itemId;
+	packet += getPacketInt(amount);
+	socket->Send(packet);
+}
+
+void SKO_Network::depositBankItem(unsigned char itemId, unsigned int amount)
+{
+	std::string packet = "0";
+	packet += BANK;
+	packet += BANK_ITEM;
+	packet += itemId;
+	packet += getPacketInt(amount);
+	packet[0] = packet.length();
+	socket->Send(packet);
+}
+
+void SKO_Network::withdrawalBankItem(unsigned char itemId, unsigned int amount)
+{
+	std::string packet = "0";
+	packet += BANK;
+	packet += DEBANK_ITEM;
+	packet += itemId;
+	packet += getPacketInt(amount);
+	packet[0] = packet.length();
+	socket->Send(packet);
+}
+
+void SKO_Network::closeBank()
+{
+	std::string packet = "0";
+	packet += BANK;
+	packet += CANCEL;
+	packet[0] = packet.length();
+	socket->Send(packet);
+}
+
+///
+/// Player Actions Function
+///
+void SKO_Network::playerAction(std::string actionType, float playerX, float playerY)
+{
+	std::string packet = "0";
+
+	if (actionType == "left")
+		packet += MOVE_LEFT;
+	else if (actionType == "right")
+		packet += MOVE_RIGHT;
+	else if (actionType == "jump")
+		packet += MOVE_JUMP;
+	else if (actionType == "stop")
+		packet += MOVE_STOP;
+	else if (actionType == "attack")
+		packet += ATTACK;
+
+	packet += getPacketFloat(playerX);
+	packet += getPacketFloat(playerY);
+	packet[0] = packet.length();
+	socket->Send(packet);
+}
+
+//Chat to other players or use /commands
+void SKO_Network::sendChat(std::string message)
+{
+	std::string packet = "0";
+	packet += CHAT;
+	packet += message;
+	packet = message.length();
+	socket->Send(packet);
+}
+
+///
+/// Network Engine Functions
+///
+
+//Helper functions
 std::string SKO_Network::getPacketFloat(float value)
 {
 	//convert 4-byte floating point value into a string of bytes 
@@ -459,7 +710,7 @@ void SKO_Network::receivePacket(bool connectErr)
 				if (Player[MyID].level == 255)
 				{
 					printf("ERROR: Your character did not load, so closing the connection and client. just try again.");
-					Reconnect();
+					TryReconnect(10, 200);
 				}
 
 
@@ -1280,7 +1531,7 @@ void SKO_Network::receivePacket(bool connectErr)
 					printf("socket->Data is:\n");
 					for (unsigned int i = 0; i<socket->Data.length(); i++)
 						printf("[%i]", socket->Data[i]);
-					Reconnect();
+					TryReconnect(10, 200);
 				}
 			}
 			else if (code == POCKET_ITEM)
@@ -1881,13 +2132,8 @@ void SKO_Network::receivePacket(bool connectErr)
 					for (int i = 0; i < 24; i++)
 					{
 						Player[MyID].inventory[i][0] = (unsigned char)inventory_order[i];
-						Player[MyID].inventory[i][1] = 0;//(unsigned char)inventory_order[i+24];
+						Player[MyID].inventory[i][1] = (unsigned char)inventory_order[i+24];
 					}
-				}
-				else
-				{
-					printf("got INVENTORY packet but the length is not 48, it's %i.\n", inventory_order.length());
-					Reconnect();
 				}
 			}
 			else if (code == BUDDY_XP)

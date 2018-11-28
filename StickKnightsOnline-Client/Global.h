@@ -20,7 +20,6 @@ extern Mix_Music *music;
 extern bool enableMUS;
 extern bool enableSND;
 extern bool enableSFX;
-extern void Reconnect();
 extern int menu;
 extern const char STATE_TITLE;
 extern const char STATE_LOGIN;
