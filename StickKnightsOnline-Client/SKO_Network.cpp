@@ -235,7 +235,7 @@ void SKO_Network::acceptClanInvite()
 
 void SKO_Network::sendClanInvite(unsigned char requestedPlayer)
 {
-	std::string packet = "";
+	std::string packet = "0";
 	packet += CLAN;
 	packet += INVITE;
 	packet += requestedPlayer;
@@ -353,7 +353,7 @@ void SKO_Network::cancelParty()
 
 void SKO_Network::acceptTradeInvite()
 {
-	std::string packet = "";
+	std::string packet = "0";
 	packet += TRADE;
 	packet += ACCEPT;
 	packet[0] = packet.length();
@@ -363,7 +363,7 @@ void SKO_Network::acceptTradeInvite()
 //Cancel trade / reject trade invite
 void SKO_Network::cancelTrade()
 {
-	std::string packet = "";
+	std::string packet = "0";
 	packet += TRADE;
 	packet += CANCEL;
 	packet[0] = packet.length();
@@ -373,7 +373,7 @@ void SKO_Network::cancelTrade()
 //Confirm and complete trade
 void SKO_Network::confirmTrade()
 {
-	std::string packet = "";
+	std::string packet = "0";
 	packet += TRADE;
 	packet += CONFIRM;
 	packet[0] = packet.length();
