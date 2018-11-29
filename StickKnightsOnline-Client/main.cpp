@@ -1152,8 +1152,8 @@ void Button::handle_events(int ID)
                                    drawText(0);
                                    drawText(1);
 
-                                username = uMessage;
-                                password = pMessage;
+									username = uMessage;
+									password = pMessage;
                                 }
 
                                 if (menu == STATE_CREATE) //creating account
@@ -1163,10 +1163,7 @@ void Button::handle_events(int ID)
 
 									if (result == "success")
 									{
-										// Set the first sign
-										current_sign = map[current_map]->Sign[0];
-										popup_sign = true;
-										Client.sendLoginRequest(uMessage, pMessage);
+										TryToLogin();
 									}
 									else if (result == "username exists")
 									{
@@ -6208,6 +6205,7 @@ void physics()
 			//yourself
 			if (i == MyID)
 			{
+				//if walking and player performs another action such as 
 				if (LEFT && !Player[MyID].attacking && Player[MyID].x_speed != -2)
 				{
 					//send action to SKO network
@@ -6579,12 +6577,20 @@ void QuitMenus()
 void Disconnect()
 {
 	//Disconnection screen
-	menu = STATE_DISCONNECT;
 	QuitMenus();
+	menu = STATE_DISCONNECT;
 	Graphics();
 
-	Client.TryReconnect(10, 500);
-	TryToLogin();
+	//Try reconnecting for 10 seconds total
+	if (Client.TryReconnect(10, 1000))
+	{
+		if (loaded)
+			TryToLogin();
+	}
+	else 
+	{
+		Kill();
+	}
 }
 
 void TryToLogin()

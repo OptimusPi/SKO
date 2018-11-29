@@ -101,7 +101,6 @@ bool SKO_Network::TryReconnect(unsigned int retries, unsigned int sleep)
 // Returns a string indicating success or error type
 std::string SKO_Network::createAccount(std::string desiredUsername, std::string desiredPassword)
 {
-	std::string returnValue = "";
 	Hasher hasher;
 	std::string packet = "0";
 	packet += REGISTER; // 3 is REGISTER
@@ -114,27 +113,35 @@ std::string SKO_Network::createAccount(std::string desiredUsername, std::string 
 	// Send the packet
 	socket->Send(packet);
 
-	// Get messages from the server
-	if (!socket->Connected || socket->BReceive() == -1)
-		returnValue = "error";
-
-	if (returnValue == "error")
+	// Check connection first
+	if (!socket->Connected)
 	{
-		TryReconnect(10, 200);
-		return returnValue;
+		//reconnect for 10 attempts
+		if (!TryReconnect(10, 200))
+			return "error";
 	}
 
-	int code = socket->Data[1];
-	socket->Data = "";
-	if (code == REGISTER_SUCCESS) // 8 is REGISTER_SUCCESS
+	//Receive a packet from the server
+	if (socket->BReceive() > 0)
 	{
-		// Register successfully, return successful to the client
-		return "success";
+		int code = socket->Data[1];
+		socket->Data = "";
+		if (code == REGISTER_SUCCESS) // 8 is REGISTER_SUCCESS
+		{
+			// Register successfully, return successful to the client
+			return "success";
+		}
+		else if (code == REGISTER_FAIL_DOUBLE) // 9 is REGISTER_DOUBLE_DAIL
+		{
+			// Registration failed due to duplicate username in the database
+			return "username exists";
+		}
+
+		return "error";
 	}
-	else if (code == REGISTER_FAIL_DOUBLE) // 9 is REGISTER_DOUBLE_DAIL
+	else 
 	{
-		// Registration failed due to duplicate username in the database
-		return "username exists";
+		return "error";
 	}
 }
 
@@ -155,33 +162,44 @@ std::string SKO_Network::sendLoginRequest(std::string username, std::string pass
 	Message1[0] = Message1.length();
 	socket->Send(Message1);
 
-	// Get messages from the server
-	if (!socket->Connected ||socket->BReceive() == -1) {
-		TryReconnect(10, 200); 
+
+	// Check connection first
+	if (!socket->Connected)
+	{
+		//reconnect for 10 attempts
+		if (!TryReconnect(10, 200))
+			return "error";
+	}
+
+	//Receive a packet from the server
+	if (socket->BReceive() > 0)
+	{
+		int code = socket->Data[1];
+		if (code == LOGIN_SUCCESS)
+		{
+			MyID = socket->Data[2];
+			returnVal = "success";
+		}
+		else if (code == LOGIN_FAIL_DOUBLE)
+		{
+			returnVal = "already online";
+		}
+		else if (code == LOGIN_FAIL_NONE)
+		{
+			returnVal = "login failed";
+		}
+		else if (code == LOGIN_FAIL_BANNED)
+		{
+			returnVal = "banned";
+		}
+
 		socket->Data = "";
+		return returnVal;
 	}
-
-	int code = socket->Data[1];
-	if (code == LOGIN_SUCCESS)
+	else 
 	{
-		MyID = socket->Data[2];
-		returnVal = "success";
+		return "error";
 	}
-	else if (code == LOGIN_FAIL_DOUBLE)
-	{
-		returnVal = "already online";
-	}
-	else if (code == LOGIN_FAIL_NONE)
-	{
-		returnVal = "login failed";
-	}
-	else if (code == LOGIN_FAIL_BANNED)
-	{
-		returnVal =  "banned";
-	}
-
-	socket->Data = "";
-	return returnVal;
 }
 
 // Send a clan creation request
@@ -414,6 +432,7 @@ void SKO_Network::buyItem(unsigned char itemSelectionId, unsigned int amount)
 	packet += BUY;
 	packet += itemSelectionId;
 	packet += getPacketInt(amount);
+	packet[0] = packet.length();
 	socket->Send(packet);
 }
 
@@ -425,6 +444,7 @@ void SKO_Network::sellItem(unsigned char itemId, unsigned int amount)
 	packet += SELL;
 	packet += itemId;
 	packet += getPacketInt(amount);
+	packet[0] = packet.length();
 	socket->Send(packet);
 }
 
@@ -489,7 +509,7 @@ void SKO_Network::sendChat(std::string message)
 	std::string packet = "0";
 	packet += CHAT;
 	packet += message;
-	packet = message.length();
+	packet[0] = message.length();
 	socket->Send(packet);
 }
 
