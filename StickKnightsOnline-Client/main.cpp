@@ -4402,7 +4402,8 @@ int pressKey(int key)
 			   Client.sendChat(tMessage);
 
 		   //clear chat bar
-           for (int i = 0; i < MAX_T_MESSAGE-2; i++)
+		   //TODO: this was here, but leaves a dirty character:  for (int i = 0; i < MAX_T_MESSAGE - 2; i++)
+           for (int i = 0; i < MAX_T_MESSAGE-1; i++)
                tMessage[i] = 0;
 
            tSeek = 0;
@@ -5732,16 +5733,15 @@ void Graphics()
 {
 	//Clear color buffer
 	glClear( GL_COLOR_BUFFER_BIT );
-       //graphics
-       construct_frame();
-       SDL_GL_SwapBuffers();
+
+    //graphics
+    construct_frame();
+    SDL_GL_SwapBuffers();
 }
 
 bool ConnectToSKOServer()
 {
-	Client.init(SERVER_IP, SERVER_PORT);
-
-    if (Client.connect() == "error")
+    if (Client.init(SERVER_IP, SERVER_PORT) == "error" || Client.connect() == "error")
     {
         Message[0].SetText("There was an error connecting to the server!");
         Message[1].SetText("Join chat for help. www.StickKnightsOnline.com/chat");

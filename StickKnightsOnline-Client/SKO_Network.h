@@ -15,7 +15,6 @@ class SKO_Network
 		void receivePacket(bool);
 		void saveInventory(unsigned int [24][2]);
 		void allocateStatPoint(std::string desiredStat);
-		
 
 		//using items
 		void unequipItem(unsigned char equipmentSlot);
@@ -37,7 +36,6 @@ class SKO_Network
 		void cancelParty();
 		void sendPartyInvite(unsigned char playerId);
 		void acceptPartyInvite();
-
 
 		//Trading with other players
 		void cancelTrade();
@@ -63,7 +61,7 @@ class SKO_Network
 		//SKO account functions.
 		std::string createAccount(std::string, std::string);
 		std::string sendLoginRequest(std::string username, std::string password);
-
+		std::string getSaltedHash(std::string username, std::string password);
 	private:
 		//TCP Socket to SKO Server
 		KE_Socket *socket;
@@ -75,10 +73,33 @@ class SKO_Network
 		unsigned long int pingRequestTime = 0;
 		unsigned long int pingRequestTicker = 0;
 		bool pingWaiting = false;
-		std::string pingPacket;
 
 		//Packet numeric formatting helpers
 		std::string getPacketFloat(float);
 		std::string getPacketInt(unsigned int);
 		std::string getPacketShort(unsigned short);
+		std::string pingPacket;
+
+		
+
+		std::string getAsString(int value);
+		std::string getAsString(unsigned int value);
+		std::string getAsString(short value);
+		std::string getAsString(unsigned short value);
+		std::string getAsString(float value);
+
+		template<typename T>
+		std::string getAsString(T const& t);
+
+		template<typename T>
+		std::string getAsPacket(T const& t);
+
+		template<typename First, typename ... Rest>
+		std::string getAsPacket(First const& first, Rest const& ... rest);
+
+		template<typename First, typename ... Rest>
+		void send(First const& first, Rest const& ... rest);
+
+
+
 };

@@ -1,25 +1,22 @@
-#include "SKO_Network.h"
-#include "KE_Socket.h"
-#include "hasher.h"
 #include <iostream>
 #include <string>
 #include <algorithm>
-#include "Global.h"
 #include <sstream>
+
+#include "SKO_Network.h"
+#include "KE_Socket.h"
+#include "hasher.h"
+#include "Global.h"
 #include "SDL_mixer.h"
 
 SKO_Network::SKO_Network()
 {
-
+	socket = new KE_Socket();
 }
 
 std::string SKO_Network::init(std::string server, unsigned short port)
 {
-	// Temporarily store a pointer to the PiSock object in main, whilst everything is migrated over to here
-	// This is gonna be a nightmare...
-	// When everything is migrated over I can move connect etc here and the socket can be a private variable of this class
-	// instead.  Hopefully that makes sense.
-	socket = new KE_Socket();
+
 
 	if (!socket->Startup()) {
 		socket->Cleanup();
@@ -53,14 +50,7 @@ std::string SKO_Network::connect()
 //Send client version to validate newest software version
 std::string SKO_Network::sendVersion(unsigned char major, unsigned char minor, unsigned char patch)
 {
-	std::string packet = "0";
-	packet += VERSION_CHECK;
-	packet += VERSION_MAJOR;
-	packet += VERSION_MINOR;
-	packet += VERSION_PATCH;
-	packet += VERSION_OS;
-	packet[0] = packet.length();
-	socket->Send(packet);
+	send(VERSION_CHECK, VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, VERSION_OS);
 
 	if (!isConnected())
 		return "error";
@@ -101,17 +91,7 @@ bool SKO_Network::TryReconnect(unsigned int retries, unsigned int sleep)
 // Returns a string indicating success or error type
 std::string SKO_Network::createAccount(std::string desiredUsername, std::string desiredPassword)
 {
-	Hasher hasher;
-	std::string packet = "0";
-	packet += REGISTER; // 3 is REGISTER
-	packet += desiredUsername;
-	packet += " ";
-	std::transform(desiredUsername.begin(), desiredUsername.end(), desiredUsername.begin(), ::tolower);
-	packet += hasher.Hash(desiredUsername + desiredPassword);
-	packet[0] = packet.length();
-
-	// Send the packet
-	socket->Send(packet);
+	send(REGISTER, desiredUsername, " ", getSaltedHash(desiredUsername, desiredPassword));
 
 	// Check connection first
 	if (!socket->Connected)
@@ -150,18 +130,8 @@ std::string SKO_Network::createAccount(std::string desiredUsername, std::string 
 std::string SKO_Network::sendLoginRequest(std::string username, std::string password)
 {
 	std::string returnVal = "";
-	Hasher hasher;
 
-	//building the packet to send
-	std::string Message1 = "0";
-	Message1 += LOGIN;
-	Message1 += username;
-	Message1 += " ";
-	std::transform(username.begin(), username.end(), username.begin(), ::tolower);
-	Message1 += hasher.Hash(username + password);
-	Message1[0] = Message1.length();
-	socket->Send(Message1);
-
+	send(LOGIN, username, " ", getSaltedHash(username, password));
 
 	// Check connection first
 	if (!socket->Connected)
@@ -506,11 +476,7 @@ void SKO_Network::playerAction(std::string actionType, float playerX, float play
 //Chat to other players or use /commands
 void SKO_Network::sendChat(std::string message)
 {
-	std::string packet = "0";
-	packet += CHAT;
-	packet += message;
-	packet[0] = message.length();
-	socket->Send(packet);
+	send(CHAT, message);
 }
 
 ///
@@ -562,6 +528,82 @@ std::string SKO_Network::getPacketShort(unsigned short value)
 	return packetBytes;
 }
 
+std::string SKO_Network::getAsString(int value)
+{
+	return getPacketInt(value);
+}
+
+std::string SKO_Network::getAsString(unsigned int value)
+{
+	return getPacketInt(value);
+}
+
+std::string SKO_Network::getAsString(short value)
+{
+	return getPacketShort(value);
+}
+
+std::string SKO_Network::getAsString(unsigned short value)
+{
+	return getPacketShort(value);
+}
+
+std::string SKO_Network::getAsString(float value)
+{
+	return getPacketFloat(value);
+}
+
+template<typename T>
+std::string SKO_Network::getAsString(T const& t)
+{
+	//declare return value
+	std::string str = "";
+
+	//default to std::string concatenation
+	str += t;
+
+	//return converted string
+	return str;
+}
+
+template<typename T>
+std::string SKO_Network::getAsPacket(T const& t)
+{
+	return getAsString(t);
+}
+
+template<typename First, typename ... Rest>
+std::string SKO_Network::getAsPacket(First const& first, Rest const& ... rest)
+{
+	return getAsString(first) + getAsPacket(rest ...);
+}
+
+template<typename First, typename ... Rest>
+void SKO_Network::send(First const& first, Rest const& ... rest)
+{
+	//declare packet
+	std::string packet = "0";
+
+	//fill with formatted packet data
+	packet += getAsPacket(first, rest ...);
+	packet[0] = packet.length();
+	
+	//send packet
+	socket->Send(packet);
+}
+
+
+
+//Standard way for create and login functions to get a salted hash of the username and password
+std::string SKO_Network::getSaltedHash(std::string username, std::string password)
+{
+	Hasher hasher = Hasher();
+
+	//We must use a lowercase username because a user may want to login sometimes as "pifreak" and sometimes as "PiFreak"
+	std::transform(username.begin(), username.end(), username.begin(), ::tolower);
+
+	return hasher.Hash(username + password);
+}
 //This will periodically check for the client ping to the server in milliseconds
 void SKO_Network::checkPing()
 {
