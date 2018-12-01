@@ -36,6 +36,7 @@
     <ClCompile Include="StickKnightsOnline-Client\SKO_Map.cpp" />
     <ClCompile Include="StickKnightsOnline-Client\SKO_Network.cpp" />
     <ClCompile Include="StickKnightsOnline-Client\SKO_NPC.cpp" />
+    <ClCompile Include="StickKnightsOnline-Client\SKO_PacketFactory.cpp" />
     <ClCompile Include="StickKnightsOnline-Client\SKO_Player.cpp" />
     <ClCompile Include="StickKnightsOnline-Client\SKO_Shop.cpp" />
     <ClCompile Include="StickKnightsOnline-Client\SKO_Sign.cpp" />
@@ -44,6 +45,8 @@
     <ClCompile Include="StickKnightsOnline-Client\SKO_Target.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="StickKnightsOnline-Client\SKO_PacketFactory.h" />
+    <ClInclude Include="StickKnightsOnline-Client\SKO_PacketTypes.h" />
     <ClInclude Include="StickKnightsOnline-Client\base64.h" />
     <ClInclude Include="StickKnightsOnline-Client\Global.h" />
     <ClInclude Include="StickKnightsOnline-Client\hasher.h" />

@@ -12,6 +12,7 @@
 SKO_Network::SKO_Network()
 {
 	socket = new KE_Socket();
+	packetFactory = SKO_PacketFactory();
 }
 
 std::string SKO_Network::init(std::string server, unsigned short port)
@@ -366,110 +367,12 @@ void SKO_Network::sendChat(std::string message)
 /// Network Engine Functions
 ///
 
-//Helper functions
-std::string SKO_Network::getPacketFloat(float value)
-{
-	//convert 4-byte floating point value into a string of bytes 
-	char * bytes = (char*)&value;
-
-	//construct packet format string of bytes
-	std::string packetBytes = "";
-	packetBytes += bytes[0];
-	packetBytes += bytes[1];
-	packetBytes += bytes[2];
-	packetBytes += bytes[3];
-
-	//return a 4-byte string
-	return packetBytes;
-}
-std::string SKO_Network::getPacketInt(unsigned int value)
-{
-	//convert 4-byte integer value into a string of bytes 
-	char * bytes = (char*)&value;
-
-	//construct packet format string of bytes
-	std::string packetBytes = "";
-	packetBytes += bytes[0];
-	packetBytes += bytes[1];
-	packetBytes += bytes[2];
-	packetBytes += bytes[3];
-
-	//return a 4-byte string
-	return packetBytes;
-}
-std::string SKO_Network::getPacketShort(unsigned short value)
-{
-	//convert 2-byte short integer value into a string of bytes 
-	char * bytes = (char*)&value;
-
-	//construct packet format string of bytes
-	std::string packetBytes = "";
-	packetBytes += bytes[0];
-	packetBytes += bytes[1];
-
-	//return a 4-byte string
-	return packetBytes;
-}
-
-std::string SKO_Network::getAsString(int value)
-{
-	return getPacketInt(value);
-}
-
-std::string SKO_Network::getAsString(unsigned int value)
-{
-	return getPacketInt(value);
-}
-
-std::string SKO_Network::getAsString(short value)
-{
-	return getPacketShort(value);
-}
-
-std::string SKO_Network::getAsString(unsigned short value)
-{
-	return getPacketShort(value);
-}
-
-std::string SKO_Network::getAsString(float value)
-{
-	return getPacketFloat(value);
-}
-
-template<typename T>
-std::string SKO_Network::getAsString(T const& t)
-{
-	//declare return value
-	std::string str = "";
-
-	//default to std::string concatenation
-	str += t;
-
-	//return converted string
-	return str;
-}
-
-template<typename T>
-std::string SKO_Network::getAsPacket(T const& t)
-{
-	return getAsString(t);
-}
-
-template<typename First, typename ... Rest>
-std::string SKO_Network::getAsPacket(First const& first, Rest const& ... rest)
-{
-	return getAsString(first) + getAsPacket(rest ...);
-}
 
 template<typename First, typename ... Rest>
 void SKO_Network::send(First const& first, Rest const& ... rest)
 {
-	//declare packet
-	std::string packet = "0";
-
 	//fill with formatted packet data
-	packet += getAsPacket(first, rest ...);
-	packet[0] = packet.length();
+	std::string packet = packetFactory.getPacket(first, rest ...);
 	
 	//send packet
 	socket->Send(packet);
@@ -518,17 +421,6 @@ void SKO_Network::receivePacket(bool connectErr)
 	if (socket->Data.length() == 0 || socket->Data.length() < (unsigned int)socket->Data[0])
 	{
 		socket->Receive();
-
-		//              if (false && gotSomeData > 0){
-		//                 printf("**BANG** recv length is: %i\n", gotSomeData);
-		//                 printf("**BANG** data length is: %i\n", socket->Data.length());
-		//                 printf("Data is: ");
-		//                 for (unsigned int i = 0; i < socket->Data.length(); i++)
-		//                     printf("[%i]", socket->Data[i]);
-		//                 printf("\n");
-		//
-		//              }
-
 	}
 
 	// If the data holds a complete data
@@ -542,10 +434,6 @@ void SKO_Network::receivePacket(bool connectErr)
 
 	if (data_len >= pack_len && data_len > 0)
 	{
-
-		//printf("\n*************************\n");
-		//printf("data_length %i\npack_length %i\n", data_len, pack_len);
-
 		// If the data holds a complete data
 		data_len = 0;
 		pack_len = 0;
@@ -555,8 +443,6 @@ void SKO_Network::receivePacket(bool connectErr)
 		if (data_len > 0)
 			pack_len = socket->Data[0];
 
-
-
 		std::string newPacket = "";
 
 		if (data_len > pack_len)
@@ -565,20 +451,8 @@ void SKO_Network::receivePacket(bool connectErr)
 		socket->Data = socket->Data.substr(0, pack_len);
 
 
-
-
 		//rip the command
 		code = socket->Data[1];
-
-		//      int check_a = socket->Data.length();
-		//      int check_b = (int)socket->Data[0];
-
-		//              if (check_a)
-		//              {
-		//                 printf("code is ---------------  %i\n", code);
-		//                 printf("socket->Data.length() =   %i\n\n", socket->Data.length());
-		//                 printf("The length of the packet should be: %i\n", (int)socket->Data[0]);
-		//              }
 
 
 		//respond to server's PING or die!
