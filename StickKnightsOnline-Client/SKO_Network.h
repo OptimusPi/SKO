@@ -1,5 +1,7 @@
 #pragma once
 #include "KE_Socket.h"
+#include "SKO_PacketTypes.h"
+#include "SKO_PacketFactory.h"
 #include <string>
 
 class SKO_Network
@@ -65,6 +67,7 @@ class SKO_Network
 	private:
 		//TCP Socket to SKO Server
 		KE_Socket *socket;
+
 		//Server information
 		std::string server;
 		unsigned short port;
@@ -74,28 +77,6 @@ class SKO_Network
 		unsigned long int pingRequestTicker = 0;
 		bool pingWaiting = false;
 
-		//Packet numeric formatting helpers
-		std::string getPacketFloat(float);
-		std::string getPacketInt(unsigned int);
-		std::string getPacketShort(unsigned short);
-		std::string getAsString(int value);
-		std::string getAsString(unsigned int value);
-		std::string getAsString(short value);
-		std::string getAsString(unsigned short value);
-		std::string getAsString(float value);
-
-		template<typename T>
-		std::string getAsString(T const& t);
-
-		template<typename T>
-		std::string getAsPacket(T const& t);
-
-		template<typename First, typename ... Rest>
-		std::string getAsPacket(First const& first, Rest const& ... rest);
-
 		template<typename First, typename ... Rest>
 		void send(First const& first, Rest const& ... rest);
-
-
-
 };
