@@ -6527,20 +6527,11 @@ void physics()
 	}
 }
 
-void QuitMenus()
-{
-	//nullify the menus
-	printf("QuitMenus() . . . ");
-	popup_menu = -1;
-	popup_gui_menu = -1;
-	menu = -1;
-	printf(" . . . DONE!\n");
-}
-
 void Disconnect()
 {
 	//Disconnection screen
-	QuitMenus();
+	popup_menu = -1;
+	popup_gui_menu = -1;
 	menu = STATE_DISCONNECT;
 	Graphics();
 

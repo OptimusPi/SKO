@@ -46,23 +46,31 @@ std::string SKO_Network::sendVersion(unsigned char major, unsigned char minor, u
 {
 	send(VERSION_CHECK, VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, VERSION_OS);
 
-	//TODO - this code is repeated around differently, change it to a function that can be re-used
 	if (!isConnected())
-		return "error";
-	if (socket->BReceive() == -1)
-		return "error";
-
-	if (socket->Data[1] == VERSION_SUCCESS)
 	{
-		socket->Data = socket->Data.substr(socket->Data[0]);
-		return "version correct";
+		if (!TryReconnect(5000))
+			return "error";
 	}
 
-	if (socket->Data[1] == VERSION_FAIL)
-		return "version error";
+	//Receive a packet from the server
+	if (socket->BReceive() > 0)
+	{
+		if (socket->Data[1] == VERSION_SUCCESS)
+		{
+			socket->Data = socket->Data.substr(socket->Data[0]);
+			return "version correct";
+		}
 
-	if (socket->Data[1] == SERVER_FULL)
-		return "server full";
+		if (socket->Data[1] == VERSION_FAIL)
+			return "version error";
+
+		if (socket->Data[1] == SERVER_FULL)
+			return "server full";
+	}
+	else
+	{
+		return "error";
+	}
 }
 
 bool SKO_Network::isConnected()
@@ -90,7 +98,7 @@ std::string SKO_Network::createAccount(std::string desiredUsername, std::string 
 
 
 	// Check connection first
-	if (!socket->Connected)
+	if (!isConnected())
 	{
 		if (!TryReconnect(5000))
 			return "error";
@@ -129,7 +137,7 @@ std::string SKO_Network::sendLoginRequest(std::string username, std::string pass
 	send(LOGIN, username, " ", getSaltedHash(username, password));
 
 	// Check connection first
-	if (!socket->Connected)
+	if (!isConnected())
 	{
 		if (!TryReconnect(5000))
 			return "error";
