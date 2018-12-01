@@ -4,11 +4,10 @@
 #include <sstream>
 
 #include "SKO_PacketTypes.h"
-#include "SKO_Network.h"
+#include "SKO_Network.h" 
 #include "KE_Socket.h"
 #include "hasher.h"
 #include "Global.h"
-#include "SDL_mixer.h"
 
 SKO_Network::SKO_Network()
 {

@@ -2,7 +2,8 @@
 #include "KE_Socket.h"
 #include "SKO_PacketTypes.h"
 #include "SKO_PacketFactory.h"
-#include <string>
+#include "OPI_Text.h"
+#include <string> 
 
 class SKO_Network
 {
@@ -12,7 +13,7 @@ class SKO_Network
 		std::string connect();
 		std::string sendVersion(unsigned char major, unsigned char minor, unsigned char patch);
 		bool isConnected();
-		bool SKO_Network::TryReconnect(unsigned int timeout);
+		bool TryReconnect(unsigned int timeout);
 		
 		void receivePacket(bool);
 		void saveInventory(unsigned int [24][2]);
