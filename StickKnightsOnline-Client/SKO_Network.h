@@ -10,7 +10,7 @@ class SKO_Network
 		std::string connect();
 		std::string sendVersion(unsigned char major, unsigned char minor, unsigned char patch);
 		bool isConnected();
-		bool SKO_Network::TryReconnect(unsigned int retries, unsigned int sleep);
+		bool SKO_Network::TryReconnect(unsigned int timeout);
 		
 		void receivePacket(bool);
 		void saveInventory(unsigned int [24][2]);
@@ -18,7 +18,7 @@ class SKO_Network
 
 		//using items
 		void unequipItem(unsigned char equipmentSlot);
-		void useItem(unsigned int itemId);
+		void useItem(unsigned char itemId);
 		void dropItem(unsigned char itemId, unsigned int amount);
 		void castSpell();
 
@@ -78,10 +78,6 @@ class SKO_Network
 		std::string getPacketFloat(float);
 		std::string getPacketInt(unsigned int);
 		std::string getPacketShort(unsigned short);
-		std::string pingPacket;
-
-		
-
 		std::string getAsString(int value);
 		std::string getAsString(unsigned int value);
 		std::string getAsString(short value);

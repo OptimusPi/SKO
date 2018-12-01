@@ -503,11 +503,6 @@ void inventory()
 
 //OPI_Images
 
-
-//beta warning image
-OPI_Image beta_warning_image;
-bool enableBetaWarning = false;
-
 //sign image
 OPI_Image sign_bubble;
 OPI_Image next_page;
@@ -575,12 +570,11 @@ void saveOptions()
            unsigned char a = (unsigned char)(int)enableSND;
            unsigned char b = (unsigned char)(int)enableSFX;
            unsigned char c = (unsigned char)(int)enableMUS;
-           unsigned char d = (unsigned char)(int)enableBetaWarning;
-		   unsigned char e = (unsigned char)(int)enableSIGN;
+		   unsigned char d = (unsigned char)(int)enableSIGN;
 
            //spit out each of the bytes
-		   optionFile << a << b << c << d << e;
-           printf("save SND[%i] SFX[%i] MUS[%i] \n", a, b, c, d);
+		   optionFile << a << b << c << d;
+           printf("save SND[%i] SFX[%i] MUS[%i] SIGN[%i]\n", a, b, c, d);
         }
         optionFile.close();
     }
@@ -1031,12 +1025,6 @@ void scroll_sky()
 
 void Button::handle_events(int ID)
 {
-
-	if (enableBetaWarning && event.type == SDL_MOUSEBUTTONDOWN )
-	{
-		enableBetaWarning = false;
-		saveOptions();
-	}
 
 	//printf("handle_events(%i) guiHit: %i\n", ID, (int)guiHit);
 	if (guiHit) return;
@@ -1743,16 +1731,9 @@ void Button::handle_events(int ID)
                                 	//okay
 								   if (x > 305 && x < 358 &&  y < 476 && y > 459)
 								   {
-
-									   //show nice message
-										Message[0].SetText("You are logged out and your settings are saved.");
-										Message[1].SetText("Thanks for playing! Come again!");
-										drawText(0);
-										drawText(1);
-
-								    //disconnect
-									saveOptions(); Kill();
-
+										//disconnect
+										saveOptions(); 
+										Kill();
 								   }
 
 
@@ -2669,30 +2650,16 @@ construct_frame()
 	if (MyID > -1)
 		current_map = Player[MyID].current_map;
 
-	if (enableBetaWarning)
-	{
-		glClearColor(0.21f, 0.01f, 0.15f, 1.0f);
-		DrawImage(400, 200, beta_warning_image);
-		return;
-	}
-
 	//printf("camera_x : %i\n", (int)camera_x);
 	//printf("camera_y : %i\n", (int)camera_y);
 
 	glClearColor(0.01f, 0.01f, 0.05f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-
-	//buffer
-    //DrawImage(0, 0, background);
-
-    //map for all
-    //int plyx = 0;
-    //int plyy = 0;
-
     if (loaded)
     {
     	//printf("debug opportunity here.");
+		;
     }
     else
     {
@@ -4930,7 +4897,7 @@ void HandleUI()
                 //printf("MyID is: %i\n", MyID);
                  //printf("MY Username is: %s\n", Player[MyID].Nick);
             	 saveOptions();
-                Kill();
+				 Kill();
 
             break;
             default: break;
@@ -4957,7 +4924,7 @@ void* Network(void *arg)
 		if (connectError)
 		{
 			HandleUI();
-			if (Client.TryReconnect(1, 1000)){
+			if (Client.TryReconnect(30000)){
 				connectError = false;
 			}
 			continue;
@@ -4972,9 +4939,9 @@ void* Network(void *arg)
 			continue;
 		}
 
-	Client.receivePacket(connectError);
-	Client.checkPing();
-	SDL_Delay(1);
+		Client.receivePacket(connectError);
+		Client.checkPing();
+		SDL_Delay(1);
 	}
 	return NULL;
 }
@@ -5112,8 +5079,7 @@ int main (int argc, char *argv[])
         enableSND = (bool)(int)memblock[0];
         enableSFX = (bool)(int)memblock[1];
         enableMUS = (bool)(int)memblock[2];
-        enableBetaWarning = (bool)(int)memblock[3];
-		enableSIGN = (bool)(int)memblock[4];
+		enableSIGN = (bool)(int)memblock[3];
 
         //fix memory leak
         free (memblock);
@@ -5162,9 +5128,6 @@ int main (int argc, char *argv[])
 
     background.setImage("IMG/GUI/loading.png");
     Graphics();
-
-    //beta warning image
-    beta_warning_image.setImage("IMG/MISC/beta_warning.png");
 
     //stickman sprite sheet
     stickman_sprite_img.setImage("IMG/SPRITES/stickman.png");
@@ -6581,8 +6544,8 @@ void Disconnect()
 	menu = STATE_DISCONNECT;
 	Graphics();
 
-	//Try reconnecting for 10 seconds total
-	if (Client.TryReconnect(10, 1000))
+	//Try reconnecting for 30 seconds
+	if (Client.TryReconnect(30000))
 	{
 		if (loaded)
 			TryToLogin();
