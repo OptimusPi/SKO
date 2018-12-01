@@ -36,7 +36,6 @@
     <ClCompile Include="StickKnightsOnline-Client\SKO_Map.cpp" />
     <ClCompile Include="StickKnightsOnline-Client\SKO_Network.cpp" />
     <ClCompile Include="StickKnightsOnline-Client\SKO_NPC.cpp" />
-    <ClCompile Include="StickKnightsOnline-Client\SKO_PacketFactory.cpp" />
     <ClCompile Include="StickKnightsOnline-Client\SKO_Player.cpp" />
     <ClCompile Include="StickKnightsOnline-Client\SKO_Shop.cpp" />
     <ClCompile Include="StickKnightsOnline-Client\SKO_Sign.cpp" />
