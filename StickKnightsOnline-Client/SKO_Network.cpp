@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <sstream>
 
+#include "SKO_PacketTypes.h"
 #include "SKO_Network.h"
 #include "KE_Socket.h"
 #include "hasher.h"
@@ -12,7 +13,6 @@
 SKO_Network::SKO_Network()
 {
 	socket = new KE_Socket();
-	packetFactory = SKO_PacketFactory();
 }
 
 std::string SKO_Network::init(std::string server, unsigned short port)
@@ -367,12 +367,11 @@ void SKO_Network::sendChat(std::string message)
 /// Network Engine Functions
 ///
 
-
 template<typename First, typename ... Rest>
 void SKO_Network::send(First const& first, Rest const& ... rest)
 {
 	//fill with formatted packet data
-	std::string packet = packetFactory.getPacket(first, rest ...);
+	std::string packet = SKO_PacketFactory::getPacket(first, rest ...);
 	
 	//send packet
 	socket->Send(packet);
@@ -390,6 +389,7 @@ std::string SKO_Network::getSaltedHash(std::string username, std::string passwor
 
 	return hasher.Hash(username + password);
 }
+
 //This will periodically check for the client ping to the server in milliseconds
 void SKO_Network::checkPing()
 {

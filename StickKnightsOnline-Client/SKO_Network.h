@@ -72,9 +72,6 @@ class SKO_Network
 		std::string server;
 		unsigned short port;
 
-		//Packet Factory to transform all data types into a packet std::string
-		SKO_PacketFactory packetFactory;
-
 		//ping stuff
 		unsigned long int pingRequestTime = 0;
 		unsigned long int pingRequestTicker = 0;
