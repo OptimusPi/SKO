@@ -10,7 +10,6 @@
 #define HAVE_STRUCT_TIMESPEC
 
 #include "operating_system.h"
-
 #include <cstdio>
 #include <ctime>
 #include <cstring>
@@ -41,7 +40,6 @@
 #endif
 
 #include "pthread.h"
-
 #include "OPI_Text.h"
 #include "SKO_Player.h"
 #include "SKO_Enemy.h"
@@ -60,31 +58,35 @@
 #include "OPI_Image.h"
 #include "md5.h"
 #include "hasher.h"
+#include "SKO_Network.h"
+
+// Define global variables to be used externally (in networking clasS)
+#include "Global.h"
 
 // Maximum number of clients allowed to connect
-#define MAX_CLIENTS 16
+// #define MAX_CLIENTS 16
 
-//HIT_LOOPS is how many times to loop the collision detection adjustment (formerly while)
+// HIT_LOOPS is how many times to loop the collision detection adjustment (formerly while)
 #define HIT_LOOPS 3
 
-//UI_LOOPS is how many times to loop SDL Poll Event
+// UI_LOOPS is how many times to loop SDL Poll Event
 #define UI_LOOPS 100
 
-
-//debug flag for cheating to find bugs
+// Debug flag for cheating to find bugs
 bool DEBUG_FLAG = false;
 
-//loaded yet?
+// Loaded yet?
 bool loaded = false;
 bool contentLoaded = false;
 
-//login and out
+// LEETODO Look at making these part of the hasher function, no need for password to be in global namespace
+// Login and out
 std::string username, password;
-
-
-
-//packet codes
-const char VERSION_CHECK = 255,
+Hasher hasher;
+void TryToLogin();
+// moved to being defined in global.h
+// Packet Codes
+/*const char VERSION_CHECK = 255,
            LOADED = 254,
            SERVER_FULL = 253,
            PONG = 252,
@@ -112,7 +114,8 @@ const char VERSION_CHECK = 255,
            STAT_HP = 18, STAT_XP = 19, STAT_LEVEL = 20, STAT_STR = 21, STAT_DEF = 22,
            STATMAX_HP = 23, STATMAX_XP = 24,
            RESPAWN = 26,
-           SPAWN_ITEM = 27, DESPAWN_ITEM = 28, POCKET_ITEM = 29, DEPOCKET_ITEM = 30, BANK_ITEM = 31, DEBANK_ITEM = 32,
+           SPAWN_ITEM = 27,
+			DESPAWN_ITEM = 28, POCKET_ITEM = 29, DEPOCKET_ITEM = 30, BANK_ITEM = 31, DEBANK_ITEM = 32,
            STAT_POINTS = 33, ATTACK = 34,
            ENEMY_ATTACK = 35, ENEMY_MOVE_LEFT = 36, ENEMY_MOVE_RIGHT = 37, ENEMY_MOVE_STOP = 38,
            USE_ITEM = 39, EQUIP = 40, TARGET_HIT = 41, STAT_REGEN = 42,
@@ -124,48 +127,39 @@ const char VERSION_CHECK = 255,
            SPAWN_TARGET = 57, DESPAWN_TARGET = 58,
 		   NPC_MOVE_LEFT = 59, NPC_MOVE_RIGHT = 60, NPC_MOVE_STOP = 61, NPC_TALK = 62,
 		   MAKE_CLAN = 63,
-		   CAST_SPELL = 64;
+		   CAST_SPELL = 64;*/
 
-
-
-//network lock
-bool networkLock = false;
-
-//maps and stuff ! :)
+// Maps and stuff ! :)
 const char NUM_MAPS = 6;
 SKO_Map *map[NUM_MAPS];
 int current_map = 2;
 
-//sprites
+// Sprites
 SKO_Sprite EnemySprite[7];
 SKO_Sprite NpcSprite[1];
 
+// Enemy respawn default, defined in global.h now
+// #define ENEMY_DEAD_X -1000
+// #define ENEMY_DEAD_Y -1000
 
-//enemy respawn default
-#define ENEMY_DEAD_X -1000
-#define ENEMY_DEAD_Y -1000
-
-static bool connect();
 static void physics();
 static int numDigits(int num);
 
-
-void toggleFullscreen();
-
-/* The screen surface */
+// Screen surface
 SDL_Surface *screen;
 SDL_Event event = SDL_Event();
 
-//ceneter of screen for player
+// Center of screen for player
 #define PLAYER_CAMERA_X 480
 #define PLAYER_CAMERA_Y 300
 
-//networking
-KE_Socket PiSock;
+// Networking
+SKO_Network Client;
 std::string  SERVER_IP;
 int SERVER_PORT;
+int MyID = -1;
 
-//junk
+// Junk
 bool done;
 bool lclick = false;
 bool rclick = false;
@@ -173,35 +167,36 @@ long int cosmeticTicker;
 long int cosmeticTime = 100;
 bool connectError = false;
 
-//sounds
+// Sounds
 bool enableMUS = true;
 bool enableSFX = true;
 bool enableSND = true;
 int lastSfx = 0;//random sounds :)
 
-//default options
+// Default Options
 bool enableSIGN = true;
 
-//Exit points
+// Exit Points
 void Disconnect();
-void Done();
 void Kill();
 
+//Connecting clientto server
 bool tryingToConnect = true;
+bool ConnectToSKOServer();
+
 InputBox inputBox = InputBox();
-int requestedPlayer = 0;
+unsigned char requestedPlayer = 0;
 int TILES_WIDE = 0, TILES_TALL = 0;
 double back_offsetx[4];
 double back_offsety[4];
-int offerIncrement = 1;
+unsigned int offerIncrement = 1;
 int bankScroll = 0;
 
-//text
+// Text
+
 short int tSeek = 0, uSeek = 0, pSeek = 0, iSeek = 0;
 
 const int NAME_PASS_MAX = 36;
-
-
 
 char tMessage[MAX_T_MESSAGE];
 char uMessage[NAME_PASS_MAX];
@@ -210,8 +205,7 @@ char iMessage[20];
 char ppMessage[NAME_PASS_MAX];
 bool SHIFT;
 
-
-//what menu are you on
+// Current Menu
 const char STATE_TITLE = 0;
 const char STATE_LOGIN = 1;
 const char STATE_CREATE = 2;
@@ -272,7 +266,6 @@ int hoveredShopItemY = -1;
 
 //players
 SKO_Player Player[MAX_CLIENTS];
-int MyID = -1;
 
 //items
 SKO_Item Item[256];
@@ -294,6 +287,7 @@ int sky_x = 0;
 
 
 const int NUM_TEXT = 180;
+
 //hold all the text
 OPI_Text Message[NUM_TEXT];
 
@@ -324,7 +318,7 @@ int hoverItemX = 0;
 int hoverItemY = 0;
 
 //equipment
-int selectedEquipItem = 0;
+unsigned char equipmentSlot = 0;
 
 int selectedLocalItem = 0;
 int selectedRemoteItem = 0;
@@ -366,7 +360,7 @@ void setTitle()
 	//get current date
 	time_t t = time(0);   // get time now
 	struct tm * now = localtime(&t);
-	
+
 	std::stringstream title;
 		title << "Stick Knights Online v"
 			  << (int)VERSION_MAJOR << "."
@@ -484,23 +478,6 @@ void SetUsername(int i)
      Player[i].nametag.SetText(Player[i].Nick);
 }
 
-
-
-void SaveInventory()
-{
-     std::string Packet = "0";
-     Packet += INVENTORY;
-
-     for (int i = 0; i < 24; i++)
-         Packet += Player[MyID].inventory[i][0];
-     for (int i = 0; i < 24; i++)
-         Packet += Player[MyID].inventory[i][1];
-
-     Packet[0] = Packet.length();
-
-     PiSock.Send(Packet);
-}
-
 void inventory()
 {
 	if (draw_gui && menu == STATE_PLAY && popup_menu != 4 && (popup_gui_menu == 0 || popup_gui_menu == 7))
@@ -508,12 +485,12 @@ void inventory()
 	   if (popup_menu == 1)
 	   {
 		   popup_menu = 0;
-		   SaveInventory();
+		   Client.saveInventory(Player[MyID].inventory);
 	   }
 	   else
 	   {
 		  popup_menu = 1;
-		  SaveInventory();
+		  Client.saveInventory(Player[MyID].inventory);
 	   }
 	}
 
@@ -521,20 +498,10 @@ void inventory()
 
 
 
-void TryToLogin();
-
-
-
-
 
 
 
 //OPI_Images
-
-
-//beta warning image
-OPI_Image beta_warning_image;
-bool enableBetaWarning = false;
 
 //sign image
 OPI_Image sign_bubble;
@@ -603,12 +570,11 @@ void saveOptions()
            unsigned char a = (unsigned char)(int)enableSND;
            unsigned char b = (unsigned char)(int)enableSFX;
            unsigned char c = (unsigned char)(int)enableMUS;
-           unsigned char d = (unsigned char)(int)enableBetaWarning;
-		   unsigned char e = (unsigned char)(int)enableSIGN;
+		   unsigned char d = (unsigned char)(int)enableSIGN;
 
            //spit out each of the bytes
-		   optionFile << a << b << c << d << e;
-           printf("save SND[%i] SFX[%i] MUS[%i] \n", a, b, c, d);
+		   optionFile << a << b << c << d;
+           printf("save SND[%i] SFX[%i] MUS[%i] SIGN[%i]\n", a, b, c, d);
         }
         optionFile.close();
     }
@@ -1060,16 +1026,10 @@ void scroll_sky()
 void Button::handle_events(int ID)
 {
 
-	if (enableBetaWarning && event.type == SDL_MOUSEBUTTONDOWN )
-	{
-		enableBetaWarning = false;
-		saveOptions();
-	}
-
 	//printf("handle_events(%i) guiHit: %i\n", ID, (int)guiHit);
 	if (guiHit) return;
 
-    //don't let people click buttons if they couldnt connect.
+    //don't let people click buttons if user could not connect or is trying to connect
     if ((connectError || tryingToConnect) && ID != 8)
        return;
 
@@ -1180,48 +1140,30 @@ void Button::handle_events(int ID)
                                    drawText(0);
                                    drawText(1);
 
-                                username = uMessage;
-                                password = pMessage;
+									username = uMessage;
+									password = pMessage;
                                 }
 
                                 if (menu == STATE_CREATE) //creating account
                                 {
-                                   std::string packet = "0";
-                                   packet += REGISTER;
-                                   packet += username;
-                                   packet += " ";
-                                   packet += Hash(toLower(username) + password);
-                                   packet[0] = packet.length();
-                                   PiSock.Send(packet);
+									//std::string result = "temp";
+									std::string result = Client.createAccount(uMessage, pMessage);
 
-                                   //get messages from the server
-                                   if (PiSock.Connected)
-                                      if (PiSock.BReceive() == -1){
-                                         Done();
-                                      }
-
-                                   if (PiSock.Data[1] == REGISTER_SUCCESS)
-                                   {
-                                       //set the first sign
-                                       current_sign = map[current_map]->Sign[0];
-                                       popup_sign = true;
-
-                                       PiSock.Data = "";
-                                       TryToLogin();
-                                   }
-                                   else if (PiSock.Data[1] == REGISTER_FAIL_DOUBLE)
-                                   {
-                                       Message[0].SetText("The username already exists...");
-                                       Message[1].SetText("Please try a different character name.");
-                                       drawText(0);
-                                       drawText(1);
-                                   }
+									if (result == "success")
+									{
+										TryToLogin();
+									}
+									else if (result == "username exists")
+									{
+										Message[0].SetText("The username already exists...");
+										Message[1].SetText("Please try a different character name.");
+										drawText(0);
+										drawText(1);
+									}
                                 }
-                                else
                                 if (menu == STATE_LOGIN)//logging in
                                 {
-                                	printf("going to login:\n");
-                                   TryToLogin();
+									TryToLogin();
                                 }
                            break;
 
@@ -1247,7 +1189,6 @@ void Button::handle_events(int ID)
 
                            //inventory_button
                            case 9:
-
                                 inventory();
                            break;
 
@@ -1264,32 +1205,28 @@ void Button::handle_events(int ID)
 
                            case 11:
                                 if (draw_gui && menu == STATE_PLAY && popup_menu == 2)
-                                 {guiHit = true;
-                                     std::string Packet = "0";
-                                     Packet += STAT_HP;
-                                     Packet[0] =  Packet.length();
-                                     PiSock.Send(Packet);
+                                {
+									// Increase HP stat
+									guiHit = true;
+									Client.allocateStatPoint("health");
+
                                  }
                            break;
-
                            case 12:
                                 if (draw_gui && menu == STATE_PLAY && popup_menu == 2)
-                                 {guiHit = true;
-                                     std::string Packet = "0";
-                                     Packet += STAT_STR;
-                                     Packet[0] =  Packet.length();
-                                     PiSock.Send(Packet);
+								{
+									// Increase Strength stat
+									guiHit = true;
+									Client.allocateStatPoint("strength");
                                  }
                            break;
-
                            case 13:
                                 if (draw_gui && menu == STATE_PLAY && popup_menu == 2)
-                                 {guiHit = true;
-                                     std::string Packet = "0";
-                                     Packet += STAT_DEF;
-                                     Packet[0] =  Packet.length();
-                                     PiSock.Send(Packet);
-                                 }
+                                {
+									// Increase Defense stat
+									guiHit = true;
+									Client.allocateStatPoint("defense");
+                                }
                            break;
 
                            //inventory items or bank items
@@ -1297,7 +1234,6 @@ void Button::handle_events(int ID)
 
                                 if (draw_gui && menu == STATE_PLAY && popup_menu == 1)
                                 {
-
                                     //if within the inventory box
                                     if (x > 8 && x < 246 && y > 252 && y < 473)
                                     {guiHit = true;
@@ -1324,25 +1260,9 @@ void Button::handle_events(int ID)
                                            for (unsigned int i = 0 ; i < 24; i++)
                                                if (Player[MyID].localTrade[i][0] == (unsigned int)item && Player[MyID].localTrade[i][1] > 0)
                                                   amount = Player[MyID].localTrade[i][1];
-
-
-                                            //offer one more
-                                            amount += offerIncrement;
-                                            char * p=(char*)&amount;
-                                            char b1=p[0], b2=p[1], b3=p[2], b4=p[3];
-
-
-                                            std::string tPacket = "0";
-                                            tPacket += TRADE;
-                                            tPacket += OFFER;
-                                            tPacket += item;
-                                            tPacket += b1;
-                                            tPacket += b2;
-                                            tPacket += b3;
-                                            tPacket += b4;
-                                            tPacket[0] = tPacket.length();
-                                            PiSock.Send(tPacket);
-
+										   amount += offerIncrement;
+										   
+										   Client.setTradeItemOffer(item, amount);
                                         }
                                         //bank items - OFFER MORE!!! :D
                                         if (clickWasRight && popup_gui_menu == 5 && Player[MyID].inventory[itmx][1] > 0)
@@ -1359,21 +1279,8 @@ void Button::handle_events(int ID)
 
                                             //offer this amount to the bank
                                             amount = offerIncrement;
-                                            char * p=(char*)&amount;
-                                            char b1=p[0], b2=p[1], b3=p[2], b4=p[3];
 
-
-                                            std::string tPacket = "0";
-                                            tPacket += BANK;
-                                            tPacket += BANK_ITEM;
-                                            tPacket += item;
-                                            tPacket += b1;
-                                            tPacket += b2;
-                                            tPacket += b3;
-                                            tPacket += b4;
-                                            tPacket[0] = tPacket.length();
-                                            PiSock.Send(tPacket);
-
+											Client.depositBankItem(item, amount);
                                         }
                                     }
 
@@ -1407,22 +1314,10 @@ void Button::handle_events(int ID)
 
 
                                             //offer one less
-                                            if (amount-offerIncrement >= 0) amount -= offerIncrement;
-                                            char * p=(char*)&amount;
-                                            char b1=p[0], b2=p[1], b3=p[2], b4=p[3];
+                                            if (amount-offerIncrement >= 0) 
+												amount -= offerIncrement;
 
-
-                                            std::string tPacket = "0";
-                                            tPacket += TRADE;
-                                            tPacket += OFFER;
-                                            tPacket += item;
-                                            tPacket += b1;
-                                            tPacket += b2;
-                                            tPacket += b3;
-                                            tPacket += b4;
-                                            tPacket[0] = tPacket.length();
-                                            PiSock.Send(tPacket);
-
+											Client.setTradeItemOffer(item, amount);
                                         }
                                     }
                                     //remote trade window
@@ -1466,25 +1361,10 @@ void Button::handle_events(int ID)
                                         {
                                            int amount = Player[MyID].bank[btmx];
 
-
-                                            //offer negative because of withdrawling
                                            	if (amount >= offerIncrement)
                                            		amount = offerIncrement;
 
-                                            char * p=(char*)&amount;
-                                            char b1=p[0], b2=p[1], b3=p[2], b4=p[3];
-
-
-                                            std::string tPacket = "0";
-                                            tPacket += BANK;
-                                            tPacket += DEBANK_ITEM;
-                                            tPacket += btmx;
-                                            tPacket += b1; // amount
-                                            tPacket += b2; // |
-                                            tPacket += b3; // |
-                                            tPacket += b4; // |
-                                            tPacket[0] = tPacket.length();
-                                            PiSock.Send(tPacket);
+											Client.withdrawalBankItem(btmx, amount);
                                         }
                                     }
                                 } // you have bank open
@@ -1564,13 +1444,9 @@ void Button::handle_events(int ID)
 
                            case 19: // use button
                                 if (draw_gui && menu == STATE_PLAY && (popup_gui_menu == 0 || popup_gui_menu == 7) && popup_menu == 1)
-                                {guiHit = true;
-                                    std::string packet = "0";
-                                    packet += USE_ITEM;
-                                    packet += Player[MyID].inventory[selectedInventoryItem][0];
-                                    packet[0] = packet.length();
-
-                                    PiSock.Send(packet);
+                                {
+									guiHit = true;
+									Client.useItem(Player[MyID].inventory[selectedInventoryItem][0]);
                                 }
                            break;
 
@@ -1581,9 +1457,7 @@ void Button::handle_events(int ID)
                                    //okay
                                    if (x > 305 && x < 358 &&  y < 476 && y > 459)
                                    {
-                                	   int amount;
-                                	   std::string amountStr;
-							           std::string packet;
+                                	   unsigned int amount;
 							           std::string clanTag;
 									   char *p, b1, b2, b3, b4;
 
@@ -1595,26 +1469,11 @@ void Button::handle_events(int ID)
 
 											if (Player[MyID].inventory[selectedInventoryItem][1] > 0)
 											{
-												amount = 1;
-												amountStr = "";
-												//parse the amount
+												unsigned char itemId = Player[MyID].inventory[selectedInventoryItem][0];
+												//parse the amount the user typed into the GUI textbox
 												amount = atoi(iMessage);
-
-												//break up the int as 4 bytes
-												p = (char*)&amount;
-												b1 = p[0]; b2 = p[1]; b3 = p[2]; b4 = p[3];
-												packet = "0";
-												packet += DROP_ITEM;
-												packet += Player[MyID].inventory[selectedInventoryItem][0];
-
-												//how many to drop...could be lots
-												packet += b1;
-												packet += b2;
-												packet += b3;
-												packet += b4;
-												packet[0] = packet.length();
-
-												PiSock.Send(packet);
+												
+												Client.dropItem(itemId, amount);
 											}
                                     	  break;
 
@@ -1622,16 +1481,10 @@ void Button::handle_events(int ID)
                                     	  //clan buy
                                       	  case 10:
                                       		guiHit = true;
-											  //parse the clan name
+											  // Create a clan
 											  clanTag = (std::string)iMessage;
-
+											  Client.createClan((std::string)iMessage);
 											  //create clan attempt packet
-											  packet = "0";
-											  packet += MAKE_CLAN;
-											  packet += clanTag;
-											  packet[0] = packet.length();
-
-											  PiSock.Send(packet);
                                       	  break;
                                       }
                                    }
@@ -1720,12 +1573,7 @@ void Button::handle_events(int ID)
                                         if (popup_gui_menu != 5 && x > x1 && x < x2 && y > y1 && y < y2)
                                         {
                                            printf("shop\n");
-                                           std::string packet = "0";
-                                           packet += SHOP;
-                                           packet += INVITE;
-                                           packet += i;
-                                           packet[0] = packet.length();
-                                           PiSock.Send(packet);
+										   Client.openShop(i);
                                            return;
                                         }
                                     }
@@ -1771,25 +1619,17 @@ void Button::handle_events(int ID)
                                    if (x > 322 && x < 449 && y > 401 && y < 416)
                                    {
                                       //initiate trade
-                                      packet += TRADE;
-                                      packet += INVITE;
-                                      packet += requestedPlayer;
-                                      packet[0] = packet.length();
-                                      PiSock.Send(packet);
+									   Client.sendTradeInvite(requestedPlayer);
 
-                                      //close menus and wait for response...
-                                      popup_gui_menu = 0;
-                                      chat_box = 4;
+									   //close menus and wait for response.
+									   popup_gui_menu = 0;
+									   chat_box = 4;
                                    } else
                                    //party
                                    if (x > 322 && x < 449 && y > 425 && y < 440)
                                    {
                                       //initiate party
-                                      packet += PARTY;
-                                      packet += INVITE;
-                                      packet += requestedPlayer;
-                                      packet[0] = packet.length();
-                                      PiSock.Send(packet);
+									   Client.sendPartyInvite(requestedPlayer);
 
                                       //close menus and wait for response...
                                       popup_gui_menu = 0;
@@ -1798,12 +1638,7 @@ void Button::handle_events(int ID)
                                    //clan
                                    if (x > 322 && x < 449 && y > 449 && y < 464)
                                    {
-                                      //initiate trade
-                                      packet += CLAN;
-                                      packet += INVITE;
-                                      packet += requestedPlayer;
-                                      packet[0] = packet.length();
-                                      PiSock.Send(packet);
+									   Client.sendClanInvite(requestedPlayer);
 
                                       //close menus and wait for response...
                                       popup_gui_menu = 0;
@@ -1820,59 +1655,38 @@ void Button::handle_events(int ID)
                                 // trade with this person?
                                 if (popup_gui_menu == 3)
                                 {
-                                   std::string packet = "0";
                                    //okay
                                    if (x > 305 && x < 358 &&  y < 476 && y > 459)
                                    {
-
-
+									   Client.acceptTradeInvite();
                                       //I want to trade. Close menus and ...
                                       popup_gui_menu = 0;
                                       chat_box = 4;
-
-                                      //send accept packet
-                                      packet += TRADE;
-                                      packet += ACCEPT;
-                                      packet[0] = packet.length();
-                                      PiSock.Send(packet);
-
                                    }
 
 
                                    //cancel
                                    if (x > 409 && x < 462 &&  y < 476  && y > 459)
                                    {
-                                      //don't want to trade. Close menus and ...
+                                      Client.cancelTrade();
+									  
+									  //don't want to trade. Close menus and ...
                                       popup_gui_menu = 0;
                                       chat_box = 4;
-
-                                      //send deny packet
-                                      packet += TRADE;
-                                      packet += CANCEL;
-                                      packet[0] = packet.length();
-                                      PiSock.Send(packet);
                                    }
-
                                 }
                                 // party with this person?
                                 if (popup_gui_menu == 8)
                                 {
-                                   std::string packet = "0";
                                    //okay
                                    if (x > 305 && x < 358 &&  y < 476 && y > 459)
                                    {
-
                                       //I want to party. Close menus and ...
                                       popup_gui_menu = 0;
                                       chat_box = 4;
 
-
                                       //send accept packet
-                                      packet += PARTY;
-                                      packet += ACCEPT;
-                                      packet[0] = packet.length();
-                                      PiSock.Send(packet);
-
+									  Client.acceptPartyInvite();
                                    }
 
 
@@ -1884,62 +1698,42 @@ void Button::handle_events(int ID)
                                       chat_box = 4;
 
                                       //send deny packet
-                                      packet += PARTY;
-                                      packet += CANCEL;
-                                      packet[0] = packet.length();
-                                      PiSock.Send(packet);
+									  Client.cancelParty();
                                    }
 
                                 }
-                                // clan with this person?
-							   if (popup_gui_menu == 11)
-							   {
-								  std::string packet = "0";
-								  //okay
-								  if (x > 305 && x < 358 &&  y < 476 && y > 459)
-								  {
-									 //I want to party. Close menus and ...
-									 popup_gui_menu = 0;
-									 chat_box = 4;
+								// clan with this person?
+								if (popup_gui_menu == 11)
+								{
+									//okay
+									if (x > 305 && x < 358 &&  y < 476 && y > 459)
+									{
+									Client.acceptClanInvite();
 
-									 //send accept packet
-									 packet += CLAN;
-									 packet += ACCEPT;
-									 packet[0] = packet.length();
-									 PiSock.Send(packet);
-								  }
+									//I want to party. Close menus and ...
+									popup_gui_menu = 0;
+									chat_box = 4;
+									}
 
+									//cancel
+									if (x > 409 && x < 462 &&  y < 476  && y > 459)
+									{
+										Client.acceptClanInvite();
 
-								  //cancel
-								  if (x > 409 && x < 462 &&  y < 476  && y > 459)
-								  {
-									 //don't want to trade. Close menus and ...
-									 popup_gui_menu = 0;
-									 chat_box = 4;
+										//don't want to trade. Close menus and ...
+										popup_gui_menu = 0;
+										chat_box = 4;
+									}
+							    }
 
-									 //send deny packet
-									 packet += CLAN;
-									 packet += CANCEL;
-									 packet[0] = packet.length();
-									 PiSock.Send(packet);
-								  }
-
-							   }
                                 //exit the game?
                                 if (popup_gui_menu == 9){
                                 	//okay
 								   if (x > 305 && x < 358 &&  y < 476 && y > 459)
 								   {
-
-									   //show nice message
-										Message[0].SetText("You are logged out and your settings are saved.");
-										Message[1].SetText("Thanks for playing! Come again!");
-										drawText(0);
-										drawText(1);
-
-								    //disconnect
-									saveOptions(); Kill();
-
+										//disconnect
+										saveOptions(); 
+										Kill();
 								   }
 
 
@@ -1960,11 +1754,7 @@ void Button::handle_events(int ID)
                            case 23:
                                 if (popup_gui_menu == 4)
                                 { guiHit = true;
-                                    std::string packet = "0";
-                                    packet += TRADE;
-                                    packet += CONFIRM;
-                                    packet[0] =  packet.length();
-                                    PiSock.Send(packet);
+									Client.confirmTrade();
                                 }
                            break;
 
@@ -1972,11 +1762,7 @@ void Button::handle_events(int ID)
                            case 24:
                                 if (popup_gui_menu == 4)
                                 { guiHit = true;
-                                    std::string packet = "0";
-                                    packet += TRADE;
-                                    packet += CANCEL;
-                                    packet[0] = packet.length();
-                                    PiSock.Send(packet);
+									Client.cancelTrade();
                                 }
                            break;
 
@@ -2031,22 +1817,9 @@ void Button::handle_events(int ID)
                                    int item = selectedBankItem;
                                    int amount = Player[MyID].bank[selectedBankItem];
 
-
-                                   char * p=(char*)&amount;
-                                   char b1=p[0], b2=p[1], b3=p[2], b4=p[3];
-
                                    if (amount > 0)
                                    {
-                                       std::string tPacket = "0";
-                                       tPacket += BANK;
-                                       tPacket += DEBANK_ITEM;
-                                       tPacket += item;
-                                       tPacket += b1;
-                                       tPacket += b2;
-                                       tPacket += b3;
-                                       tPacket += b4;
-                                       tPacket[0] = tPacket.length();
-                                       PiSock.Send(tPacket);
+									   Client.withdrawalBankItem(item, amount);
                                    }
                                }
                            break;
@@ -2057,11 +1830,7 @@ void Button::handle_events(int ID)
                                {guiHit = true;
                                   popup_gui_menu = 0;
                                   {
-                                  std::string packet = "0";
-                                  packet += BANK;
-                                  packet += CANCEL;
-                                  packet[0] = packet.length();
-                                  PiSock.Send(packet);
+									  Client.closeBank();
                                   }
                                }
                            break;
@@ -2140,11 +1909,7 @@ void Button::handle_events(int ID)
                                {guiHit = true;
                                   popup_gui_menu = 0;
                                   {
-                                  std::string packet = "0";
-                                  packet += SHOP;
-                                  packet += CANCEL;
-                                  packet[0] = packet.length();
-                                  PiSock.Send(packet);
+									  Client.closeShop();
                                   }
                                }
                            break;
@@ -2160,30 +1925,20 @@ void Button::handle_events(int ID)
                                 //accept shop transaction!! BUY/SELL
                                 if (popup_gui_menu == 6)
                                 {guiHit = true;
-                                    std::string packet = "0";
-                                    packet += SHOP;
-                                    int item = 0, amount = 0;
+                                   
+									unsigned char item = 0;
+									unsigned int amount = 0;
 
-                                    //find item position
-
-
-
-
+                                   //find item position
                                    //buy items!
                                    if (shopBuyMode)
                                    {
-                                       //request buy mode
-                                       packet += BUY;
-
                                        //find the item & amount
                                        item = selectedShopItem;
-
                                    }
                                    else // SELL ! :D
                                    {
                                         //request sell mode
-                                        packet += SELL;
-
                                         int i = 0;
                                         for (int y = 0; y < 4; y ++)
                                         {
@@ -2199,27 +1954,13 @@ void Button::handle_events(int ID)
                                         //find the item
                                         item = Player[MyID].inventory[i][0];
                                    }
-
-
                                    amount = offerIncrement;
 
-
-                                   //add item type
-                                   packet += item;
-
-                                   //add the amount
-                                   //break up the int as 4 bytes
-                                   char *p=(char*)&amount;
-                                   char b1,b2,b3,b4;
-                                   b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-                                   packet += b1;
-                                   packet += b2;
-                                   packet += b3;
-                                   packet += b4;
-
-                                   packet[0] = packet.length();
-                                   PiSock.Send(packet);
+                                   //Send to SKO Network
+								   if (shopBuyMode)
+									   Client.buyItem(item, amount);
+								   else
+									   Client.sellItem(item, amount);
                                 }
                            break;
 
@@ -2349,26 +2090,22 @@ void Button::handle_events(int ID)
                                    //select hat
                                    if (x > 459 && x < 496 && y > 273 && y < 306)
                                    {guiHit = true;
-                                         selectedEquipItem = 1;
+                                         equipmentSlot = 1;
                                    }
                                    else //select sword
                                    if (x > 459 && x < 496 && y > 347 && y < 380)
                                    {guiHit = true;
-                                         selectedEquipItem = 0;
+                                         equipmentSlot = 0;
                                    }
                                    else //select trophy 327, 317
 								   if (x > 327 && x < 359 && y > 317 && y < 349)
 								   {guiHit = true;
-										selectedEquipItem = 2;
+										equipmentSlot = 2;
 								   }
                                    else
                                    if (x > 429 && x < 501 && y > 480 && y < 495)
                                    {guiHit = true;
-                                         std::string packet = "0";
-                                         packet += EQUIP;//unequip trololo
-                                         packet += selectedEquipItem;
-                                         packet[0] = packet.length();
-                                         PiSock.Send(packet);
+										Client.unequipItem(equipmentSlot);
                                    }
                                 }
                            break;
@@ -2376,11 +2113,7 @@ void Button::handle_events(int ID)
                            case 42:
                                    if (Player[MyID].party >= 0)
                                    {
-                                         std::string packet = "0";
-                                         packet += PARTY;
-                                         packet += CANCEL;
-                                         packet[0] = packet.length();
-                                         PiSock.Send(packet);
+									   Client.cancelParty();
                                    }
                            break;
 
@@ -2446,35 +2179,18 @@ void Button::handle_events(int ID)
 								  //okay
 								  if (x > 305 && x < 358 &&  y < 476 && y > 459)
 								  {
-								   int amount;
-								   std::string amountStr;
-								   std::string packet;
-								   char *p, b1, b2, b3, b4;
+								   unsigned int amount = 0;
+								   unsigned char itemId = 0;
 
 									 switch (popup_gui_menu)
 									 {
 										 //drop items
 										  case 1:
-											  amount = 1;
-											  amountStr = "";
-											  //parse the amount
+											  //parse the amount the user typed into the GUI textbox
 											  amount = atoi(iMessage);
+											  itemId = Player[MyID].inventory[selectedInventoryItem][0];
 
-											  //break up the int as 4 bytes
-											  p=(char*)&amount;
-											  b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-											  packet = "0";
-											  packet += DROP_ITEM;
-											  packet += Player[MyID].inventory[selectedInventoryItem][0];
-
-											  //how many to drop...could be lots
-											  packet += b1;
-											  packet += b2;
-											  packet += b3;
-											  packet += b4;
-											  packet[0] = packet.length();
-
-											  PiSock.Send(packet);
+											  Client.dropItem(itemId, amount);
 									      break;
 
 									  //clan buy
@@ -2499,13 +2215,13 @@ void Button::handle_events(int ID)
 								  }
 							   }
 
-						
+
                            break;
 
 						   //enable or disable auto sign reading
 						   case 46:
 							   (enableSIGN) = (!enableSIGN);
-						
+
 							   break;
 
                            //something unknown, but this shouldn't happen
@@ -2633,7 +2349,7 @@ void Button::handle_events(int ID)
                            }//end inside inventory click
                           break;
 
-			
+
                           default:
                           break;
 
@@ -2934,30 +2650,16 @@ construct_frame()
 	if (MyID > -1)
 		current_map = Player[MyID].current_map;
 
-	if (enableBetaWarning)
-	{
-		glClearColor(0.21f, 0.01f, 0.15f, 1.0f);
-		DrawImage(400, 200, beta_warning_image);
-		return;
-	}
-
 	//printf("camera_x : %i\n", (int)camera_x);
 	//printf("camera_y : %i\n", (int)camera_y);
 
 	glClearColor(0.01f, 0.01f, 0.05f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-
-	//buffer
-    //DrawImage(0, 0, background);
-
-    //map for all
-    //int plyx = 0;
-    //int plyy = 0;
-
     if (loaded)
     {
     	//printf("debug opportunity here.");
+		;
     }
     else
     {
@@ -3378,7 +3080,7 @@ construct_frame()
                {
 
 
-				   
+
 				   if (Player[i].equip[0] != 0)
 				   {
 					   //with weapon
@@ -3391,7 +3093,7 @@ construct_frame()
 					   trophy_offset_y = getTrophyUnarmedAttackOffsetY(Player[i].current_frame);
 				   }
 
-					
+
 
 
 					  //always draw trophies! :D
@@ -3538,7 +3240,7 @@ construct_frame()
 						   hat_offset_y = getHatAttackOffsetY(Player[i].current_frame);
 					   }
 					   ///Unarmed Attack
-					   else 
+					   else
 					   {
 						   hat_offset_x = getHatUnarmedAttackOffsetX(Player[i].current_frame);
 						   hat_offset_y = getHatUnarmedAttackOffsetY(Player[i].current_frame);
@@ -3844,7 +3546,7 @@ construct_frame()
                       {
 						  int itemAmount;
 						  itemAmount = Player[MyID].inventory[i][1];
-                    	  
+
 						  //center the item over your mouse
 						  if (itemAmount > 0) {
 							  offset_x -= 16;
@@ -3895,7 +3597,7 @@ construct_frame()
 
 
                      //where to draw the selector
-                     switch (selectedEquipItem)
+                     switch (equipmentSlot)
                      {
                             case 0://sword
                                     DrawImage(459, 347, inventorySelectorBox);
@@ -4210,8 +3912,8 @@ construct_frame()
 					  // if buying, only draw items that are for sale. OR
 					  // if selling, only draw in the first item slot of the shop
 					  // and only draw it if a legit inventory slot is selected.
-                      if ((price > 0 && amount > 0 && shopBuyMode) 
-				       || (x == 0 && y == 0 && amount > 0 && item > 0 && !shopBuyMode)) 
+                      if ((price > 0 && amount > 0 && shopBuyMode)
+				       || (x == 0 && y == 0 && amount > 0 && item > 0 && !shopBuyMode))
                          DrawImage(782+(32-Item[item].w)/2+39*x, 278+(32-Item[item].h)/2+42*y, Item_img[item]);
 
 
@@ -4396,12 +4098,7 @@ int pressKey(int key)
 			   actionKeyDown = true;
 			   if (chat_box == 4 && !Player[MyID].attacking)
 			   {
-				   Packet = "0";
-				   Packet += CAST_SPELL;
-				   Packet[0] = Packet.length();
-
-				   PiSock.Send(Packet);
-				   break;
+				   Client.castSpell();
 			   }
 		   }
 	   break;
@@ -4410,85 +4107,30 @@ int pressKey(int key)
        case 'a':
             if (chat_box == 4 && !Player[MyID].attacking && Player[MyID].x_speed != -2)
             {
+				//Send action to server
+				Client.playerAction("left", Player[MyID].x, Player[MyID].y);
+
+				//Client prediction physics
             	LEFT = true;
             	RIGHT = false;
 
                 Player[MyID].x_speed = -2;
                 Player[MyID].facing_right = false;
-
-                Packet = "0";
-                Packet += MOVE_LEFT;
-                Packet += "41445555";
-
-                //break up the int as 4 bytes
-                p=(char*)&Player[MyID].x;
-                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-                //spit out each of the bytes
-                Packet[2] = b1;
-                Packet[3] = b2;
-                Packet[4] = b3;
-                Packet[5] = b4;
-
-                p=(char*)&Player[MyID].y;
-                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-
-                Packet[6]  = b1;
-                Packet[7]  = b2;
-                Packet[8]  = b3;
-                Packet[9]  = b4;
-
-                //printf("y: %i\n", numy);
-
-                Packet[0] = Packet.length();
-                PiSock.Send(Packet);
             }
        break;
 
        case SDLK_RIGHT:
        case 'd':
-
             if (chat_box == 4 && !Player[MyID].attacking && Player[MyID].x_speed != 2)
             {
+				//send action to SKO network
+				Client.playerAction("right", Player[MyID].x, Player[MyID].y);
+
+				//Client prediction physics
                 RIGHT = true;
                 LEFT = false;
                 Player[MyID].x_speed = 2;
                 Player[MyID].facing_right = true;
-
-                Packet = "0";
-                Packet += MOVE_RIGHT;
-                Packet += "41445555";
-
-                //break up the int as 4 bytes
-                p=(char*)&Player[MyID].x;;
-                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-                //spit out each of the bytes
-                Packet[2] = b1;
-                Packet[3] = b2;
-                Packet[4] = b3;
-                Packet[5] = b4;
-
-                p=(char*)&Player[MyID].y;
-                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-
-                Packet[6]  = b1;
-                Packet[7]  = b2;
-                Packet[8]  = b3;
-                Packet[9]  = b4;
-
-                //printf("y: %i\n", numy);
-               // printf("MOVE_RIGHT ");
-               //
-               // for (int i = 2; i < 10; i++)
-               //     printf("[%i]", Packet[i]);
-               //
-               // printf("(%i,%i)\n", Player[MyID].x, Player[MyID].y);
-
-                Packet[0] = Packet.length();
-                PiSock.Send(Packet);
             }
 
        break;
@@ -4501,35 +4143,15 @@ int pressKey(int key)
        case 's':
             if(chat_box == 4 && Player[MyID].ground && !Player[MyID].attacking)
             {
+				//send action to SKO network
+			    Client.playerAction("attack", Player[MyID].x, Player[MyID].y);
+
                if (enableSND && enableSFX)
                      Mix_PlayChannel( -1, attack_noise, 0 );
 
                Player[MyID].attacking = true;
                Player[MyID].current_frame = 0;
                Player[MyID].x_speed = 0;
-
-               //tell everyone you attacked
-               std::string Packet = "0";
-               Packet += ATTACK;
-               Packet += "00001111";
-
-               //break up the int as 4 bytes
-                p=(char*)&Player[MyID].x;
-                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-                Packet[2] = b1;
-                Packet[3] = b2;
-                Packet[4] = b3;
-                Packet[5] = b4;
-
-                p=(char*)&Player[MyID].y;
-                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-                Packet[6] = b1;
-                Packet[7] = b2;
-                Packet[8] = b3;
-                Packet[9] = b4;
-
-               Packet[0] = Packet.length();
-               PiSock.Send(Packet);
             }
        break;
        default:
@@ -4542,40 +4164,11 @@ int pressKey(int key)
             //verical collision detection
             if (blocked(Player[MyID].x + 25, Player[MyID].y+Player[MyID].y_speed + 0 + 0.15, Player[MyID].x + 38, Player[MyID].y+Player[MyID].y_speed + 64 +0.15))
             {
+				//Send action to SKO network
+				Client.playerAction("jump", Player[MyID].x, Player[MyID].y);
+
                 //fly
                 Player[MyID].y_speed = -6;
-
-                //send packet
-                Packet = "0";
-                Packet += MOVE_JUMP;
-                Packet += "42445555";
-
-                //break up the int as 4 bytes
-                p=(char*)&Player[MyID].x;
-                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-
-                //printf("x: %i ", numx);
-
-                //spit out each of the bytes
-                Packet[2] = b1;
-                Packet[3] = b2;
-                Packet[4] = b3;
-                Packet[5] = b4;
-
-                p=(char*)&Player[MyID].y;
-                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-
-                Packet[6] = b1;
-                Packet[7] = b2;
-                Packet[8] = b3;
-                Packet[9] = b4;
-
-                //printf("y: %i\n", numy);
-
-                Packet[0] = Packet.length();
-                PiSock.Send(Packet);
             }
        break;
     }
@@ -4770,26 +4363,17 @@ int pressKey(int key)
    {
        if (chat_box == 3)
        {
-           //build new message
-           std::string message = "0";
-           message += CHAT;
-           message += tMessage;
+		   if (tMessage[0] == '&')
+			   DEBUG_FLAG = true;
+		   else if (tMessage[0] > 0)
+			   Client.sendChat(tMessage);
 
-           message[0] = message.length();
-
-           //printf(">>>>>> CHAT >>>>> [%i]", clock());
-
-           if (tMessage[0] == '&')
-        	   DEBUG_FLAG = true;
-           else if (message.length() > 2)//len,chat
-              PiSock.Send(message);
-
-
-           for (int i = 0; i < MAX_T_MESSAGE-2; i++)
+		   //clear chat bar
+		   //TODO: this was here, but leaves a dirty character:  for (int i = 0; i < MAX_T_MESSAGE - 2; i++)
+           for (int i = 0; i < MAX_T_MESSAGE-1; i++)
                tMessage[i] = 0;
 
            tSeek = 0;
-
            chat_box = 4;
        }
        else if (chat_box == 4)
@@ -4797,21 +4381,20 @@ int pressKey(int key)
           chat_box = 3;
        }
 
-       if (menu == STATE_LOGIN)//logging in
-       {
-             //clear message in corner
-               Message[0].SetText("");
-               Message[1].SetText("");
-               drawText(0);
-               drawText(1);
+		if (menu == STATE_LOGIN)//logging in
+		{
+			//clear message in corner
+			Message[0].SetText("");
+			Message[1].SetText("");
+			drawText(0);
+			drawText(1);
 
-            username = uMessage;
-            password = pMessage;
+			username = uMessage;
+			password = pMessage;
 
-           TryToLogin();
-       }
-
-   }
+			TryToLogin();
+		}
+	}
    else if (key == SDLK_BACKSPACE)
    {
         returnKey = key;
@@ -5279,38 +4862,8 @@ void HandleUI()
                     	   LEFT = false;
                             if (chat_box == 4 && !RIGHT && !Player[MyID].attacking)
                             {
-
-                                Packet = "0";
-                                Packet += MOVE_STOP;
-                                Packet +="42445555";
-
-
-                                //break up the int as 4 bytes
-                                p=(char*)&Player[MyID].x;
-                                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-
-                                //printf("x: %i ", numx);
-
-                                //spit out each of the bytes
-                                Packet[2] = b1;
-                                Packet[3] = b2;
-                                Packet[4] = b3;
-                                Packet[5] = b4;
-
-                                p=(char*)&Player[MyID].y;
-                                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-
-                                Packet[6] = b1;
-                                Packet[7] = b2;
-                                Packet[8] = b3;
-                                Packet[9] = b4;
-
-                                //printf("y: %i\n", numy);
-                                Packet[0] = Packet.length();
-
-                                PiSock.Send(Packet);
+								//send action to SKO network
+								Client.playerAction("stop", Player[MyID].x, Player[MyID].y);
                             }
                        break;
                        case SDLK_RIGHT:
@@ -5318,36 +4871,8 @@ void HandleUI()
                             RIGHT = false;
                             if (chat_box == 4 && !LEFT && !Player[MyID].attacking)
                             {
-                                Packet = "0";
-                                Packet += MOVE_STOP;
-                                Packet +="42445555";
-
-                                //break up the int as 4 bytes
-                                p=(char*)&Player[MyID].x;
-                                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-
-                                //printf("x: %i ", numx);
-
-                                //spit out each of the bytes
-                                Packet[2] = b1;
-                                Packet[3] = b2;
-                                Packet[4] = b3;
-                                Packet[5] = b4;
-
-                                p=(char*)&Player[MyID].y;
-                                b1=p[0]; b2=p[1]; b3=p[2]; b4=p[3];
-
-
-                                Packet[6] = b1;
-                                Packet[7] = b2;
-                                Packet[8] = b3;
-                                Packet[9] = b4;
-
-                                //printf("y: %i\n", numy);
-                                Packet[0] = Packet.length();
-
-                                PiSock.Send(Packet);
+								//send action to SKO network
+								Client.playerAction("stop", Player[MyID].x, Player[MyID].y);
                             }
                        break;
 					   case 'r':
@@ -5372,7 +4897,7 @@ void HandleUI()
                 //printf("MyID is: %i\n", MyID);
                  //printf("MY Username is: %s\n", Player[MyID].Nick);
             	 saveOptions();
-                Kill();
+				 Kill();
 
             break;
             default: break;
@@ -5385,1785 +4910,42 @@ void HandleUI()
 
 void* Network(void *arg)
 {
-     //ping
-    unsigned int pingRequestTicker = 0;
-    unsigned int pingRequestTime = 0;
-    bool pingWaiting = false;
-    std::string pingPacket;
-    pingPacket = "20";
-    pingPacket[1] = PING;
-    //pingPacket += "HELLO-WORLD";
-    pingPacket[0] = pingPacket.length();
-    unsigned int currentTime = SDL_GetTicks();
-    int data_len = 0;
-    int pack_len = 0;
-    int ping = 0;
-    int code = 0;
-
-    //first update the game
-
-
-    //connect normally
-    connectError = connect();
-    printf("connectError is: %i\n", connectError);
-    tryingToConnect = false;
-
-
-     while (!done)
-     {
-    	 if (networkLock){
-    		 printf("Network is locked . . . \n");
-    		 SDL_Delay(10);
-    		 continue;
-    	 }
-
-    	 if (loaded){
-    	 		 ;//printf("Network debug breakpoint.\n");
-    	 } else {
-//    		 if (SDL_GetTicks() % 500 == 0)
-//    		 {
-//    		     printf("\nPiSock.Data is:");
-//			     for (unsigned int i = 0; i<PiSock.Data.length(); i++)
-//			     	printf("[%i]", PiSock.Data[i]);
-//
-//    		 }
-    	 }
-
-    	   if (connectError){
-    		   printf("312465288 ERRRRRRRRRRRRRRRRRRRRRRRRRRRR\n");
-    		   SDL_Delay(100);
-    		   HandleUI();
-    		   continue;
-    	   }
-    	   if (!PiSock.Connected ){
-    		   printf("12341234 ERRRRRRRRRRRRRRRRRRRRRRRRRRRR\n");
-    		   if (menu !=STATE_DISCONNECT)
-    		   	   Disconnect();
-    		   	   continue;
-    	   }
-
-           //get messages from the server
-           if (PiSock.Data.length() == 0 || PiSock.Data.length() < (unsigned int)PiSock.Data[0])
-           {
-              //int gotSomeData = PiSock.Receive();
-              PiSock.Receive();
-
-//              if (false && gotSomeData > 0){
-//                 printf("**BANG** recv length is: %i\n", gotSomeData);
-//                 printf("**BANG** data length is: %i\n", PiSock.Data.length());
-//                 printf("Data is: ");
-//                 for (unsigned int i = 0; i < PiSock.Data.length(); i++)
-//                     printf("[%i]", PiSock.Data[i]);
-//                 printf("\n");
-//
-//              }
-
-           }
-
-		   // If the data holds a complete data
-           data_len = PiSock.Data.length();
-           pack_len = 0;
-           currentTime = SDL_GetTicks();
-
-
-           if (data_len > 0)
-              pack_len = PiSock.Data[0];
-
-           if (data_len >= pack_len && data_len > 0)
-           {
-
-               //printf("\n*************************\n");
-               //printf("data_length %i\npack_length %i\n", data_len, pack_len);
-
-                // If the data holds a complete data
-               data_len = 0;
-               pack_len = 0;
-
-               data_len = PiSock.Data.length();
-
-               if (data_len > 0)
-                  pack_len = PiSock.Data[0];
-
-
-
-              std::string newPacket = "";
-
-              if (data_len > pack_len)
-                 newPacket = PiSock.Data.substr(pack_len, data_len);
-
-              PiSock.Data = PiSock.Data.substr(0, pack_len);
-
-
-
-
-              //rip the command
-              code = PiSock.Data[1];
-
-        //      int check_a = PiSock.Data.length();
-        //      int check_b = (int)PiSock.Data[0];
-
-//              if (check_a)
-//              {
-//                 printf("code is ---------------  %i\n", code);
-//                 printf("PiSock.Data.length() =   %i\n\n", PiSock.Data.length());
-//                 printf("The length of the packet should be: %i\n", (int)PiSock.Data[0]);
-//              }
-
-
-              //respond to server's PING or die!
-              if (code == PING)
-              {
-                 std::string pongPacket = "0";
-                 pongPacket += PONG;
-                 pongPacket[0] = pongPacket.length();
-                 PiSock.Send(pongPacket);
-              }
-              else
-              if (code == PONG)
-              {
-
-                  //calculate the ping
-                  ping = currentTime - pingRequestTime;
-
-                  //show the ping
-                  std::stringstream ss;
-                  ss << "Ping:   ";
-                 // ss << (float)(ping+ping_old)/2.0;
-                  ss << ping;
-                  Message[15].SetText(ss.str());
-
-                  if (ping < 50) {
-                	  Message[15].R = 150/255.0;
-                	  Message[15].G = 255/255.0;
-                	  Message[15].B = 150/255.0;
-                  } else
-                  if (ping < 100) {
-                	  Message[15].R = 230/255.0;
-                	  Message[15].G = 255/255.0;
-                	  Message[15].B = 90/255.0;
-                  } else
-                  if (ping < 250) {
-                	  Message[15].R = 255/255.0;
-                	  Message[15].G = 200/255.0;
-                	  Message[15].B = 150/255.0;
-                  } else {
-                	  Message[15].R = 255/255.0;
-					  Message[15].G = 80/255.0;
-					  Message[15].B = 80/255.0;
-                  }
-
-
-                  //tell the counters that the ping came back
-                  pingWaiting = false;
-
-              }
-              else if (code == LOADED)
-              {
-                   printf("loaded.\n");
-                   Mix_PauseMusic();
-                   music = Mix_LoadMUS("SND/game.ogg");
-
-                   if (music != NULL && Mix_PlayMusic( music, -1 ) == -1)
-                          	   printf("ERROR PLAYING MUSIC!!");
-                              else
-                              	printf("music played ok.");
-
-                              if (!enableSND || !enableMUS)
-                              {
-                                 printf("not playing music because either sound or music is mute.\n");
-                                 if (Mix_PausedMusic() != 1 )
-                                 {
-                                         //pause the music
-                                         Mix_PauseMusic();
-                                 }
-                              }
-
-                   printf("my id is %i and hp is %i and map is %i\n", MyID, Player[MyID].hp, Player[MyID].current_map);
-                   /* if not fully loaded */
-                   if (Player[MyID].level == 255)
-                   {
-                      printf("ERROR: Your character did not load, so closing the connection and client. just try again.");
-                      Done();
-                   }
-
-
-                   //ask who is online
-                   std::string whom = "0";
-                             whom += CHAT;
-                             whom += "/who";
-                             whom[0] = whom.length();
-                             PiSock.Send(whom);
-
-                   menu = STATE_PLAY;//game
-                   popup_menu = 0;
-                   popup_gui_menu = 0;
-
-                   loaded = true;
-
-                   //Play the music
-                   if (!enableSND || !enableMUS)
-                   {
-                        Mix_PauseMusic();
-                   }
-
-                   if (enableSND && enableSFX)
-                     Mix_PlayChannel( -1, login_noise, 0 );
-
-                   printf("LOADED packet operations successfully completed.");
-              }
-              else if (code == ATTACK)
-              {
-
-
-                  float temp;
-                  int CurrSock = PiSock.Data[2];
-                  ((char*)&temp)[0] = PiSock.Data[3];
-                  ((char*)&temp)[1] = PiSock.Data[4];
-                  ((char*)&temp)[2] = PiSock.Data[5];
-                  ((char*)&temp)[3] = PiSock.Data[6];
-                  Player[CurrSock].x = temp;
-                  ((char*)&temp)[0] = PiSock.Data[7];
-                  ((char*)&temp)[1] = PiSock.Data[8];
-                  ((char*)&temp)[2] = PiSock.Data[9];
-                  ((char*)&temp)[3] = PiSock.Data[10];
-                  Player[CurrSock].y = temp;
-                  Player[CurrSock].attacking = true;
-                  Player[CurrSock].x_speed = 0;
-
-                  //if they are in sight
-                  float px = Player[CurrSock].x - camera_x;
-                  float py = Player[CurrSock].y - camera_y;
-
-                  if (px > -32 && px < 1024 && py > -32 && py < 600)
-                  {
-                     //play the swooshy sound
-                     if (enableSND && enableSFX)
-                        Mix_PlayChannel( -1, attack_noise, 0 );
-                  }
-
-              }
-              else if (code == ENEMY_ATTACK)
-              {
-                  float temp;
-                  int i = PiSock.Data[2];
-                  int cu = PiSock.Data[3];
-                  ((char*)&temp)[0] = PiSock.Data[4];
-                  ((char*)&temp)[1] = PiSock.Data[5];
-                  ((char*)&temp)[2] = PiSock.Data[6];
-                  ((char*)&temp)[3] = PiSock.Data[7];
-
-                  map[cu]->Enemy[i].x = temp;
-                  ((char*)&temp)[0] = PiSock.Data[8];
-                  ((char*)&temp)[1] = PiSock.Data[9];
-                  ((char*)&temp)[2] = PiSock.Data[10];
-                  ((char*)&temp)[3] = PiSock.Data[11];
-                  map[cu]->Enemy[i].y = temp;
-                  map[cu]->Enemy[i].attacking = true;
-                  map[cu]->Enemy[i].x_speed = 0;
-
-                  //printf("enemy attack. current map [%i] x:[%i] y:[%i]\n", cu,
-                //		  (int)map[cu]->Enemy[i].x,
-                //		  (int)map[cu]->Enemy[i].y);
-
-              }
-              else if (code == ENEMY_MOVE_RIGHT)
-              {
-                   int npc_id = PiSock.Data[2];
-                   int current_map = PiSock.Data[3];
-                   float npc_x, npc_y;
-                   ((char*)&npc_x)[0] = PiSock.Data[4];
-                   ((char*)&npc_x)[1] = PiSock.Data[5];
-                   ((char*)&npc_x)[2] = PiSock.Data[6];
-                   ((char*)&npc_x)[3] = PiSock.Data[7];
-                   ((char*)&npc_y)[0] = PiSock.Data[8];
-                   ((char*)&npc_y)[1] = PiSock.Data[9];
-                   ((char*)&npc_y)[2] = PiSock.Data[10];
-                   ((char*)&npc_y)[3] = PiSock.Data[11];
-
-                   map[current_map]->Enemy[npc_id].x_speed = 2;
-                   map[current_map]->Enemy[npc_id].x = npc_x;
-                   map[current_map]->Enemy[npc_id].y = npc_y;
-                   map[current_map]->Enemy[npc_id].facing_right = true;
-
-              }
-              else if (code == ENEMY_MOVE_LEFT)
-              {
-                   int npc_id = PiSock.Data[2];
-                   int current_map = PiSock.Data[3];
-                   float npc_x, npc_y;
-                   ((char*)&npc_x)[0] = PiSock.Data[4];
-                   ((char*)&npc_x)[1] = PiSock.Data[5];
-                   ((char*)&npc_x)[2] = PiSock.Data[6];
-                   ((char*)&npc_x)[3] = PiSock.Data[7];
-                   ((char*)&npc_y)[0] = PiSock.Data[8];
-                   ((char*)&npc_y)[1] = PiSock.Data[9];
-                   ((char*)&npc_y)[2] = PiSock.Data[10];
-                   ((char*)&npc_y)[3] = PiSock.Data[11];
-
-                   map[current_map]->Enemy[npc_id].x_speed = -2;
-                   map[current_map]->Enemy[npc_id].x = npc_x;
-                   map[current_map]->Enemy[npc_id].y = npc_y;
-                   map[current_map]->Enemy[npc_id].facing_right = false;
-              }
-              else if (code == ENEMY_MOVE_STOP)
-              {
-                   int npc_id = PiSock.Data[2];
-                   int current_map = PiSock.Data[3];
-                   float npc_x, npc_y;
-                   ((char*)&npc_x)[0] = PiSock.Data[4];
-                   ((char*)&npc_x)[1] = PiSock.Data[5];
-                   ((char*)&npc_x)[2] = PiSock.Data[6];
-                   ((char*)&npc_x)[3] = PiSock.Data[7];
-                   ((char*)&npc_y)[0] = PiSock.Data[8];
-                   ((char*)&npc_y)[1] = PiSock.Data[9];
-                   ((char*)&npc_y)[2] = PiSock.Data[10];
-                   ((char*)&npc_y)[3] = PiSock.Data[11];
-
-                   map[current_map]->Enemy[npc_id].x_speed = 0;
-                   map[current_map]->Enemy[npc_id].y_speed = 0;
-                   map[current_map]->Enemy[npc_id].x = npc_x;
-                   map[current_map]->Enemy[npc_id].y = npc_y;
-
-                   if (loaded && npc_x == ENEMY_DEAD_X && npc_y == ENEMY_DEAD_Y)
-				   {
-                	   if (enableSND && enableSFX)
-                		   Mix_PlayChannel( -1, items_drop_noise, 0 );
-				   }
-
-//                   printf("ENEMY_MOVE_STOP: map[%i].Enemy[%i] (%i, %i)\n",
-//                		   current_map,
-//						   npc_id,
-//						   (int)map[current_map]->Enemy[npc_id].x,
-//						   (int)map[current_map]->Enemy[npc_id].x);
-              }
-              //NPC packets
-              else if (code == NPC_TALK)
-				{
-//					float temp;
-//					int i = PiSock.Data[2];
-//					int cu = PiSock.Data[3];
-//					((char*)&temp)[0] = PiSock.Data[4];
-//					((char*)&temp)[1] = PiSock.Data[5];
-//					((char*)&temp)[2] = PiSock.Data[6];
-//					((char*)&temp)[3] = PiSock.Data[7];
-//
-//					map[cu]->NPC[i].x = temp;
-//					((char*)&temp)[0] = PiSock.Data[8];
-//					((char*)&temp)[1] = PiSock.Data[9];
-//					((char*)&temp)[2] = PiSock.Data[10];
-//					((char*)&temp)[3] = PiSock.Data[11];
-//					map[cu]->NPC[i].y = temp;
-//					map[cu]->NPC[i].attacking = true;
-//					map[cu]->NPC[i].x_speed = 0;
-//
-//					//printf("npc attack. current map [%i] x:[%i] y:[%i]\n", cu,
-//				  //		  (int)map[cu]->NPC[i].x,
-//				  //		  (int)map[cu]->NPC[i].y);
-
-				}
-				else if (code == NPC_MOVE_RIGHT)
-				{
-					 int npc_id = PiSock.Data[2];
-					 int current_map = PiSock.Data[3];
-					 float npc_x, npc_y;
-					 ((char*)&npc_x)[0] = PiSock.Data[4];
-					 ((char*)&npc_x)[1] = PiSock.Data[5];
-					 ((char*)&npc_x)[2] = PiSock.Data[6];
-					 ((char*)&npc_x)[3] = PiSock.Data[7];
-					 ((char*)&npc_y)[0] = PiSock.Data[8];
-					 ((char*)&npc_y)[1] = PiSock.Data[9];
-					 ((char*)&npc_y)[2] = PiSock.Data[10];
-					 ((char*)&npc_y)[3] = PiSock.Data[11];
-
-					 map[current_map]->NPC[npc_id].x_speed = 2;
-					 map[current_map]->NPC[npc_id].x = npc_x;
-					 map[current_map]->NPC[npc_id].y = npc_y;
-					 map[current_map]->NPC[npc_id].facing_right = true;
-
-				}
-				else if (code == NPC_MOVE_LEFT)
-				{
-					 int npc_id = PiSock.Data[2];
-					 int current_map = PiSock.Data[3];
-					 float npc_x, npc_y;
-					 ((char*)&npc_x)[0] = PiSock.Data[4];
-					 ((char*)&npc_x)[1] = PiSock.Data[5];
-					 ((char*)&npc_x)[2] = PiSock.Data[6];
-					 ((char*)&npc_x)[3] = PiSock.Data[7];
-					 ((char*)&npc_y)[0] = PiSock.Data[8];
-					 ((char*)&npc_y)[1] = PiSock.Data[9];
-					 ((char*)&npc_y)[2] = PiSock.Data[10];
-					 ((char*)&npc_y)[3] = PiSock.Data[11];
-
-					 map[current_map]->NPC[npc_id].x_speed = -2;
-					 map[current_map]->NPC[npc_id].x = npc_x;
-					 map[current_map]->NPC[npc_id].y = npc_y;
-					 map[current_map]->NPC[npc_id].facing_right = false;
-				}
-				else if (code == NPC_MOVE_STOP)
-				{
-					 int npc_id = PiSock.Data[2];
-					 int current_map = PiSock.Data[3];
-					 float npc_x, npc_y;
-					 ((char*)&npc_x)[0] = PiSock.Data[4];
-					 ((char*)&npc_x)[1] = PiSock.Data[5];
-					 ((char*)&npc_x)[2] = PiSock.Data[6];
-					 ((char*)&npc_x)[3] = PiSock.Data[7];
-					 ((char*)&npc_y)[0] = PiSock.Data[8];
-					 ((char*)&npc_y)[1] = PiSock.Data[9];
-					 ((char*)&npc_y)[2] = PiSock.Data[10];
-					 ((char*)&npc_y)[3] = PiSock.Data[11];
-
-					 map[current_map]->NPC[npc_id].x_speed = 0;
-					 map[current_map]->NPC[npc_id].y_speed = 0;
-					 map[current_map]->NPC[npc_id].x = npc_x;
-					 map[current_map]->NPC[npc_id].y = npc_y;
-
-				}
-              //end NPC packets
-              else if (code == MOVE_RIGHT)
-              {
-                 // Declare message string
-                 std::string Message  = "";
-
-                 //fill message with username and reason
-                 Message += PiSock.Data.substr(2,pack_len-2);
-
-                 //printf("Message[%s]\n", Message);
-
-                 //put each byte into memory
-                 char b1 = (char)Message[1];
-                 char b2 = (char)Message[2];
-                 char b3 = (char)Message[3];
-                 char b4 = (char)Message[4];
-                 char b5 = (char)Message[5];
-                 char b6 = (char)Message[6];
-                 char b7 = (char)Message[7];
-                 char b8 = (char)Message[8];
-
-                 //hold the result...
-                 float numx;
-
-                 //build an int from 4 bytes
-                 ((char*)&numx)[0] = b1;
-                 ((char*)&numx)[1] = b2;
-                 ((char*)&numx)[2] = b3;
-                 ((char*)&numx)[3] = b4;
-
-                 //hold the result...
-                 float numy;
-
-                 //build an int from 4 bytes
-                 ((char*)&numy)[0] = b5;
-                 ((char*)&numy)[1] = b6;
-                 ((char*)&numy)[2] = b7;
-                 ((char*)&numy)[3] = b8;
-
-                 unsigned char a = Message[0];
-
-                 //move the player
-                 Player[a].x_speed = 2;
-                 Player[a].x = numx;
-                 Player[a].y = numy;
-                 Player[a].facing_right = true;
-
-                 //printf("Player[%i] numx=%inumy=%i\n", a, numx, numy);
-
-              }
-              else if (code == MOVE_LEFT)
-              {
-
-                 // Declare message string
-                 std::string Message  = "";
-
-                 //fill message with username and reason
-                 Message += PiSock.Data.substr(2,pack_len-2);
-
-                 //printf("Message[%s]\n", Message);
-
-                 //put each byte into memory
-                 char b1 = (char)Message[1];
-                 char b2 = (char)Message[2];
-                 char b3 = (char)Message[3];
-                 char b4 = (char)Message[4];
-                 char b5 = (char)Message[5];
-                 char b6 = (char)Message[6];
-                 char b7 = (char)Message[7];
-                 char b8 = (char)Message[8];
-
-                 //hold the result...
-                 float numx;
-
-                 //build an int from 4 bytes
-                 ((char*)&numx)[0] = b1;
-                 ((char*)&numx)[1] = b2;
-                 ((char*)&numx)[2] = b3;
-                 ((char*)&numx)[3] = b4;
-
-                 //hold the result...
-                 float numy;
-
-                 //build an int from 4 bytes
-                 ((char*)&numy)[0] = b5;
-                 ((char*)&numy)[1] = b6;
-                 ((char*)&numy)[2] = b7;
-                 ((char*)&numy)[3] = b8;
-
-                 unsigned char a = Message[0];
-
-                 //move the player
-                 Player[a].x_speed = -2;
-                 Player[a].x = numx;
-                 Player[a].y = numy;
-                 Player[a].facing_right = false;
-
-
-              }
-              else if (code == MOVE_STOP)
-              {
-
-                 // Declare message string
-                 std::string Message  = "";
-
-                 //fill message with username and reason
-                 Message += PiSock.Data.substr(2,pack_len-2);
-
-                 //printf("Message[%s]\n", Message);
-
-                 //put each byte into memory
-                 char b1 = (char)Message[1];
-                 char b2 = (char)Message[2];
-                 char b3 = (char)Message[3];
-                 char b4 = (char)Message[4];
-                 char b5 = (char)Message[5];
-                 char b6 = (char)Message[6];
-                 char b7 = (char)Message[7];
-                 char b8 = (char)Message[8];
-
-                 //hold the result...
-                 float numx;
-
-                 //build an int from 4 bytes
-                 ((char*)&numx)[0] = b1;
-                 ((char*)&numx)[1] = b2;
-                 ((char*)&numx)[2] = b3;
-                 ((char*)&numx)[3] = b4;
-
-                 //hold the result...
-                 float numy;
-
-                 //build an int from 4 bytes
-                 ((char*)&numy)[0] = b5;
-                 ((char*)&numy)[1] = b6;
-                 ((char*)&numy)[2] = b7;
-                 ((char*)&numy)[3] = b8;
-
-                 unsigned char a = Message[0];
-
-                 //move the player
-                 Player[a].x_speed = 0;
-                 Player[a].x = numx;
-                 Player[a].y = numy;
-
-                 //printf("Player[%i] numx=%inumy=%i\n", a, numx, numy);
-
-              }
-              else if (code == MOVE_JUMP)
-              {
-                 // Declare message string
-                 std::string Message  = "";
-
-                 //fill message with username and reason
-                 Message += PiSock.Data.substr(2,pack_len-2);
-
-                 //printf("Message[%s]\n", Message);
-
-                 //put each byte into memory
-                 char b1 = (char)Message[1];
-                 char b2 = (char)Message[2];
-                 char b3 = (char)Message[3];
-                 char b4 = (char)Message[4];
-                 char b5 = (char)Message[5];
-                 char b6 = (char)Message[6];
-                 char b7 = (char)Message[7];
-                 char b8 = (char)Message[8];
-
-                 //hold the result...
-                 float numx;
-
-                 //build an int from 4 bytes
-                 ((char*)&numx)[0] = b1;
-                 ((char*)&numx)[1] = b2;
-                 ((char*)&numx)[2] = b3;
-                 ((char*)&numx)[3] = b4;
-
-                 //hold the result...
-                 float numy;
-
-                 //build an int from 4 bytes
-                 ((char*)&numy)[0] = b5;
-                 ((char*)&numy)[1] = b6;
-                 ((char*)&numy)[2] = b7;
-                 ((char*)&numy)[3] = b8;
-
-                 int a = Message[0];
-
-                 //move the player
-                 Player[a].y_speed = -6;
-                 Player[a].x = numx;
-                 Player[a].y = numy;
-
-
-                 //printf("Player[%i] numx=%inumy=%i\n", a, numx, numy);
-
-              }
-              else if (code == TARGET_HIT)
-              {
-
-
-                   int type = PiSock.Data[2];
-                   int id = PiSock.Data[3];
-                   bool inSight = false;
-                   if (type == 0) // enemy
-                   {
-                       map[current_map]->Enemy[id].hit = true;
-                       map[current_map]->Enemy[id].hit_ticker = SDL_GetTicks();
-                       map[current_map]->Enemy[id].hp_ticker = SDL_GetTicks() + 1500;
-                       float px = map[current_map]->Enemy[id].x - camera_x;
-                       float py = map[current_map]->Enemy[id].y - camera_y;
-                       if (px > -32 && px < 1024 && py > -32 && py < 600)
-                          inSight = true;
-                   }
-                   else if (type == 1) // player
-                   {
-                       Player[id].hit = true;
-                       Player[id].hit_ticker = SDL_GetTicks();
-                       float px = Player[id].x - camera_x;
-                       float py = Player[id].y - camera_y;
-                       if (px > -32 && px < 1024 && py > -32 && py < 600)
-                          inSight = true;
-                   }
-
-                   //decide a sound effect to play
-                   if (enableSND && enableSFX && inSight)
-                   {
-                       int sf = 0;
-                       for (int trySfx = 0; trySfx < 10 && sf == lastSfx; trySfx++)
-                             sf = rand() % 3;
-                       lastSfx = sf;
-
-                       switch (sf)
-                       {
-                              case 0: Mix_PlayChannel( -1, hit1, 0 ); break;
-                              case 1: Mix_PlayChannel( -1, hit2, 0 ); break;
-                              case 2: Mix_PlayChannel( -1, hit3, 0 ); break;
-                       }
-                   }
-              }
-              else if (code == EQUIP)
-              {
-                 int user = PiSock.Data[2];
-                 int slot = PiSock.Data[3];
-                 int equipId = PiSock.Data[4];
-                 int item = PiSock.Data[5];
-
-                 Player[user].equip[slot] = equipId;
-                 Player[user].equipI[slot] = item;
-              }
-              else if (code == JOIN)
-              {
-                  if (loaded && enableSND && enableSFX)
-                     Mix_PlayChannel( -1, login_noise, 0 );
-
-                  /*printf("PiSock.length() == %i and PiSock[0] == %i \n",PiSock.Data.length(), PiSock.Data[0]);
-
-                  for (int g = 0; g < PiSock.Data.length(); g++)
-                  {
-                      printf("byte #%i : [%c](%i)\n", g, PiSock.Data[g], PiSock.Data[g]);
-                  }*/
-                  //printf("\n");
-                   printf("JOIN !! \n");
-                   int a = PiSock.Data[2];
-
-                   //printf("join id (a) is [%i] and my id is [%i]\n*\n*\n", a, MyID);
-
-                   if (a != MyID)
-                   {
-                      Player[a] = SKO_Player();
-                   }
-
-                   //hold the result...
-                   float numx;
-
-
-                 //build a float from 4 bytes
-                 ((char*)&numx)[0] = PiSock.Data[3];
-                 ((char*)&numx)[1] = PiSock.Data[4];
-                 ((char*)&numx)[2] = PiSock.Data[5];
-                 ((char*)&numx)[3] = PiSock.Data[6];
-
-                 Player[a].x = numx;
-
-                 //hold the result...
-                 float numy;
-
-                 //build a float from 4 bytes
-                 ((char*)&numy)[0] = PiSock.Data[7];
-                 ((char*)&numy)[1] = PiSock.Data[8];
-                 ((char*)&numy)[2] = PiSock.Data[9];
-                 ((char*)&numy)[3] = PiSock.Data[10];
-
-                 Player[a].y = numy;
-
-                 //hold the result...
-                 float numxs;
-
-                 //build a float from 4 bytes
-                 ((char*)&numxs)[0] = PiSock.Data[11];
-                 ((char*)&numxs)[1] = PiSock.Data[12];
-                 ((char*)&numxs)[2] = PiSock.Data[13];
-                 ((char*)&numxs)[3] = PiSock.Data[14];
-
-                 Player[a].x_speed = numxs;
-
-                 //hold the result...
-                 float numys;
-
-                 //build a float from 4 bytes
-                 ((char*)&numys)[0] = PiSock.Data[15];
-                 ((char*)&numys)[1] = PiSock.Data[16];
-                 ((char*)&numys)[2] = PiSock.Data[17];
-                 ((char*)&numys)[3] = PiSock.Data[18];
-
-                 Player[a].y_speed = numys;
-
-                 //facing left or right
-                 Player[a].facing_right = (bool)PiSock.Data[19];
-
-                 //what map are they on?
-                 Player[a].current_map = (int)PiSock.Data[20];
-
-                 printf("player is on map: %i\n", Player[a].current_map);
-                 	if (a == MyID)
-                 		current_map = Player[MyID].current_map;
-
-                   std::string Username = "";
-                   std::string Message1 = PiSock.Data;
-
-
-                   printf("Message1:%s\n", Message1.c_str());
-
-                   	int posLetter = 0;
-                   for (unsigned int a = 21; a < Message1.length(); a++)
-                   {
-                	   if (Message1[a] == '|') {
-                		   posLetter = a + 1;
-                		   break;
-                	   }
-
-    					Username += Message1[a];
-    					//printf("Message1[%i]: %c\n", a, Message1[a]);
-                    }
-
-                  // printf("Username: [%s]\n\n", Username);
-                   Player[a].Nick = Username;
-
-                   std::string clantag = "";
-                   //set username tag and clan tag
-                   for (unsigned int a = posLetter; a < Message1.length(); a++)
-				   {
-					   clantag += Message1[a];
-					   //printf("Message1[%i]: %c\n", a, Message1[a]);
-				    }
-
-				  printf("Clan: [%s]\n\n", clantag.c_str());
-				  Player[a].str_clantag = clantag;
-
-
-  //               printf("Username: [%s]\n\n", Player[a].Nick);
-                   Player[a].Status = true;
-
-                   //printf("JOIN: a:%i x:%i y:%i x_speed:%i y_speed:%i username:%s\n", a, (int)numx, (int)numy, (int)numxs, (int)numys, Username);
-
-                   SetUsername(a);
-                   //printf("setting nick of [%i] to [%s]\nMyID is [%i]\n\n", a, Player[a].Nick.c_str(),MyID);
-
-
-                   //only if you're not first entering
-                   if (loaded)
-                   {
-
-                       //display they logged on
-                       std::string jMessage = "";
-                       jMessage += Player[a].Nick;
-                       jMessage += " has joined the game.";
-
-                       //scroll the stuff up
-                      chat_line[0] = chat_line[1];
-                      chat_line[1] = chat_line[2];
-                      chat_line[2] = chat_line[3];
-                      chat_line[3] = chat_line[4];
-                      chat_line[4] = chat_line[5];
-                      chat_line[5] = chat_line[6];
-                      chat_line[6] = chat_line[7];
-                      chat_line[7] = chat_line[8];
-                      chat_line[8] = chat_line[9];
-                      chat_line[9] = chat_line[10];
-                      chat_line[10]= chat_line[11];
-                      chat_line[11]= new std::string(jMessage);
-
-
-                      //display the new one
-                      for (int i = 0; i < 12; i++)
-                      {
-                          Message[i+3].SetText(chat_line[i]->c_str());
-                      }
-
-                      //printf("JOIN [%i][%s]\n", a, jMessage.c_str() );
-                  }
-
-
-              }
-              else if (code == EXIT)
-              {
-                   if (enableSND && enableSFX)
-                      Mix_PlayChannel( -1, logout_noise, 0 );
-
-                   int a = PiSock.Data[2];
-
-                   //display they logged off
-                   std::string lMessage = "";
-                   lMessage += Player[a].Nick;
-                   lMessage += " has left the game.";
-
-                   //scroll the stuff up
-                   chat_line[0] = chat_line[1];
-                   chat_line[1] = chat_line[2];
-                   chat_line[2] = chat_line[3];
-                   chat_line[3] = chat_line[4];
-                   chat_line[4] = chat_line[5];
-                   chat_line[5] = chat_line[6];
-                   chat_line[6] = chat_line[7];
-                   chat_line[7] = chat_line[8];
-                   chat_line[8] = chat_line[9];
-                   chat_line[9] = chat_line[10];
-                   chat_line[10]= chat_line[11];
-                   chat_line[11]= new std::string(lMessage);
-
-
-                   //display the new one
-                   for (int i = 0; i < 12; i++)
-                   {
-                      Message[i+3].SetText(chat_line[i]->c_str());
-                   }
-
-                   Player[a] = SKO_Player();
-                   SetUsername(a);
-
-              }
-              else if (code == STAT_HP)
-              {
-                   Player[MyID].hp = PiSock.Data[2];
-              }
-              else if (code == STAT_REGEN)
-              {
-                   Player[MyID].regen = PiSock.Data[2];
-              }
-              else if (code == STATMAX_HP)
-              {
-                   Player[MyID].max_hp = PiSock.Data[2];
-              }
-              else if (code == STAT_POINTS)
-              {
-                   Player[MyID].stat_points = PiSock.Data[2];
-              }
-              else if (code == STAT_XP)
-              {
-                   unsigned int temp;
-                   ((char*)&temp)[0] = PiSock.Data[2];
-                   ((char*)&temp)[1] = PiSock.Data[3];
-                   ((char*)&temp)[2] = PiSock.Data[4];
-                   ((char*)&temp)[3] = PiSock.Data[5];
-                   Player[MyID].xp = temp;
-              }
-              else if (code == STAT_LEVEL)
-              {
-                   Player[MyID].level = PiSock.Data[2];
-              }
-              else if (code == STAT_DEF)
-              {
-                   Player[MyID].defence = PiSock.Data[2];
-              }
-              else if (code == STAT_STR)
-              {
-                    Player[MyID].strength = PiSock.Data[2];
-              }
-              else if (code == STATMAX_XP)
-              {
-                   unsigned int temp;
-                   ((char*)&temp)[0] = PiSock.Data[2];
-                   ((char*)&temp)[1] = PiSock.Data[3];
-                   ((char*)&temp)[2] = PiSock.Data[4];
-                   ((char*)&temp)[3] = PiSock.Data[5];
-                   Player[MyID].max_xp = temp;
-              }
-              else if (code == RESPAWN)
-              {
-                   int pid = PiSock.Data[2];
-                   if (pid == MyID){
-                	   if (enableSND && enableSFX)
-            	         Mix_PlayChannel( -1, grunt_noise, 0 );
-                       Player[pid].hp = Player[pid].max_hp;
-                   } else {
-                     Player[pid].hp = 80;//cosmetic HP bar
-                   }
-
-                   //hold the result...
-                   float numx;
-
-                   //build a float from 4 bytes
-                   ((char*)&numx)[0] = PiSock.Data[3];
-                   ((char*)&numx)[1] = PiSock.Data[4];
-                   ((char*)&numx)[2] = PiSock.Data[5];
-                   ((char*)&numx)[3] = PiSock.Data[6];
-
-
-                   //hold the result...
-                   float numy;
-
-                   //build a float from 4 bytes
-                   ((char*)&numy)[0] = PiSock.Data[7];
-                   ((char*)&numy)[1] = PiSock.Data[8];
-                   ((char*)&numy)[2] = PiSock.Data[9];
-                   ((char*)&numy)[3] = PiSock.Data[10];
-
-                   //set their coords
-                   Player[pid].x = numx;
-                   Player[pid].y = numy;
-                   Player[pid].y_speed = 0;
-              }
-              else if (code == SPAWN_ITEM)
-              {
-
-                   int current_item = (unsigned char)PiSock.Data[2];
-                   int c_map = PiSock.Data[3];
-                   int spawned_item = (unsigned char)PiSock.Data[4];
-
-                   //hold the result...
-                   float numx;
-
-                   //build a float from 4 bytes
-                   ((char*)&numx)[0] = PiSock.Data[5];
-                   ((char*)&numx)[1] = PiSock.Data[6];
-                   ((char*)&numx)[2] = PiSock.Data[7];
-                   ((char*)&numx)[3] = PiSock.Data[8];
-
-
-                   //hold the result...
-                   float numy;
-
-                   //build a float from 4 bytes
-                   ((char*)&numy)[0] = PiSock.Data[9];
-                   ((char*)&numy)[1] = PiSock.Data[10];
-                   ((char*)&numy)[2] = PiSock.Data[11];
-                   ((char*)&numy)[3] = PiSock.Data[12];
-
-
-                   //hold the result...
-                   float numxs;
-
-                   //build a float from 4 bytes
-                   ((char*)&numxs)[0] = PiSock.Data[13];
-                   ((char*)&numxs)[1] = PiSock.Data[14];
-                   ((char*)&numxs)[2] = PiSock.Data[15];
-                   ((char*)&numxs)[3] = PiSock.Data[16];
-
-
-                   //hold the result...
-                   float numys;
-
-                   //build a float from 4 bytes
-                   ((char*)&numys)[0] = PiSock.Data[17];
-                   ((char*)&numys)[1] = PiSock.Data[18];
-                   ((char*)&numys)[2] = PiSock.Data[19];
-                   ((char*)&numys)[3] = PiSock.Data[20];
-
-                   map[c_map]->ItemObj[current_item] = SKO_ItemObject(spawned_item, numx,numy,numxs,numys);
-                   //printf("ItemObj[%i] ITEM_[%i] x:%.2f y:%.2f xs:%.2f ys:%.2f\n", PiSock.Data[2], PiSock.Data[3], numx, numy, numxs, numys);
-              }
-              else if (code == DESPAWN_ITEM)
-              {
-                   int theItemID = (unsigned char)PiSock.Data[2];
-                   int c_map = PiSock.Data[3];
-
-                   if (theItemID >= 0)
-                      map[c_map]->ItemObj[theItemID].remove();
-                   else {
-                        printf("\n\n ERROR the ItemID is [%i]\n", theItemID);
-                        printf("PiSock.Data is:\n");
-                        for (unsigned int i = 0; i<PiSock.Data.length(); i++)
-                            printf("[%i]", PiSock.Data[i]);
-                        Done();
-                   }
-              }
-              else if (code == POCKET_ITEM)
-              {
-                   unsigned char item = PiSock.Data[2];
-                   unsigned int amount = 0;
-
-                   //build an int from 4 bytes
-                   ((char*)&amount)[0] = PiSock.Data[3];
-                   ((char*)&amount)[1] = PiSock.Data[4];
-                   ((char*)&amount)[2] = PiSock.Data[5];
-                   ((char*)&amount)[3] = PiSock.Data[6];
-
-                   if (amount == 0)
-                   {
-                       //find the item in inventory already
-                       for (int i = 0; i < 24; i++)
-                           if (Player[MyID].inventory[i][0] == item){
-							   Player[MyID].inventory[i][0] = 0;
-                               Player[MyID].inventory[i][1] = 0;
-							   Message[55 + i].SetText("");
-                           }
-                   }
-
-                   //play sound or no
-                   bool playSound = false;
-
-                   //find if there is an item
-                   bool itemFound = false;
-                   int i;
-                   for (i = 0 ; i < 24; i++)
-                       if (Player[MyID].inventory[i][0] == item && Player[MyID].inventory[i][1] > 0)
-                       {
-                          itemFound = true;
-                          break;
-                       }
-
-
-                   if (itemFound)//theres already an item, stack it
-                   {
-                	  if (Player[MyID].inventory[i][1] < amount && loaded)
-                		  playSound = true;
-
-                      Player[MyID].inventory[i][1] = amount;
-                      int tamount = amount;
-                      std::stringstream ss_am;
-                      std::string s_am;
-
-                      //10K
-                      if (tamount >= 10000000)
-                      {
-                         tamount = tamount/1000000;
-                         ss_am << tamount;
-                         s_am = ""+ss_am.str()+"M";
-                      }
-                      else if (tamount >= 1000000)
-                      {
-                         tamount = tamount/1000000;
-                         ss_am << tamount << "."<< ((tamount)-(amount/1000000));
-                         s_am = ""+ss_am.str()+"M";
-                      }
-                      else if (tamount >= 10000)
-                      {
-                         tamount = tamount/1000;
-                         ss_am << tamount;
-                         s_am = ""+ss_am.str()+"K";
-                      }
-                      else if (tamount > 0)
-                      {
-                         ss_am << tamount;
-                         s_am = ""+ss_am.str();
-                      } else {
-                        s_am = "";
-                      }
-
-                      Message[55+i].SetText(s_am);
-                   }
-                   else//find open slot
-                   {
-                	   //play sound;
-                	   if (loaded) playSound = true;
-                       for (int i = 0; i < 24; i++)
-                           if (Player[MyID].inventory[i][1] == 0)
-                           {
-                              Player[MyID].inventory[i][0] = item;
-                              Player[MyID].inventory[i][1] = amount;
-                              int tamount = amount;
-                              std::stringstream ss_am;
-                              std::string s_am;
-
-                              //10K
-                              if (tamount >= 10000000)
-                              {
-                                 tamount = tamount/1000000;
-                                 ss_am << tamount;
-                                 s_am = ""+ss_am.str()+"M";
-                              }
-                              else if (tamount >= 1000000)
-                              {
-                                 tamount = tamount/1000000;
-                                 ss_am << tamount << "."<< ((tamount)-(amount/1000000));
-                                 s_am = ""+ss_am.str()+"M";
-                              }
-                              else if (tamount >= 10000)
-                              {
-                                 tamount = tamount/1000;
-                                 ss_am << tamount;
-                                 s_am = ""+ss_am.str()+"K";
-                              }
-                              else if (tamount > 0)
-                              {
-                                 ss_am << tamount;
-                                 s_am = ""+ss_am.str();
-                              } else {
-                                s_am = "";
-                              }
-
-
-                              Message[55+i].SetText(s_am);
-                              break;
-                           }
-                   }
-
-                   	  //play sound on item pickup
-                      if (playSound)
-					  {
-					   if (enableSND && enableSFX)
-						   Mix_PlayChannel( -1, item_pickup_noise, 0 );
-					  }
-
-              }//end POCKET_ITEM
-              else if (code == BANK_ITEM)
-              {
-                   unsigned char item = PiSock.Data[2];
-                   unsigned int amount = 0;
-
-                   //build an int from 4 bytes
-                   ((char*)&amount)[0] = PiSock.Data[3];
-                   ((char*)&amount)[1] = PiSock.Data[4];
-                   ((char*)&amount)[2] = PiSock.Data[5];
-                   ((char*)&amount)[3] = PiSock.Data[6];
-
-                   Player[MyID].bank[item] = amount;
-                   int tamount = amount;
-
-                      std::stringstream ss_am;
-                      std::string s_am;
-
-                       //10K
-                      if (tamount >= 10000000)
-
-                      {
-                         tamount = tamount/1000000;
-                         ss_am << tamount;
-                         s_am = ""+ss_am.str()+"M";
-                      }
-                      else if (tamount >= 1000000)
-                      {
-                         tamount = tamount/1000000;
-                         ss_am << tamount << "."<< ((tamount)-(amount/1000000));
-                         s_am = ""+ss_am.str()+"M";
-                      }
-                      else if (tamount >= 10000)
-                      {
-                         tamount = tamount/1000;
-                         ss_am << tamount;
-                         s_am = ""+ss_am.str()+"K";
-                      }
-                      else if (tamount > 0)
-                      {
-                         ss_am << tamount;
-                         s_am = ""+ss_am.str();
-                      } else {
-                        s_am = "none";
-                      }
-
-                     int msgNum = 144+item-(bankScroll*6);
-
-                     //do not change this. It's 162 because bank text ends at [161] :)
-                     //these are loaded adn the rest are ignored, but dont worry,
-                     // the text updates when you bank scroll.
-					 if (msgNum < 162)
-                     	Message[msgNum].SetText(s_am);
-//                     else
-//                     	printf("OH noes it broke ... msgNum is %i\n", msgNum);
-
-              }//end bank
-              else if (code == PARTY)
-              {
-                   //what kind of party action, yo?
-                   int action = PiSock.Data[2];
-                   int playerB;
-                   int xOffset;
-                   std::stringstream ss;
-                   switch (action)
-                   {
-
-                     case INVITE:
-                          playerB = PiSock.Data[3];
-
-
-                         ss << "Join party of ";
-                         ss << Player[playerB].Nick;
-                         ss << "?";
-
-                         //confirm you want to trade pop up
-                         inputBox.outputText->SetText((ss.str().c_str()));
-                         inputBox.okayText->SetText("Party");
-                         inputBox.cancelText->SetText("Cancel");
-                         inputBox.inputText->SetText("");
-                         Message[89].SetText(ss.str());
-                         //position it
-                         xOffset = (Player[playerB].Nick.length() * 9)/2;
-                         Message[89].pos_x = 320 - xOffset;
-                         popup_gui_menu = 8;
-                         Message[138].pos_x = 10;
-                         Message[139].pos_x = 155;
-                         Message[138].pos_y = 452;
-                         Message[139].pos_y = 452;
-                     break;
-
-
-                     // just assign someone to a party
-                     case ACCEPT:
-                          {
-                                 playerB = PiSock.Data[3];
-                                 int party = PiSock.Data[4];
-                                 Player[playerB].party = party;
-                                 printf("Player %i joins party %i\n", playerB, party);
-                          }
-                     break;
-
-                     //close out of all parties
-                     case CANCEL:
-                          popup_gui_menu = 0;
-                          Player[MyID].party = -1;
-                     break;
-
-                     default:
-                     break;
-                 }//end switch action
-              }//end code PARTY
-              else if (code == CLAN)
-			  {
-					 //what kind of clan action, yo?
-					 int action = PiSock.Data[2];
-					 int playerB;
-					 int xOffset;
-					 std::stringstream ss;
-					 switch (action)
-					 {
-
-					   case INVITE:
-							playerB = PiSock.Data[3];
-
-
-						   ss << "Join Clan ";
-						   ss << Player[playerB].str_clantag;
-						   ss << "?";
-
-						   //confirm you want to trade pop up
-						   inputBox.outputText->SetText((ss.str().c_str()));
-						   inputBox.okayText->SetText("Join");
-						   inputBox.cancelText->SetText("Cancel");
-						   inputBox.inputText->SetText("");
-						   Message[89].SetText(ss.str());
-						   //position it
-						   xOffset = (Player[playerB].Nick.length() * 9)/2;
-						   Message[89].pos_x = 320 - xOffset;
-						   popup_gui_menu = 11;
-						   Message[138].pos_x = 10;
-						   Message[139].pos_x = 155;
-						   Message[138].pos_y = 452;
-						   Message[139].pos_y = 452;
-					   break;
-
-
-					   // just assign someone to a clan
-					   case ACCEPT:
-							{
-								   playerB = PiSock.Data[3];
-								   int clan = PiSock.Data[4];
-								   Player[playerB].clan = clan;
-								   printf("Player %i joins clan %i\n", playerB, clan);
-							}
-					   break;
-
-					   //close out of all parties
-					   case CANCEL:
-							popup_gui_menu = 0;
-							Player[MyID].clan = -1;
-					   break;
-
-					   default:
-					   break;
-				   }//end switch action
-				}//end code CLAN
-              else if (code == TRADE)
-              {
-                   //what kind of trade action, yo?
-                   int action = PiSock.Data[2];
-                   int playerB;
-                   int xOffset;
-                   std::stringstream ss;
-                   switch (action)
-                   {
-
-                     case INVITE:
-                          playerB = PiSock.Data[3];
-
-
-                         ss << "Trade with ";
-                         ss << Player[playerB].Nick;
-                         ss << "?";
-
-                         //confirm you want to trade pop up
-                         inputBox.outputText->SetText((ss.str().c_str()));
-                         inputBox.okayText->SetText("Trade");
-                         inputBox.cancelText->SetText("Cancel");
-                         inputBox.inputText->SetText("");
-                         Message[89].SetText(ss.str());
-                         //position it
-                         xOffset = (Player[playerB].Nick.length() * 9)/2;
-                         Message[89].pos_x = 330 - xOffset;
-                         popup_gui_menu = 3;
-                         Message[138].pos_x = 10;
-                         Message[139].pos_x = 155;
-                         Message[138].pos_y = 452;
-                         Message[139].pos_y = 452;
-                     break;
-
-                     case ACCEPT:
-                          popup_gui_menu = 4;
-                          popup_menu = 1;
-                          Message[138].pos_x = 488;
-                          Message[138].pos_y = 482;
-                          Message[139].pos_y = 482;
-                     break;
-
-                     case CANCEL:
-                          popup_gui_menu = 0;
-                          for (int i = 0; i < 24; i++)
-                            {
-                                Player[MyID].localTrade[i][0] = 0;
-                                Player[MyID].localTrade[i][1] = 0;
-                                Player[MyID].remoteTrade[i][0] = 0;
-                                Player[MyID].remoteTrade[i][1] = 0;
-                                selectedLocalItem = 0;
-                                selectedRemoteItem = 0;
-                                //clear texts
-                                Message[90+i].SetText(" ");
-                                Message[114+i].SetText(" ");
-
-                                std::string ready = "Waiting...";
-                                Message[142].SetText(ready);
-                                Message[143].SetText(ready);
-                            }
-
-                     break;
-
-                     case OFFER:
-                          {
-                          int remote = PiSock.Data[3];
-                          int item = PiSock.Data[4];
-                          int amount = 0;
-                          ((char*)&amount)[0] = PiSock.Data[5];
-                          ((char*)&amount)[1] = PiSock.Data[6];
-                          ((char*)&amount)[2] = PiSock.Data[7];
-                          ((char*)&amount)[3] = PiSock.Data[8];
-
-                          //local
-                          if (remote == 1)
-                          {
-                              //find open item
-                               if (amount == 0)
-                               {
-                                   //find the item in inventory already
-                                   for (int i = 0; i < 24; i++)
-                                       if (Player[MyID].localTrade[i][0] == (unsigned int)item){
-                                           Player[MyID].localTrade[i][1] = 0;
-                                       }
-                               }
-
-                               int i;
-
-                               //find if there is an item
-                               for (i = 0 ; i < 24; i++)
-                                   if (Player[MyID].localTrade[i][0] == (unsigned int)item && Player[MyID].localTrade[i][1] > 0)
-                                      break;
-
-
-                               if (i < 24)//theres already an item, stack it
-                               {
-                                  Player[MyID].localTrade[i][1] = amount;
-                                  int tamount = amount;
-                                  std::stringstream ss_am;
-                                  std::string s_am;
-
-                                  //10K
-                                  //10K
-                                      if (tamount >= 10000000)
-                                      {
-                                         tamount = tamount/1000000;
-                                         ss_am << tamount;
-                                         s_am = ""+ss_am.str()+"M";
-                                      }
-                                      else if (tamount >= 1000000)
-                                      {
-                                         tamount = tamount/1000000;
-                                         ss_am << tamount << "."<< ((tamount)-(amount/1000000));
-                                         s_am = ""+ss_am.str()+"M";
-                                      }
-                                      else if (tamount >= 10000)
-                                      {
-                                         tamount = tamount/1000;
-                                         ss_am << tamount;
-                                         s_am = ""+ss_am.str()+"K";
-                                      }
-                                      else if (tamount > 0)
-                                      {
-                                         ss_am << tamount;
-                                         s_am = ss_am.str();
-                                      } else {
-                                        s_am = "";
-                                      }
-                                      Message[90+i].SetText(s_am);
-
-                               }
-                               else//find open slot
-                               {
-                                   for (int i = 0; i < 24; i++)
-                                       if (Player[MyID].localTrade[i][1] == 0)
-                                       {
-                                          Player[MyID].localTrade[i][0] = item;
-                                          Player[MyID].localTrade[i][1] = amount;
-                                          std::stringstream ss_am;
-                                          ss_am << amount;
-                                          std::string s_am = "x"+ss_am.str();
-
-                                          if (amount <= 0)
-                                             s_am = "";
-                                          Message[90+i].SetText(s_am);
-                                          break;
-                                       }
-
-                               }
-
-
-                          }
-                          else
-                          {
-
-                                  //find open item
-                                   if (amount == 0)
-                                   {
-                                       //find the item in inventory already
-                                       for (int i = 0; i < 24; i++)
-                                           if (Player[MyID].remoteTrade[i][0] == (unsigned int)item){
-                                               Player[MyID].remoteTrade[i][1] = 0;
-                                           }
-                                   }
-
-                                   int i;
-
-                                   //find if there is an item
-                                   for (i = 0 ; i < 24; i++)
-                                       if (Player[MyID].remoteTrade[i][0] == (unsigned int)item && Player[MyID].remoteTrade[i][1] > 0)
-                                          break;
-
-
-                                   if (i < 24)//theres already an item, stack it
-                                   {
-                                      Player[MyID].remoteTrade[i][1] = amount;
-                                      int tamount = amount;
-                                      std::stringstream ss_am;
-                                      std::string s_am;
-
-                                       //10K
-                                      if (tamount >= 10000000)
-                                      {
-                                         tamount = tamount/1000000;
-                                         ss_am << tamount;
-                                         s_am = ""+ss_am.str()+"M";
-                                      }
-                                      else if (tamount >= 1000000)
-                                      {
-                                         tamount = tamount/1000000;
-                                         ss_am << tamount << "."<< ((tamount)-(amount/1000000));
-                                         s_am = ""+ss_am.str()+"M";
-                                      }
-                                      else if (tamount >= 10000)
-                                      {
-                                         tamount = tamount/1000;
-                                         ss_am << tamount;
-                                         s_am = ""+ss_am.str()+"K";
-                                      }
-                                      else if (tamount > 0)
-                                      {
-                                         ss_am << tamount;
-                                         s_am = ""+ss_am.str();
-                                      } else {
-                                        s_am = "";
-                                      }
-
-                                      Message[114+i].SetText(s_am);
-
-                                   }
-                                   else//find open slot
-                                   {
-                                       for (int i = 0; i < 24; i++)
-                                           if (Player[MyID].remoteTrade[i][1] == 0)
-                                           {
-                                              Player[MyID].remoteTrade[i][0] = item;
-                                              Player[MyID].remoteTrade[i][1] = amount;
-                                              std::stringstream ss_am;
-                                              ss_am << amount;
-                                              std::string s_am = ss_am.str();
-                                              Message[114+i].SetText(s_am);
-                                              break;
-                                           }
-
-                                   }
-
-
-                          }
-                          }
-                     break;
-
-                     case READY:
-                          {
-                              int remote = PiSock.Data[3];
-                              std::string ready = "Accepted!";
-
-                              //local
-                              if (remote == 1)
-                                 Message[142].SetText(ready);
-
-                              //other player
-                              if (remote == 2)
-                                 Message[143].SetText(ready);
-
-                          }
-                     break;
-
-
-                   }//end trade switch
-              }//end trade
-              else if (code == BANK)
-              {
-                   //bank window
-                   popup_gui_menu = 5;
-                   popup_menu = 1;
-
-                   //set item descriptior when item is selected
-                   Message[138].pos_x = 819;
-                   Message[139].pos_x = 964;
-                   Message[138].pos_y = 452;
-                   Message[139].pos_y = 452;
-                   //start at top
-
-
-
-              }//end bank
-              else if (code == SHOP)
-              {
-                   shopBuyMode = true;
-                   popup_menu = 1;
-                   popup_gui_menu = 6;
-                   currentShop = PiSock.Data[2];
-                   //set item descriptior when item is selected
-                   Message[138].pos_x = 777;
-                   Message[139].pos_x = 964;
-                   Message[138].pos_y = 452;
-                   Message[139].pos_y = 452;
-
-              }//end shop
-              else if (code == ENEMY_HP)
-              {
-
-                  int npc = PiSock.Data[2];
-                  int current_map = PiSock.Data[3];
-                  int hp = PiSock.Data[4];
-
-                  map[current_map]->Enemy[npc].hp_draw = hp;
-                  //printf("map[current_map]->Enemy[%i].hp_draw = %i]\n", npc, hp);
-
-              }//end npc_hp
-              else if (code == INVENTORY)
-              {
-                   std::string inventory_order = PiSock.Data.substr(2);
-                   if (inventory_order.length() == 48)
-                   {
-                      for (int i = 0; i < 24; i++)
-                      {
-                          Player[MyID].inventory[i][0] = (unsigned char)inventory_order[i];
-                          Player[MyID].inventory[i][1] = 0;//(unsigned char)inventory_order[i+24];
-                      }
-                   }
-                   else
-                   {
-                       printf("got INVENTORY packet but the length is not 48, it's %i.\n", inventory_order.length());
-                       Done();
-                   }
-              }
-              else if (code == BUDDY_XP)
-              {
-                   int pl = PiSock.Data[2];
-
-                   if (pl != MyID)
-                   {
-                       int xp = PiSock.Data[3];
-
-                       //set the xp bar of a buddy
-                       Player[pl].xp = xp;
-                   }
-              } // end buddy xp
-              else if (code == BUDDY_HP)
-              {
-                   int pl = PiSock.Data[2];
-
-                   if (pl != MyID)
-                   {
-                       int hp = PiSock.Data[3];
-
-                       //set the xp bar of a buddy
-                       Player[pl].hp = hp;
-                   }
-              } // end buddy hp
-              else if (code == BUDDY_LEVEL)
-              {
-                   int pl = PiSock.Data[2];
-
-                   if (pl != MyID)
-                   {
-                       int level = PiSock.Data[3];
-
-                       //set the xp bar of a buddy
-                       Player[pl].level = level;
-                   }
-              } // end buddy level
-              else if (code == WARP)
-              {
-                   int pl = PiSock.Data[2];
-                   int map = PiSock.Data[3];
-
-                   //put each byte into memory
-                 char b1 = (char)PiSock.Data[4];
-                 char b2 = (char)PiSock.Data[5];
-                 char b3 = (char)PiSock.Data[6];
-                 char b4 = (char)PiSock.Data[7];
-                 char b5 = (char)PiSock.Data[8];
-                 char b6 = (char)PiSock.Data[9];
-                 char b7 = (char)PiSock.Data[10];
-                 char b8 = (char)PiSock.Data[11];
-
-                 //hold the result...
-                 float numx;
-
-                 //build an int from 4 bytes
-                 ((char*)&numx)[0] = b1;
-                 ((char*)&numx)[1] = b2;
-                 ((char*)&numx)[2] = b3;
-                 ((char*)&numx)[3] = b4;
-
-                  //hold the result...
-                 float numy;
-
-
-                 //build an int from 4 bytes
-                 ((char*)&numy)[0] = b5;
-                 ((char*)&numy)[1] = b6;
-                 ((char*)&numy)[2] = b7;
-                 ((char*)&numy)[3] = b8;
-
-                 if (pl == MyID)
-                    current_map = map;
-
-                 Player[pl].current_map = map;
-                   Player[pl].x = numx;
-                   Player[pl].y = numy;
-
-
-
-
-                   printf("map is: %i\n", map);
-              } // end WARP
-              else if (code == SPAWN_TARGET)
-              {
-            	  int target = PiSock.Data[2];
-            	  int tmap = PiSock.Data[3];
-            	  map[tmap]->Target[target].active = true;
-              } // end SPAWN_TARGET
-              else if (code == DESPAWN_TARGET)
-              {
-            	  int target = PiSock.Data[2];
-			      int tmap = PiSock.Data[3];
-			      map[tmap]->Target[target].active = false;
-			  } // end DESPAWN_TARGET
-              else if (code == CHAT) //display the chat from the server
-              {
-                  std::string inMessage = PiSock.Data.substr(2, pack_len-2);
-            	  printf("CHAT [%s]\n", inMessage.c_str());
-
-                  if (inMessage.length() > MAX_T_MESSAGE)
-                     inMessage = inMessage.substr(0, MAX_T_MESSAGE-1);
-
-
-               	  //scroll the stuff up
-                  chat_line[0] = chat_line[1];
-                  chat_line[1] = chat_line[2];
-                  chat_line[2] = chat_line[3];
-                  chat_line[3] = chat_line[4];
-                  chat_line[4] = chat_line[5];
-                  chat_line[5] = chat_line[6];
-                  chat_line[6] = chat_line[7];
-                  chat_line[7] = chat_line[8];
-                  chat_line[8] = chat_line[9];
-                  chat_line[9] = chat_line[10];
-                  chat_line[10] = chat_line[11];
-                  chat_line[11] = new std::string(inMessage);
-
-                  //display the new one
-                  for (int i = 0; i < 12; i++)
-                      Message[i+3].SetText(chat_line[i]->c_str());
-              }//end chat
-              else {
-                   ;
-                   printf("weird packet!");
-                   printf("data was: ");
-                   for (unsigned int i = 0; i < PiSock.Data.length(); i++)
-                	   printf("[%i]", PiSock.Data[i]);
-                   }
-
-               //put the extra packet into just this one
-               PiSock.Data = newPacket;
-           }//end there was a full packet
-
-           //get the ping
-           if (menu == STATE_PLAY && (SDL_GetTicks() - pingRequestTicker) >= 950 && !pingWaiting)
-           {
-
-              currentTime = SDL_GetTicks();
-
-              if (PiSock.Connected) {
-                  PiSock.Send(pingPacket);
-                  pingWaiting = true;
-
-                  pingRequestTicker = currentTime;
-                  pingRequestTime = currentTime;
-              }
-              else  if (!connectError) {
-                Done();
-              }
-
-           }
-
-           SDL_Delay(1);
-     }
-     return NULL;
+	//ping
+	unsigned int currentTime = SDL_GetTicks();
+
+	//connect normally
+	connectError = ConnectToSKOServer();
+	tryingToConnect = false;
+
+	while (!done)
+	{
+		// If client could not connect upon opening the game
+		// patiently reconnect until a connection is made or the user exists the game.
+		if (connectError)
+		{
+			HandleUI();
+			if (Client.TryReconnect(30000)){
+				connectError = false;
+			}
+			continue;
+		}
+
+		// If the client disconnects during gameplay
+		// Try reconnecting and displaying 
+		if (!Client.isConnected())
+		{
+			if (menu !=STATE_DISCONNECT)
+				Disconnect();
+			continue;
+		}
+
+		Client.receivePacket(connectError);
+		Client.checkPing();
+		SDL_Delay(1);
+	}
+	return NULL;
 }
+
 void* PhysicsLoop(void *arg)
 {
 	KE_Timestep *timestep = new KE_Timestep(60);
@@ -7233,7 +5015,7 @@ void loadContent()
 				checker.close();
 				tile_img[i].setImage(szFilename);
 			}
-			else 
+			else
 			{
 				printf("Loaded %i tile images.", i);
 				break;
@@ -7256,8 +5038,7 @@ int main (int argc, char *argv[])
 {
 
 #endif
-
-	std::string hashTestResult = Hash(toLower("pASsWoRD"));
+	std::string hashTestResult = hasher.Hash(toLower("pASsWoRD"));
 	printf("Testing hasher...%s\r\n", hashTestResult.c_str());
 
 	if (hashTestResult != "Quq6He1Ku8vXTw4hd0cXeEZAw0nqbpwPxZn50NcOVbk=")
@@ -7279,8 +5060,6 @@ int main (int argc, char *argv[])
 		enableSND = false;
 	}
 
-
-
     std::ifstream optionFile("DAT/options.dat", std::ios::in|std::ios::binary|std::ios::ate);
 
      if (optionFile.is_open())
@@ -7300,8 +5079,7 @@ int main (int argc, char *argv[])
         enableSND = (bool)(int)memblock[0];
         enableSFX = (bool)(int)memblock[1];
         enableMUS = (bool)(int)memblock[2];
-        enableBetaWarning = (bool)(int)memblock[3];
-		enableSIGN = (bool)(int)memblock[4];
+		enableSIGN = (bool)(int)memblock[3];
 
         //fix memory leak
         free (memblock);
@@ -7311,12 +5089,10 @@ int main (int argc, char *argv[])
      for (int i = 0; i < NUM_CHAT_LINES; i++)
     	 chat_line[i] = new std::string("");
 
-
-
      	//read config.ini file and set all options
     	INIReader configFile("DAT/config.ini");
         if (configFile.ParseError() < 0) {
-		
+
 			if (configFile.ParseError() == -1)
 				printf("file open error. TIP: Line endings must be CRLF!");
 
@@ -7353,9 +5129,6 @@ int main (int argc, char *argv[])
     background.setImage("IMG/GUI/loading.png");
     Graphics();
 
-    //beta warning image
-    beta_warning_image.setImage("IMG/MISC/beta_warning.png");
-
     //stickman sprite sheet
     stickman_sprite_img.setImage("IMG/SPRITES/stickman.png");
     skeleton_sprite_img.setImage("IMG/SPRITES/skeleton.png");
@@ -7369,7 +5142,7 @@ int main (int argc, char *argv[])
     closeChatButton.setBounds(687+150, 4+372, 10,10);
     nextPageButton.setBounds(860, 372, 92, 43);
     leave_party_button.setBounds( 224+652, 45, 148, 32);
-	
+
 	enable_auto_signs_button.setBounds(169, 393, 34, 17);
 	disable_auto_signs_button.setBounds(206, 393, 34, 17);
 
@@ -7643,7 +5416,7 @@ int main (int argc, char *argv[])
     Item_img[ITEM_CANDY_CANE].setImage("IMG/ITEM/candy_cane.png");
     Item_img[ITEM_SKELETON_HELM].setImage("IMG/ITEM/skeleton_helmet.png");
 
-    
+
    // added on 2/10/2015
    Item_img[ITEM_TRAINING_HELM].setImage("IMG/ITEM/training_helmet.png");
 
@@ -7869,7 +5642,7 @@ int main (int argc, char *argv[])
 
     if (pthread_create(&networkThread, NULL, Network, 0)){
         printf("Could not create thread for Network...\n");
-        Kill();//system("PAUSE");
+        Kill();
     }
 
 
@@ -7878,7 +5651,7 @@ int main (int argc, char *argv[])
 
     if (pthread_create(&physicsThread, NULL, PhysicsLoop, 0)){
         printf("Could not create thread for Physics...\n");
-        Kill();//system("PAUSE");
+        Kill();
     }
 
     SDL_Delay(30);
@@ -7923,83 +5696,37 @@ void Graphics()
 {
 	//Clear color buffer
 	glClear( GL_COLOR_BUFFER_BIT );
-       //graphics
-       construct_frame();
-       SDL_GL_SwapBuffers();
+
+    //graphics
+    construct_frame();
+    SDL_GL_SwapBuffers();
 }
 
-bool firstTimeConnect = true;
-bool connect()
+bool ConnectToSKOServer()
 {
-
-	 networkLock = true;
-
-
-
-	PiSock = KE_Socket();
-
-	if (!PiSock.Startup()){
-	   PiSock.Cleanup();
-	}
-	firstTimeConnect = false;
-
-
-
-	networkLock = false;
-
-    //build packet now so we can shoot it off
-    std::string packet = "0";
-        packet += VERSION_CHECK;
-        packet += VERSION_MAJOR;
-        packet += VERSION_MINOR;
-        packet += VERSION_PATCH;
-        packet += VERSION_OS;
-        packet[0] = packet.length();
-
-    if (!PiSock.Connect(SERVER_IP, SERVER_PORT))
+    if (Client.init(SERVER_IP, SERVER_PORT) == "error" || Client.connect() == "error")
     {
-        PiSock.Connected = false;
-        PiSock.Cleanup();
         Message[0].SetText("There was an error connecting to the server!");
         Message[1].SetText("Join chat for help. www.StickKnightsOnline.com/chat");
-        printf("connect error = true! :S\n");
-
-        networkLock = false;
         return true;
     }
-    else
-    {
-       networkLock = false;
-        PiSock.Connected = true;
-    }
 
-    //send version now!
-    PiSock.Send(packet);
+	std::string returnValue = Client.sendVersion(VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
 
-   if (PiSock.Connected)
-      if (PiSock.BReceive() == -1)
-         Disconnect();
-
-
-   if (PiSock.Data[1] == VERSION_SUCCESS){
-	   Message[0].SetText("You are connected to the server!");
-	   Message[1].SetText(" ");
-      PiSock.Data = PiSock.Data.substr(PiSock.Data[0]);
-      printf("connect error = false :D\n");
-      return false;
-   }
-
-
-   if (PiSock.Data[1] == VERSION_FAIL)
+   if (returnValue == "version correct")
    {
-       Message[0].SetText("New Update! Close the game and re-open it please.");
-       Message[1].SetText("If that doesn't work please visit StickKnights.com and reinstall.");
-       connectError = true;
-
-       return true;
+		Message[0].SetText("You are connected to the server!");
+		Message[1].SetText(" ");
+		return false;
    }
-
-   if (PiSock.Data[1] == SERVER_FULL)
+   else if (returnValue == "version error")
+   {
+       Message[0].SetText("Version error. Close the game and re-open it please.");
+       Message[1].SetText("If that doesn't work please visit StickKnightsOnline.com and reinstall.");
+       connectError = true;
+       return false;
+   }
+   else if (returnValue == "server full")
    {
        Message[0].SetText("The server is full!");
        Message[1].SetText("Join chat for help. www.StickKnightsOnline.com/chat");
@@ -8007,7 +5734,6 @@ bool connect()
    }
 
    return true;
-
 }
 
 int numDigits(int num)
@@ -8302,7 +6028,7 @@ void physics()
 	//end npcs
 
 	//players
-	for (int i = 0; i < MAX_CLIENTS; i++) 
+	for (int i = 0; i < MAX_CLIENTS; i++)
 	{
 		if (Player[i].Status && Player[i].current_map == current_map)
 		{
@@ -8442,81 +6168,28 @@ void physics()
 			//yourself
 			if (i == MyID)
 			{
-
+				//if walking and player performs another action such as 
 				if (LEFT && !Player[MyID].attacking && Player[MyID].x_speed != -2)
 				{
+					//send action to SKO network
+					Client.playerAction("left", Player[MyID].x, Player[MyID].y);
+
+					//Client prediction physics
 					Player[MyID].x_speed = -2;
 					Player[MyID].facing_right = false;
-					char *p, b1, b2, b3, b4;
-					std::string Packet = "0";
-					Packet += MOVE_LEFT;
-					Packet += "41445555";
-					//break up the int as 4 bytes
-					p = (char*)&Player[MyID].x;
-					b1 = p[0]; b2 = p[1]; b3 = p[2]; b4 = p[3];
-
-					//spit out each of the bytes
-					Packet[2] = b1;
-					Packet[3] = b2;
-					Packet[4] = b3;
-					Packet[5] = b4;
-
-					p = (char*)&Player[MyID].y;
-					b1 = p[0]; b2 = p[1]; b3 = p[2]; b4 = p[3];
-
-
-					Packet[6] = b1;
-					Packet[7] = b2;
-					Packet[8] = b3;
-					Packet[9] = b4;
-
-					//printf("y: %i\n", numy);
-
-					Packet[0] = Packet.length();
-					PiSock.Send(Packet);
 				}
 				if (RIGHT && !Player[MyID].attacking && Player[MyID].x_speed != 2)
 				{
+					//send action to SKO network
+					Client.playerAction("right", Player[MyID].x, Player[MyID].y);
 
-
+					//Client prediction physics
 					Player[MyID].x_speed = 2;
 					Player[MyID].facing_right = true;
-					char *p, b1, b2, b3, b4;
-					std::string Packet = "0";
-					Packet += MOVE_RIGHT;
-					Packet += "41445555";
-					//break up the int as 4 bytes
-					p = (char*)&Player[MyID].x;
-					b1 = p[0]; b2 = p[1]; b3 = p[2]; b4 = p[3];
-
-					//spit out each of the bytes
-					Packet[2] = b1;
-					Packet[3] = b2;
-					Packet[4] = b3;
-					Packet[5] = b4;
-
-					p = (char*)&Player[MyID].y;
-					b1 = p[0]; b2 = p[1]; b3 = p[2]; b4 = p[3];
-
-
-					Packet[6] = b1;
-					Packet[7] = b2;
-					Packet[8] = b3;
-					Packet[9] = b4;
-
-					//printf("y: %i\n", numy);
-
-					Packet[0] = Packet.length();
-					PiSock.Send(Packet);
 				}
-
 
 				if (LEFT == RIGHT)
-				{
-					if (Player[i].x_speed != 0)
-						Player[i].x_speed = 0;
-				}
-
+					Player[i].x_speed = 0;
 
 				//cosmetic updates
 				if (SDL_GetTicks() - cosmeticTicker >= (unsigned int)cosmeticTime)
@@ -8600,24 +6273,24 @@ void physics()
 
 						//hp bonus stats
 						stat_str.str("");
-						stat_str << "+" << Item[Player[MyID].equipI[selectedEquipItem]].hp;
+						stat_str << "+" << Item[Player[MyID].equipI[equipmentSlot]].hp;
 						Message[162].SetText(stat_str.str());
 
 						//sp bonus stats
 						stat_str.str("");
-						stat_str << "+" << Item[Player[MyID].equipI[selectedEquipItem]].sp;
+						stat_str << "+" << Item[Player[MyID].equipI[equipmentSlot]].sp;
 						Message[163].SetText(stat_str.str());
 
 
 						//dp bonus stats
 						stat_str.str("");
-						stat_str << "+" << Item[Player[MyID].equipI[selectedEquipItem]].dp;
+						stat_str << "+" << Item[Player[MyID].equipI[equipmentSlot]].dp;
 						Message[164].SetText(stat_str.str());
 
 
 						//descriptor [165]
 						stat_str.str("");
-						stat_str << Item[Player[MyID].equipI[selectedEquipItem]].descr;
+						stat_str << Item[Player[MyID].equipI[equipmentSlot]].descr;
 						Message[165].SetText(stat_str.str());
 
 					}
@@ -8854,170 +6527,64 @@ void physics()
 	}
 }
 
-void TryToLogin()
-{
-	   // this works for now
-	   networkLock = true;
-      //building the packet to send
-       std::string Message1 = "0";
-       Message1 += LOGIN;
-       Message1 += username;
-       Message1 += " ";
-       Message1 += Hash(toLower(username) + password);
-       Message1[0] = Message1.length();
-       int MAX_RETRY_LOGIN = 10;
-
-       for (int i = 0; i < MAX_RETRY_LOGIN; i++)
-       {
-    	   printf("TryToLogin: i=%i\n", i);
-		   PiSock.Send(Message1);
-		   //printf("sent yer login message. :3\n");
-
-
-	//       printf("try to login PiSock.Data is: (before)");
-	//   	   for (Uint32 di = 0; di < PiSock.Data.length(); di++)
-	//		   printf("[%i]", PiSock.Data[di]);
-	//	   printf("\n\n");
-
-		   //get messages from the server
-		   bool gotPacket = false;
-
-		   while (!gotPacket)
-		   {
-			   if (PiSock.Connected)
-			   {
-				  if (PiSock.Receive() == -1)
-					 Done();
-			   }
-			   else
-			   {
-				   Done();
-			   }
-
-			   if (PiSock.Data.length() > 0 && (int)PiSock.Data.length() >= PiSock.Data[0])
-			   {
-	//        	   printf("(1) got packet! try to login PiSock.Data is (after): length=%i data=", PiSock.Data.length());
-	//        	   for (Uint32 di = 0; di < PiSock.Data.length(); di++)
-	//        	  		   printf("[%i]", PiSock.Data[di]);
-	//        	  	   printf("\n\n");
-				   gotPacket = true;
-			   }
-
-			   SDL_Delay(10);
-		   }
-
-	//       printf("got packet! try to login PiSock.Data is (after): length=%i data=", PiSock.Data.length());
-	//	   for (int di = 0; di < PiSock.Data.length(); di++)
-	//		   printf("[%i]", PiSock.Data[di]);
-	//	   printf("\n\n");
-
-		   if (PiSock.Data[1] == LOGIN_SUCCESS)
-		   {
-
-			   printf("LOGIN_SUCCESS PiSock.Data is: ");
-			   for (Uint32 di = 0; di < PiSock.Data.length(); di++)
-				   printf("[%i]", PiSock.Data[di]);
-			   printf("\n");
-
-
-			   printf("setting loading state...");
-			   menu =  STATE_LOADING;//loading game
-
-
-			   //background.setImage(loading_img);
-
-			   MyID = PiSock.Data[2];
-
-			   Player[MyID].Status = true;
-			   chat_box = 4;//in-game chat (no chat status)
-			   Player[MyID].Nick = username;
-			   SetUsername(MyID);
-			   Player[MyID].animation_ticker = SDL_GetTicks();
-			   break;
-		   }
-		   else if (PiSock.Data[1] == LOGIN_FAIL_DOUBLE)
-		   {
-			  Message[0].SetText("The username is already online. Please try again.");
-			  Message[1].SetText("If your character is stuck online, tell a staff member.");
-			  drawText(0);
-			  drawText(1);
-			  break;
-		   }
-		   else if (PiSock.Data[1] == LOGIN_FAIL_NONE)
-		   {
-			  Message[0].SetText("Wrong username or password.");
-			  Message[1].SetText("    Please try again...");
-			  drawText(0);
-			  drawText(1);
-			  break;
-		   }
-		   else if (PiSock.Data[1] == LOGIN_FAIL_BANNED)
-		   {
-			  Message[0].SetText("The username is banned.");
-			  Message[1].SetText("Please try a different account.");
-			  drawText(0);
-			  drawText(1);
-			  break;
-		   }
-		   
-		   //wait a bit for more packets to come in
-		   SDL_Delay(100);
-       }//end for login attemtps
-
-	   //save an extra packet
-	   PiSock.Data = PiSock.Data.substr(PiSock.Data[0]);
-
-	   printf("turning network lock off...\n");
-	   networkLock = false;
-	   return;
-}
-
-void QuitMenus()
-{
-	//nullify the menus
-	printf("QuitMenus() . . . ");
-	popup_menu = -1;
-	popup_gui_menu = -1;
-	menu = -1;
-	printf(" . . . DONE!\n");
-}
-
 void Disconnect()
 {
-	printf("disconnect() called ... \n");
-
-
-	//draw the last frame vefore closing.
-	//background.setImage(disconnect_img);
-	//printf("background image set to disconnect_image\n");
-	Graphics();
-	printf("Graphics() called.\n");
-
-	QuitMenus();
-
+	//Disconnection screen
+	popup_menu = -1;
+	popup_gui_menu = -1;
 	menu = STATE_DISCONNECT;
-	printf("menu is now STATE_DISCONNECT\n");
-	Done();
+	Graphics();
 
+	//Try reconnecting for 30 seconds
+	if (Client.TryReconnect(30000))
+	{
+		if (loaded)
+			TryToLogin();
+	}
+	else 
+	{
+		Kill();
+	}
 }
-void Done()
+
+void TryToLogin()
 {
-	printf("Done()");
+	std::string returnValue = Client.sendLoginRequest(username, password);
 
-     //save your options
-     saveOptions();
+	if (returnValue == "success")
+	{
+		menu = STATE_LOADING;
 
-
-      printf("trying to reconnect...\n");
-      int retries = 10;
-      int i = 0;
-	  do {	  i++; SDL_Delay(500);} while (connect() && i < retries);
-
-	  printf("done reconnecting\n");
-	  PiSock.Data = "";
-	  TryToLogin();
-
+		Player[MyID].Status = true;
+		chat_box = 4;//in-game chat (no chat status)
+		Player[MyID].Nick = username;
+		SetUsername(MyID);
+		Player[MyID].animation_ticker = SDL_GetTicks();
+	}
+	else if (returnValue == "already online")
+	{
+		Message[0].SetText("The username is already online. Please try again.");
+		Message[1].SetText("If your character is stuck online, tell a staff member.");
+		drawText(0);
+		drawText(1);
+	}
+	else if (returnValue == "login failed")
+	{
+		Message[0].SetText("Wrong username or password.");
+		Message[1].SetText("    Please try again...");
+		drawText(0);
+		drawText(1);
+	}
+	else if (returnValue == "banned")
+	{
+		Message[0].SetText("The username is banned.");
+		Message[1].SetText("Please try a different account.");
+		drawText(0);
+		drawText(1);
+	}
 }
+
+
 
 void Kill()
 {
@@ -9025,6 +6592,7 @@ void Kill()
 	// at the time of writing SDL_Quit() causes a crash upon exit.
 	exit(0);
 }
+
 
 
 std::string toLower(std::string myString)

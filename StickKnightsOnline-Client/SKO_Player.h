@@ -1,3 +1,6 @@
+#ifndef SKO_PLAYER_H_
+#define SKO_PLAYER_H_
+
 /* INCLUDES */
 #include <string>
 #include "OPI_Text.h"
@@ -72,4 +75,4 @@ class SKO_Player
         int hit_ticker;
 };
 
-        
+#endif
