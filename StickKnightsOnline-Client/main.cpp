@@ -4602,17 +4602,16 @@ void HandleUI()
     }
 
 	//if there are no SDL events then return to main loop
-	if (!SDL_PollEvent(&event))
-		return;
+	while (SDL_PollEvent(&event))
+	{
+		int x = event.button.x;
+		int y = event.button.y;
 
-    int x = event.button.x;
-    int y = event.button.y;
-
-    switch(event.type)
-    {
-        //mouse clickies
-        case SDL_MOUSEBUTTONDOWN:
-            if (!lclick){
+		switch (event.type)
+		{
+			//mouse clickies
+		case SDL_MOUSEBUTTONDOWN:
+			if (!lclick) {
 				//buttons!!
 				guiHit = false;
 				login_button.handle_events(1);
@@ -4671,57 +4670,57 @@ void HandleUI()
 				enable_auto_signs_button.handle_events(46);
 				//do world interactions after all gui
 				worldInteractButton.handle_events(21);
-            	}
-                if( event.button.button == SDL_BUTTON_LEFT )
-                    lclick = true;
-                if( event.button.button == SDL_BUTTON_RIGHT )
-                    rclick = true;
-        break;
+			}
+			if (event.button.button == SDL_BUTTON_LEFT)
+				lclick = true;
+			if (event.button.button == SDL_BUTTON_RIGHT)
+				rclick = true;
+			break;
 
-        case SDL_MOUSEBUTTONUP:
-            guiHit = false;
-            inv_item_button.handle_events(14);
-                if( event.button.button == SDL_BUTTON_LEFT )
-                    lclick = false;
-                if( event.button.button == SDL_BUTTON_RIGHT )
-                    rclick = false;
-        break;
+		case SDL_MOUSEBUTTONUP:
+			guiHit = false;
+			inv_item_button.handle_events(14);
+			if (event.button.button == SDL_BUTTON_LEFT)
+				lclick = false;
+			if (event.button.button == SDL_BUTTON_RIGHT)
+				rclick = false;
+			break;
 
-        case SDL_MOUSEMOTION:
-                //hover inventory items
-            if (menu == STATE_PLAY && popup_menu)
-            {
-
-
-                int itmx = x-11, itmy = y-253;//calculate which item
-
-                //only if within box
-                if (x > 8 && x < 246 && y > 252 && y < 473)
-                {
-                    itmx = itmx/39;
-                    itmy = itmy/56;
-                    itmx += 6*itmy;
-
-                    //show swapped item
-                    hoveredInventoryItem = itmx;
+		case SDL_MOUSEMOTION:
+			//hover inventory items
+			if (menu == STATE_PLAY && popup_menu)
+			{
 
 
-                    //draw item on your cursor
-                    hoverItemX = x;
-                    hoverItemY = y;
-                }
-                else
-                {
-                	//reset this. Only draw when user is hovering this item with the mouse.
-                    hoveredInventoryItem = -1;
-                }
+				int itmx = x - 11, itmy = y - 253;//calculate which item
 
-            }
-            //hover shop items
+				//only if within box
+				if (x > 8 && x < 246 && y > 252 && y < 473)
+				{
+					itmx = itmx / 39;
+					itmy = itmy / 56;
+					itmx += 6 * itmy;
+
+					//show swapped item
+					hoveredInventoryItem = itmx;
+
+
+					//draw item on your cursor
+					hoverItemX = x;
+					hoverItemY = y;
+				}
+				else
+				{
+					//reset this. Only draw when user is hovering this item with the mouse.
+					hoveredInventoryItem = -1;
+				}
+
+			}
+			//hover shop items
 			if (menu == STATE_PLAY && popup_gui_menu == 6)
 			{
 
-				int btmx = x-779, btmy = y-275;
+				int btmx = x - 779, btmy = y - 275;
 
 				//only if within box
 				if (x > 776 && x < 1014 && y > 274 && y < 439)
@@ -4729,40 +4728,40 @@ void HandleUI()
 
 
 					//calculate which item
-					btmx = btmx/39;
-					btmy = btmy/42;
+					btmx = btmx / 39;
+					btmy = btmy / 42;
 
 					//if it did change:
 					if (hoveredShopItemX != btmx || hoveredShopItemY != btmy)
 					{
-					int item, str, def, hp, sellPrice;
-					std::stringstream ss1, ss2, ss3, ss4;
+						int item, str, def, hp, sellPrice;
+						std::stringstream ss1, ss2, ss3, ss4;
 
-					//convert btmx to a SKO_Item ID
-					item = map[current_map]->Shop[currentShop].item[btmx][btmy][0];
+						//convert btmx to a SKO_Item ID
+						item = map[current_map]->Shop[currentShop].item[btmx][btmy][0];
 
-					//get item stats and apply to text objects
+						//get item stats and apply to text objects
 
-					//health bonus
-					hp = Item[item].hp;
-					ss3 << "+" << hp;
-					Message[176].SetText(ss3.str());
+						//health bonus
+						hp = Item[item].hp;
+						ss3 << "+" << hp;
+						Message[176].SetText(ss3.str());
 
-					//strength bonus
-					str = Item[item].sp;
-					ss1 << "+" << str;
-					Message[177].SetText(ss1.str());
+						//strength bonus
+						str = Item[item].sp;
+						ss1 << "+" << str;
+						Message[177].SetText(ss1.str());
 
-					//defence bonus
-					def = Item[item].dp;
-					ss2 << "+" << def;
-					Message[178].SetText(ss2.str());
+						//defence bonus
+						def = Item[item].dp;
+						ss2 << "+" << def;
+						Message[178].SetText(ss2.str());
 
 
-					//sell price
-					sellPrice = Item[item].price;
-					ss4 << "" << sellPrice;
-					Message[179].SetText(ss4.str());
+						//sell price
+						sellPrice = Item[item].price;
+						ss4 << "" << sellPrice;
+						Message[179].SetText(ss4.str());
 
 
 					}//end selected new item
@@ -4781,79 +4780,80 @@ void HandleUI()
 
 			}
 
-        break;
+			break;
 
 
 
-            //keys
-            case SDL_KEYDOWN:
-                keyTicker = SDL_GetTicks();
-                keyRepeat = pressKey(event.key.keysym.sym);
+			//keys
+		case SDL_KEYDOWN:
+			keyTicker = SDL_GetTicks();
+			keyRepeat = pressKey(event.key.keysym.sym);
 
-                //disable space on jumping
-                if (keyRepeat == SDLK_SPACE && chat_box == 4)//4 is game
-                    keyRepeat = 0;
-
-
-                //printf("Key is: %i\n", event.key.keysym.sym);
-            break;
+			//disable space on jumping
+			if (keyRepeat == SDLK_SPACE && chat_box == 4)//4 is game
+				keyRepeat = 0;
 
 
-        case SDL_KEYUP:
-            keyTicker = SDL_GetTicks();
-            keyRepeat = 0;
+			//printf("Key is: %i\n", event.key.keysym.sym);
+			break;
 
-            switch( event.key.keysym.sym )
-            {
-                    case SDLK_LSHIFT: case SDLK_RSHIFT:
-                        SHIFT = false;
-                    break;
 
-                    case SDLK_LEFT:
-                    case 'a':
-                    	LEFT = false;
-                        if (chat_box == 4 && !RIGHT && !Player[MyID].attacking)
-                        {
-							//send action to SKO network
-							Client.playerAction("stop", Player[MyID].x, Player[MyID].y);
-                        }
-                    break;
-                    case SDLK_RIGHT:
-                    case 'd':
-                        RIGHT = false;
-                        if (chat_box == 4 && !LEFT && !Player[MyID].attacking)
-                        {
-							//send action to SKO network
-							Client.playerAction("stop", Player[MyID].x, Player[MyID].y);
-                        }
-                    break;
-					case 'r':
-						// Set the action key ('r') as released, so that objects can be thrown again
-						actionKeyDown = false;
-					break;
-                    default: break;
-            }
-        break;
+		case SDL_KEYUP:
+			keyTicker = SDL_GetTicks();
+			keyRepeat = 0;
 
-            //if a mouse button was released
-            if( event.type == SDL_MOUSEBUTTONUP )
-            {
-                if( event.button.button == SDL_BUTTON_LEFT )
-                    lclick = false;
-                if( event.button.button == SDL_BUTTON_RIGHT )
-                    rclick = false;
-            }
+			switch (event.key.keysym.sym)
+			{
+			case SDLK_LSHIFT: case SDLK_RSHIFT:
+				SHIFT = false;
+				break;
 
-        case SDL_QUIT:
-                //printf("QUIT.\n");
-            //printf("MyID is: %i\n", MyID);
-                //printf("MY Username is: %s\n", Player[MyID].Nick);
-            	saveOptions();
-				Kill();
+			case SDLK_LEFT:
+			case 'a':
+				LEFT = false;
+				if (chat_box == 4 && !RIGHT && !Player[MyID].attacking)
+				{
+					//send action to SKO network
+					Client.playerAction("stop", Player[MyID].x, Player[MyID].y);
+				}
+				break;
+			case SDLK_RIGHT:
+			case 'd':
+				RIGHT = false;
+				if (chat_box == 4 && !LEFT && !Player[MyID].attacking)
+				{
+					//send action to SKO network
+					Client.playerAction("stop", Player[MyID].x, Player[MyID].y);
+				}
+				break;
+			case 'r':
+				// Set the action key ('r') as released, so that objects can be thrown again
+				actionKeyDown = false;
+				break;
+			default: break;
+			}
+			break;
 
-        break;
-        default: break;
-    }
+			//if a mouse button was released
+			if (event.type == SDL_MOUSEBUTTONUP)
+			{
+				if (event.button.button == SDL_BUTTON_LEFT)
+					lclick = false;
+				if (event.button.button == SDL_BUTTON_RIGHT)
+					rclick = false;
+			}
+
+		case SDL_QUIT:
+			//printf("QUIT.\n");
+		//printf("MyID is: %i\n", MyID);
+			//printf("MY Username is: %s\n", Player[MyID].Nick);
+			saveOptions();
+			Kill();
+
+			break;
+		default: break;
+		}
+	}
 }//end handle ui
 
 void* Network(void *arg)
