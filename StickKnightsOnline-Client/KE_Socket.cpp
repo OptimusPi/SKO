@@ -77,7 +77,12 @@ void KE_Socket::Send(std::string packet)
   		 {
 			fprintf(stderr, "KE_Socket::Send() error- SDLNet_TCP_Send: %s\r\n", SDLNet_GetError());
 			fprintf(stderr, "==== length: %i\r\n", len);
-			fprintf(stderr, "==== packet: %s\r\n", packet.c_str());
+			fprintf(stderr, "==== packet: ");
+
+			for (int i = 0; i < len; i++)
+				fprintf(stderr, "[%i]", packet[i]);
+
+			fprintf(stderr, "\r\n\r\n");
 
 			Close();
 		 }
@@ -100,22 +105,32 @@ int KE_Socket::Receive()
            
            Data.append(msg, result);  
         } else if (result == 0){
-        	Close();
+			printf("There was an error in KE_Socket::Receive(): \r\n");
+			printf("==== %i is the result %s is the error\r\n", result, SDLNet_GetError());
+			printf("==== possibly Connection Reset By Peer.\r\n");
+			Close();
         } else {
         	Close();
+			printf("There was an error in KE_Socket::Receive(): \r\n");
+			printf("==== %i is the result %s is the error\r\n", result, SDLNet_GetError());
+			printf("==== possibly Connection closed by remote host.\r\n");
         }
     }
     
     return result;
 }
+
 int KE_Socket::BReceive()
 {  
     // receive some text from sock
     result=SDLNet_TCP_Recv(sock,msg,MAXLEN);
     
     if (result > 0) {
-           Data.append(msg, result);    
-    }
+        Data.append(msg, result);    
+	}
+	else {
+		printf("There was an error in KE_Socket::BReceive(): %i is the result\r\n", result);
+	}
         
     return result;
 }
