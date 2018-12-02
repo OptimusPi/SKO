@@ -123,7 +123,7 @@ int KE_Socket::Receive()
 int KE_Socket::BReceive()
 {  
     // receive some text from sock
-    result=SDLNet_TCP_Recv(sock,msg,MAXLEN);
+    result = SDLNet_TCP_Recv(sock,msg,MAXLEN);
     
     if (result > 0) {
         Data.append(msg, result);    
