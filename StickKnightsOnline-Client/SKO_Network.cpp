@@ -40,6 +40,12 @@ std::string SKO_Network::connect()
 	return "success";
 }
 
+//Close networking
+void SKO_Network::disconnect()
+{
+	socket->Close();
+}
+
 //Send client version to validate newest software version
 void SKO_Network::sendVersion(unsigned char major, unsigned char minor, unsigned char patch)
 {

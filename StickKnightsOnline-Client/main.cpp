@@ -69,8 +69,6 @@
 // HIT_LOOPS is how many times to loop the collision detection adjustment (formerly while)
 #define HIT_LOOPS 3
 
-// UI_LOOPS is how many times to loop SDL Poll Event
-#define UI_LOOPS 100
 
 // Debug flag for cheating to find bugs
 bool DEBUG_FLAG = false;
@@ -160,7 +158,7 @@ int SERVER_PORT;
 int MyID = -1;
 
 // Junk
-bool done;
+bool done = false;
 bool lclick = false;
 bool rclick = false;
 long int cosmeticTicker;
@@ -4597,270 +4595,265 @@ int pressKey(int key)
 }
 void HandleUI()
 {
-
+	//When a user is typing and holds down a key, repeat it
     if (keyRepeat && SDL_GetTicks() - keyTicker > 500)
     {
-      pressKey(keyRepeat);
+        pressKey(keyRepeat);
     }
 
-    for (int loopVar = 0; loopVar < UI_LOOPS && (SDL_PollEvent (&event)); loopVar++)
+	//if there are no SDL events then return to main loop
+	if (!SDL_PollEvent(&event))
+		return;
+
+    int x = event.button.x;
+    int y = event.button.y;
+
+    switch(event.type)
     {
+        //mouse clickies
+        case SDL_MOUSEBUTTONDOWN:
+            if (!lclick){
+				//buttons!!
+				guiHit = false;
+				login_button.handle_events(1);
+				create_button.handle_events(2);
+				back_button.handle_events(3);
+				okay_button.handle_events(4);
+				username_box.handle_events(5);
+				password_box.handle_events(6);
+				chatting_box.handle_events(7);
+				quit_button.handle_events(8);
+				inventory_button.handle_events(9);
+				stats_button.handle_events(10);
+				hp_button.handle_events(11);
+				str_button.handle_events(12);
+				def_button.handle_events(13);
+				inv_item_button.handle_events(14);
+				options_button.handle_events(15);
 
-        int x = event.button.x;
-        int y = event.button.y;
+				unmute_music_button.handle_events(16);
+				mute_music_button.handle_events(17);
 
-        switch(event.type)
-        {
+				drop_button.handle_events(18);
+				use_button.handle_events(19);
+				inputBoxButton.handle_events(20);
+				playerRequestButton.handle_events(22);
+				tradeAcceptButton.handle_events(23);
+				tradeCancelButton.handle_events(24);
+				tradeIncrementButton.handle_events(25);
+				bankIncrementButton.handle_events(26);
+				bankAcceptButton.handle_events(27);
+				bankCancelButton.handle_events(28);
+				bankScrollButton.handle_events(29);
+				shopIncrementButton.handle_events(30);
+				shopCancelButton.handle_events(31);
+				shopToggleButton.handle_events(32);
+				shopAcceptButton.handle_events(33);
+				logout_button.handle_events(34);
+				soundToggleButton.handle_events(35);
 
-            //mouse clickies
-            case SDL_MOUSEBUTTONDOWN:
+				unmute_sound_button.handle_events(36);
+				mute_sound_button.handle_events(37);
 
-            	if (!lclick){
-					//buttons!!
-					guiHit = false;
-					login_button.handle_events(1);
-					create_button.handle_events(2);
-					back_button.handle_events(3);
-					okay_button.handle_events(4);
-					username_box.handle_events(5);
-					password_box.handle_events(6);
-					chatting_box.handle_events(7);
-					quit_button.handle_events(8);
-					inventory_button.handle_events(9);
-					stats_button.handle_events(10);
-					hp_button.handle_events(11);
-					str_button.handle_events(12);
-					def_button.handle_events(13);
-					inv_item_button.handle_events(14);
-					options_button.handle_events(15);
+				unmute_effects_button.handle_events(38);
+				mute_effects_button.handle_events(39);
 
-					unmute_music_button.handle_events(16);
-					mute_music_button.handle_events(17);
+				equip_toggle_button.handle_events(40);
+				equip_button.handle_events(41);
 
-					drop_button.handle_events(18);
-					use_button.handle_events(19);
-					inputBoxButton.handle_events(20);
-					playerRequestButton.handle_events(22);
-					tradeAcceptButton.handle_events(23);
-					tradeCancelButton.handle_events(24);
-					tradeIncrementButton.handle_events(25);
-					bankIncrementButton.handle_events(26);
-					bankAcceptButton.handle_events(27);
-					bankCancelButton.handle_events(28);
-					bankScrollButton.handle_events(29);
-					shopIncrementButton.handle_events(30);
-					shopCancelButton.handle_events(31);
-					shopToggleButton.handle_events(32);
-					shopAcceptButton.handle_events(33);
-					logout_button.handle_events(34);
-					soundToggleButton.handle_events(35);
+				leave_party_button.handle_events(42);
 
-					unmute_sound_button.handle_events(36);
-					mute_sound_button.handle_events(37);
+				closeChatButton.handle_events(43);
 
-					unmute_effects_button.handle_events(38);
-					mute_effects_button.handle_events(39);
+				nextPageButton.handle_events(44);
 
-					equip_toggle_button.handle_events(40);
-					equip_button.handle_events(41);
+				disable_auto_signs_button.handle_events(46);
+				enable_auto_signs_button.handle_events(46);
+				//do world interactions after all gui
+				worldInteractButton.handle_events(21);
+            	}
+                if( event.button.button == SDL_BUTTON_LEFT )
+                    lclick = true;
+                if( event.button.button == SDL_BUTTON_RIGHT )
+                    rclick = true;
+        break;
 
-					leave_party_button.handle_events(42);
+        case SDL_MOUSEBUTTONUP:
+            guiHit = false;
+            inv_item_button.handle_events(14);
+                if( event.button.button == SDL_BUTTON_LEFT )
+                    lclick = false;
+                if( event.button.button == SDL_BUTTON_RIGHT )
+                    rclick = false;
+        break;
 
-					closeChatButton.handle_events(43);
+        case SDL_MOUSEMOTION:
+                //hover inventory items
+            if (menu == STATE_PLAY && popup_menu)
+            {
 
-					nextPageButton.handle_events(44);
 
-					disable_auto_signs_button.handle_events(46);
-					enable_auto_signs_button.handle_events(46);
-					//do world interactions after all gui
-					worldInteractButton.handle_events(21);
-            	 }
-                 if( event.button.button == SDL_BUTTON_LEFT )
-                     lclick = true;
-                 if( event.button.button == SDL_BUTTON_RIGHT )
-                     rclick = true;
-            break;
+                int itmx = x-11, itmy = y-253;//calculate which item
 
-            case SDL_MOUSEBUTTONUP:
-               guiHit = false;
-            	inv_item_button.handle_events(14);
-                 if( event.button.button == SDL_BUTTON_LEFT )
-                     lclick = false;
-                 if( event.button.button == SDL_BUTTON_RIGHT )
-                     rclick = false;
-            break;
-
-            case SDL_MOUSEMOTION:
-                 //hover inventory items
-                if (menu == STATE_PLAY && popup_menu)
+                //only if within box
+                if (x > 8 && x < 246 && y > 252 && y < 473)
                 {
+                    itmx = itmx/39;
+                    itmy = itmy/56;
+                    itmx += 6*itmy;
+
+                    //show swapped item
+                    hoveredInventoryItem = itmx;
 
 
-                   int itmx = x-11, itmy = y-253;//calculate which item
-
-                   //only if within box
-                   if (x > 8 && x < 246 && y > 252 && y < 473)
-                   {
-                       itmx = itmx/39;
-                       itmy = itmy/56;
-                       itmx += 6*itmy;
-
-                       //show swapped item
-                       hoveredInventoryItem = itmx;
-
-
-                       //draw item on your cursor
-                       hoverItemX = x;
-                       hoverItemY = y;
-                   }
-                   else
-                   {
-                	   //reset this. Only draw when user is hovering this item with the mouse.
-                       hoveredInventoryItem = -1;
-                   }
-
+                    //draw item on your cursor
+                    hoverItemX = x;
+                    hoverItemY = y;
                 }
-                //hover shop items
-			   if (menu == STATE_PLAY && popup_gui_menu == 6)
-			   {
-
-				   int btmx = x-779, btmy = y-275;
-
-				  //only if within box
-				  if (x > 776 && x < 1014 && y > 274 && y < 439)
-				  {
-
-
-					  //calculate which item
-					  btmx = btmx/39;
-					  btmy = btmy/42;
-
-					 //if it did change:
-					 if (hoveredShopItemX != btmx || hoveredShopItemY != btmy)
-					 {
-						int item, str, def, hp, sellPrice;
-						std::stringstream ss1, ss2, ss3, ss4;
-
-						//convert btmx to a SKO_Item ID
-						item = map[current_map]->Shop[currentShop].item[btmx][btmy][0];
-
-						//get item stats and apply to text objects
-
-						//health bonus
-						hp = Item[item].hp;
-						ss3 << "+" << hp;
-						Message[176].SetText(ss3.str());
-
-						//strength bonus
-						str = Item[item].sp;
-						ss1 << "+" << str;
-						Message[177].SetText(ss1.str());
-
-						//defence bonus
-						def = Item[item].dp;
-						ss2 << "+" << def;
-						Message[178].SetText(ss2.str());
-
-
-						//sell price
-						sellPrice = Item[item].price;
-						ss4 << "" << sellPrice;
-						Message[179].SetText(ss4.str());
-
-
-					 }//end selected new item
-
-					 //select item
-					 hoveredShopItemX = btmx;
-					 hoveredShopItemY = btmy;
-
-				  }
-				  else
-				  {
-					  //reset this. Only draw when user is hovering this item with the mouse.
-					  hoveredShopItemX = -1;
-					  hoveredShopItemY = -1;
-				  }
-
-			   }
-
-            break;
-
-
-
-                //keys
-              case SDL_KEYDOWN:
-                  keyTicker = SDL_GetTicks();
-                  keyRepeat = pressKey(event.key.keysym.sym);
-
-                  //disable space on jumping
-                  if (keyRepeat == SDLK_SPACE && chat_box == 4)//4 is game
-                     keyRepeat = 0;
-
-
-                  //printf("Key is: %i\n", event.key.keysym.sym);
-              break;
-
-
-            case SDL_KEYUP:
-               keyTicker = SDL_GetTicks();
-               keyRepeat = 0;
-
-               switch( event.key.keysym.sym )
-               {
-                       case SDLK_LSHIFT: case SDLK_RSHIFT:
-                            SHIFT = false;
-                       break;
-
-                       case SDLK_LEFT:
-                       case 'a':
-                    	   LEFT = false;
-                            if (chat_box == 4 && !RIGHT && !Player[MyID].attacking)
-                            {
-								//send action to SKO network
-								Client.playerAction("stop", Player[MyID].x, Player[MyID].y);
-                            }
-                       break;
-                       case SDLK_RIGHT:
-                       case 'd':
-                            RIGHT = false;
-                            if (chat_box == 4 && !LEFT && !Player[MyID].attacking)
-                            {
-								//send action to SKO network
-								Client.playerAction("stop", Player[MyID].x, Player[MyID].y);
-                            }
-                       break;
-					   case 'r':
-						   // Set the action key ('r') as released, so that objects can be thrown again
-						   actionKeyDown = false;
-					   break;
-                       default: break;
-               }
-            break;
-
-                //if a mouse button was released
-                if( event.type == SDL_MOUSEBUTTONUP )
+                else
                 {
-                    if( event.button.button == SDL_BUTTON_LEFT )
-                        lclick = false;
-                    if( event.button.button == SDL_BUTTON_RIGHT )
-                        rclick = false;
+                	//reset this. Only draw when user is hovering this item with the mouse.
+                    hoveredInventoryItem = -1;
                 }
 
-            case SDL_QUIT:
-                 //printf("QUIT.\n");
-                //printf("MyID is: %i\n", MyID);
-                 //printf("MY Username is: %s\n", Player[MyID].Nick);
-            	 saveOptions();
-				 Kill();
+            }
+            //hover shop items
+			if (menu == STATE_PLAY && popup_gui_menu == 6)
+			{
 
+				int btmx = x-779, btmy = y-275;
+
+				//only if within box
+				if (x > 776 && x < 1014 && y > 274 && y < 439)
+				{
+
+
+					//calculate which item
+					btmx = btmx/39;
+					btmy = btmy/42;
+
+					//if it did change:
+					if (hoveredShopItemX != btmx || hoveredShopItemY != btmy)
+					{
+					int item, str, def, hp, sellPrice;
+					std::stringstream ss1, ss2, ss3, ss4;
+
+					//convert btmx to a SKO_Item ID
+					item = map[current_map]->Shop[currentShop].item[btmx][btmy][0];
+
+					//get item stats and apply to text objects
+
+					//health bonus
+					hp = Item[item].hp;
+					ss3 << "+" << hp;
+					Message[176].SetText(ss3.str());
+
+					//strength bonus
+					str = Item[item].sp;
+					ss1 << "+" << str;
+					Message[177].SetText(ss1.str());
+
+					//defence bonus
+					def = Item[item].dp;
+					ss2 << "+" << def;
+					Message[178].SetText(ss2.str());
+
+
+					//sell price
+					sellPrice = Item[item].price;
+					ss4 << "" << sellPrice;
+					Message[179].SetText(ss4.str());
+
+
+					}//end selected new item
+
+					//select item
+					hoveredShopItemX = btmx;
+					hoveredShopItemY = btmy;
+
+				}
+				else
+				{
+					//reset this. Only draw when user is hovering this item with the mouse.
+					hoveredShopItemX = -1;
+					hoveredShopItemY = -1;
+				}
+
+			}
+
+        break;
+
+
+
+            //keys
+            case SDL_KEYDOWN:
+                keyTicker = SDL_GetTicks();
+                keyRepeat = pressKey(event.key.keysym.sym);
+
+                //disable space on jumping
+                if (keyRepeat == SDLK_SPACE && chat_box == 4)//4 is game
+                    keyRepeat = 0;
+
+
+                //printf("Key is: %i\n", event.key.keysym.sym);
             break;
-            default: break;
-        }
-
-    }//end SDL handle events
 
 
+        case SDL_KEYUP:
+            keyTicker = SDL_GetTicks();
+            keyRepeat = 0;
+
+            switch( event.key.keysym.sym )
+            {
+                    case SDLK_LSHIFT: case SDLK_RSHIFT:
+                        SHIFT = false;
+                    break;
+
+                    case SDLK_LEFT:
+                    case 'a':
+                    	LEFT = false;
+                        if (chat_box == 4 && !RIGHT && !Player[MyID].attacking)
+                        {
+							//send action to SKO network
+							Client.playerAction("stop", Player[MyID].x, Player[MyID].y);
+                        }
+                    break;
+                    case SDLK_RIGHT:
+                    case 'd':
+                        RIGHT = false;
+                        if (chat_box == 4 && !LEFT && !Player[MyID].attacking)
+                        {
+							//send action to SKO network
+							Client.playerAction("stop", Player[MyID].x, Player[MyID].y);
+                        }
+                    break;
+					case 'r':
+						// Set the action key ('r') as released, so that objects can be thrown again
+						actionKeyDown = false;
+					break;
+                    default: break;
+            }
+        break;
+
+            //if a mouse button was released
+            if( event.type == SDL_MOUSEBUTTONUP )
+            {
+                if( event.button.button == SDL_BUTTON_LEFT )
+                    lclick = false;
+                if( event.button.button == SDL_BUTTON_RIGHT )
+                    rclick = false;
+            }
+
+        case SDL_QUIT:
+                //printf("QUIT.\n");
+            //printf("MyID is: %i\n", MyID);
+                //printf("MY Username is: %s\n", Player[MyID].Nick);
+            	saveOptions();
+				Kill();
+
+        break;
+        default: break;
+    }
 }//end handle ui
 
 void* Network(void *arg)
@@ -4909,6 +4902,10 @@ void* Network(void *arg)
 		Client.checkPing();
 		SDL_Delay(1);
 	}
+
+	//Close connection gracefully
+	Client.disconnect();
+
 	return NULL;
 }
 
@@ -5090,9 +5087,6 @@ int main (int argc, char *argv[])
     }
 
     loading_img.setImage("IMG/GUI/loading.png");
-
-
-
     background.setImage("IMG/GUI/loading.png");
     Graphics();
 
@@ -5600,26 +5594,20 @@ int main (int argc, char *argv[])
     //start drawing
     pthread_t networkThread, physicsThread; //GraphicsThread;
 
-//    if (pthread_create(&GraphicsThread, NULL, GraphicsLoop, 0)){
-//        printf("Could not create thread for Graphics...\n");
-//        system("PAUSE");
-//    }
-
     //here goes nothin'
-
     if (pthread_create(&networkThread, NULL, Network, 0)){
         printf("Could not create thread for Network...\n");
         Kill();
     }
 
-    SDL_Delay(30);
+    SDL_Delay(100);
 
     if (pthread_create(&physicsThread, NULL, PhysicsLoop, 0)){
         printf("Could not create thread for Physics...\n");
         Kill();
     }
 
-    SDL_Delay(30);
+    SDL_Delay(100);
 
     KE_Timestep *timestep = new KE_Timestep(60);
 
@@ -5631,18 +5619,27 @@ int main (int argc, char *argv[])
     {
           timestep->Update();
 
-		  HandleUI();
-          Graphics();
+		  //limit graphics to about 60FPS but it can be lower if there is not enough processing power
+		  if (timestep->Check())
+		  {
+			  Graphics();
+		  }
 
+		  // With a sleep of 1 millisecond, 
+		  // UI handler will fire at max 1000 times per second
+		  // minus however long it takes to draw graphics
+		  HandleUI();
           SDL_Delay(1);
     }
 
-    printf("end of main.\n");
+    printf("done == true. joining threads.\r\n");
+
+	pthread_join(networkThread, NULL);
+	pthread_join(physicsThread, NULL);
+
+	printf("Quitting Stick Knights Online.");
+	SDL_Quit();
     return 0;
-
-
-
-
 }//end main
 
 void Graphics()
@@ -6497,9 +6494,7 @@ void TryToLogin()
 
 void Kill()
 {
-	//printf("Kill(): SDL_Quit()\n");
-	// at the time of writing SDL_Quit() causes a crash upon exit.
-	exit(0);
+	done = true;
 }
 
 

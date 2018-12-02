@@ -11,6 +11,8 @@ class SKO_Network
 		SKO_Network();
 		std::string init(std::string server, unsigned short port);
 		std::string connect();
+		void disconnect();
+
 		void sendVersion(unsigned char major, unsigned char minor, unsigned char patch);
 		bool isConnected();
 		bool TryReconnect(unsigned int timeout);
