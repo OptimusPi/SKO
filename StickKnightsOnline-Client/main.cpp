@@ -2615,9 +2615,6 @@ construct_frame()
 	if (!contentLoaded)
 		return;
 
-	if (menu < 4)
-		scroll_sky();
-
 	if (MyID > -1)
 		current_map = Player[MyID].current_map;
 
@@ -5635,11 +5632,7 @@ int main (int argc, char *argv[])
           timestep->Update();
 
 		  HandleUI();
-          while (timestep->Check())
-          {
-        	 HandleUI();
-             Graphics();
-          }
+          Graphics();
 
           SDL_Delay(1);
     }
@@ -5699,6 +5692,10 @@ int numDigits(int num)
 
 void physics()
 {
+	//always scroll sky
+	if (menu < 4)
+		scroll_sky();
+
 	if (menu != STATE_PLAY)
 		return;
 
