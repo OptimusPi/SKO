@@ -64,3 +64,8 @@ extern int selectedRemoteItem;
 extern bool shopBuyMode;
 extern int currentShop;
 extern int MyID;
+extern bool connectError;
+extern bool versionError;
+extern void TryToLogin();
+extern int chat_box;
+extern std::string username;

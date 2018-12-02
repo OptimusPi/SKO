@@ -11,7 +11,7 @@ class SKO_Network
 		SKO_Network();
 		std::string init(std::string server, unsigned short port);
 		std::string connect();
-		std::string sendVersion(unsigned char major, unsigned char minor, unsigned char patch);
+		void sendVersion(unsigned char major, unsigned char minor, unsigned char patch);
 		bool isConnected();
 		bool TryReconnect(unsigned int timeout);
 		
@@ -62,8 +62,8 @@ class SKO_Network
 		void checkPing();
 
 		//SKO account functions.
-		std::string createAccount(std::string, std::string);
-		std::string sendLoginRequest(std::string username, std::string password);
+		void createAccount(std::string, std::string);
+		void sendLoginRequest(std::string username, std::string password);
 		std::string getSaltedHash(std::string username, std::string password);
 	private:
 		//TCP Socket to SKO Server

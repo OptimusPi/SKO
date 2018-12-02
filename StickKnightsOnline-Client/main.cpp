@@ -166,6 +166,8 @@ bool rclick = false;
 long int cosmeticTicker;
 long int cosmeticTime = 100;
 bool connectError = false;
+bool versionError = false;
+bool fatalNetworkError = false;
 
 // Sounds
 bool enableMUS = true;
@@ -1146,20 +1148,7 @@ void Button::handle_events(int ID)
 
                                 if (menu == STATE_CREATE) //creating account
                                 {
-									//std::string result = "temp";
-									std::string result = Client.createAccount(uMessage, pMessage);
-
-									if (result == "success")
-									{
-										TryToLogin();
-									}
-									else if (result == "username exists")
-									{
-										Message[0].SetText("The username already exists...");
-										Message[1].SetText("Please try a different character name.");
-										drawText(0);
-										drawText(1);
-									}
+									Client.createAccount(uMessage, pMessage);
                                 }
                                 if (menu == STATE_LOGIN)//logging in
                                 {
@@ -4917,19 +4906,30 @@ void* Network(void *arg)
 	connectError = ConnectToSKOServer();
 	tryingToConnect = false;
 
-	while (!done)
-	{
-		// If client could not connect upon opening the game
-		// patiently reconnect until a connection is made or the user exists the game.
-		if (connectError)
-		{
-			HandleUI();
-			if (Client.TryReconnect(30000)){
-				connectError = false;
-			}
-			continue;
-		}
+	if (fatalNetworkError)
+		return NULL;
 
+	// If client could not connect upon opening the game
+	// patiently reconnect until a connection is made or the user exists the game.
+	for (int i = 0; connectError && i < 15; i++)
+	{
+		if (Client.TryReconnect(2000))
+		{
+			connectError = false;
+			Message[0].SetText("   You are connected to the server!");
+			Message[1].SetText("Login or create a new account to play.");
+		}
+		else
+		{
+			std::string message = "Trying to reconnect for 30 seconds";
+			for (int dot = 0; dot < i; dot++)
+				message += ".";
+			Message[1].SetText(message);
+		}
+	}
+
+	while (!done && !connectError && !versionError)
+	{
 		// If the client disconnects during gameplay
 		// Try reconnecting and displaying 
 		if (!Client.isConnected())
@@ -5704,36 +5704,23 @@ void Graphics()
 
 bool ConnectToSKOServer()
 {
-    if (Client.init(SERVER_IP, SERVER_PORT) == "error" || Client.connect() == "error")
+	if (Client.init(SERVER_IP, SERVER_PORT) == "error")
+	{
+		Message[0].SetText("There may be a problem with your internet connection.");
+		Message[1].SetText(" Join chat for help. www.StickKnightsOnline.com/chat");
+		fatalNetworkError = true;
+		return true;
+	}
+
+    if (Client.connect() == "error")
     {
         Message[0].SetText("There was an error connecting to the server!");
-        Message[1].SetText("Join chat for help. www.StickKnightsOnline.com/chat");
+        Message[1].SetText("Trying to reconnect for 30 seconds");
         return true;
     }
 
-	std::string returnValue = Client.sendVersion(VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
-
-   if (returnValue == "version correct")
-   {
-		Message[0].SetText("You are connected to the server!");
-		Message[1].SetText(" ");
-		return false;
-   }
-   else if (returnValue == "version error")
-   {
-       Message[0].SetText("Version error. Close the game and re-open it please.");
-       Message[1].SetText("If that doesn't work please visit StickKnightsOnline.com and reinstall.");
-       connectError = true;
-       return false;
-   }
-   else if (returnValue == "server full")
-   {
-       Message[0].SetText("The server is full!");
-       Message[1].SetText("Join chat for help. www.StickKnightsOnline.com/chat");
-       return true;
-   }
-
-   return true;
+	Client.sendVersion(VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+	return false;
 }
 
 int numDigits(int num)
@@ -6549,39 +6536,7 @@ void Disconnect()
 
 void TryToLogin()
 {
-	std::string returnValue = Client.sendLoginRequest(username, password);
-
-	if (returnValue == "success")
-	{
-		menu = STATE_LOADING;
-
-		Player[MyID].Status = true;
-		chat_box = 4;//in-game chat (no chat status)
-		Player[MyID].Nick = username;
-		SetUsername(MyID);
-		Player[MyID].animation_ticker = SDL_GetTicks();
-	}
-	else if (returnValue == "already online")
-	{
-		Message[0].SetText("The username is already online. Please try again.");
-		Message[1].SetText("If your character is stuck online, tell a staff member.");
-		drawText(0);
-		drawText(1);
-	}
-	else if (returnValue == "login failed")
-	{
-		Message[0].SetText("Wrong username or password.");
-		Message[1].SetText("    Please try again...");
-		drawText(0);
-		drawText(1);
-	}
-	else if (returnValue == "banned")
-	{
-		Message[0].SetText("The username is banned.");
-		Message[1].SetText("Please try a different account.");
-		drawText(0);
-		drawText(1);
-	}
+	Client.sendLoginRequest(username, password);
 }
 
 
