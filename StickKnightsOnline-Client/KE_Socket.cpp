@@ -77,10 +77,6 @@ void KE_Socket::Send(std::string packet)
 			fprintf(stderr, "SDLNet_TCP_Send: %s\n", SDLNet_GetError());
 			Close();
 		 }
-		 
-		 else {
-			 //TODO try to reconnect
-		 }
 }
 
 int KE_Socket::Receive()

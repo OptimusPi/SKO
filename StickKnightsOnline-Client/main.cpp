@@ -344,33 +344,18 @@ void inventory();
 
 void setTitle()
 {
-	//use letters for the month
-	std::string months[12];
-	months[0] = "Jan.";
-	months[1] = "Feb.";
-	months[2] = "Mar.";
-	months[3] = "Apr.";
-	months[4] = "May";
-	months[5] = "June";
-	months[6] = "July";
-	months[7] = "Aug.";
-	months[8] = "Sept.";
-	months[9] = "Oct.";
-	months[10] = "Nov.";
-	months[11] = "Dec.";
-
+	
 	//get current date
 	time_t t = time(0);   // get time now
 	struct tm * now = localtime(&t);
 
 	std::stringstream title;
-		title << "Stick Knights Online v"
+		title << "Stick Knights Online (Beta) v"
 			  << (int)VERSION_MAJOR << "."
 			  << (int)VERSION_MINOR << "."
 			  << (int)VERSION_PATCH << "   "
-			  << months[now->tm_mon] << " "
-			  << now->tm_mday << ", "
-			  << (now->tm_year + 1900)
+			  << __DATE__ << " "
+			  << SERVER_IP << ":" << SERVER_PORT
 			  ;//<< " {Dev Version: 1.1.2A}";
 
 		SDL_WM_SetCaption (title.str().c_str(), "SKO");
@@ -5052,16 +5037,6 @@ int main (int argc, char *argv[])
 		SDL_Quit();
 		return 1;
 	}
-
-	//Initialize SDL_mixer
-	if (Mix_OpenAudio(48000, MIX_DEFAULT_FORMAT, 2, 1024) == -1)
-	{
-		printf("ERROR! COULD NOT INIT SOUND!\n");
-		enableSND = false;
-		enableMUS = false;
-		enableSFX = false;
-	}
-
     std::ifstream optionFile("DAT/options.dat", std::ios::in|std::ios::binary|std::ios::ate);
 
      if (optionFile.is_open())
@@ -5086,6 +5061,15 @@ int main (int argc, char *argv[])
         //fix memory leak
         free (memblock);
       }
+
+	 //Initialize SDL_mixer
+	 if (Mix_OpenAudio(48000, MIX_DEFAULT_FORMAT, 2, 1024) == -1)
+	 {
+		 printf("ERROR! COULD NOT INIT SOUND!\n");
+		 enableSND = false;
+		 enableMUS = false;
+		 enableSFX = false;
+	 }
 
      //chat line buffer
      for (int i = 0; i < NUM_CHAT_LINES; i++)
