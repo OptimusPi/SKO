@@ -58,6 +58,7 @@ bool KE_Socket::Connect(std::string Hostname, int port)
 
 void KE_Socket::Cleanup()
 {
+	 printf("KE_Socket::Cleanup() called, this will likely break things.\r\n");
      SDLNet_Quit();
 }
 
@@ -74,7 +75,10 @@ void KE_Socket::Send(std::string packet)
 	 if (sock)
  		 if (SDLNet_TCP_Send(sock, packet.c_str(), len) < len)
   		 {
-			fprintf(stderr, "SDLNet_TCP_Send: %s\n", SDLNet_GetError());
+			fprintf(stderr, "KE_Socket::Send() error- SDLNet_TCP_Send: %s\r\n", SDLNet_GetError());
+			fprintf(stderr, "==== length: %i\r\n", len);
+			fprintf(stderr, "==== packet: %s\r\n", packet.c_str());
+
 			Close();
 		 }
 }

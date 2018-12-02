@@ -353,7 +353,7 @@ void setTitle()
 		title << "Stick Knights Online (Beta) v"
 			  << (int)VERSION_MAJOR << "."
 			  << (int)VERSION_MINOR << "."
-			  << (int)VERSION_PATCH << "   "
+			  << (int)VERSION_PATCH << " "
 			  << __DATE__ << " "
 			  << SERVER_IP << ":" << SERVER_PORT
 			  ;//<< " {Dev Version: 1.1.2A}";
