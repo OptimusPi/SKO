@@ -273,7 +273,8 @@ SKO_Item Item[256];
 //controls
 bool LEFT = false;
 bool RIGHT = false;
-int keyTicker = 0;
+unsigned long int keyTicker = 0;
+unsigned long int keyRepeatTicker = 0;
 int keyRepeat = 0;
 bool actionKeyDown = false;
 
@@ -4598,7 +4599,10 @@ void HandleUI()
 	//When a user is typing and holds down a key, repeat it
     if (keyRepeat && SDL_GetTicks() - keyTicker > 500)
     {
-        pressKey(keyRepeat);
+		if (SDL_GetTicks() - keyRepeatTicker > 20) {
+			pressKey(keyRepeat);
+			keyRepeatTicker = SDL_GetTicks();
+		}
     }
 
 	//if there are no SDL events then return to main loop
@@ -4792,7 +4796,6 @@ void HandleUI()
 			//disable space on jumping
 			if (keyRepeat == SDLK_SPACE && chat_box == 4)//4 is game
 				keyRepeat = 0;
-
 
 			//printf("Key is: %i\n", event.key.keysym.sym);
 			break;
