@@ -426,7 +426,6 @@ void screenOptions()
 
 void Text(int x, int y, std::string index, int R, int G, int B)
 {
-
      //use the oldest message
      //if there are no unplaced messages
      int open_object = 0;
@@ -482,10 +481,6 @@ void inventory()
 	}
 
 }
-
-
-
-
 
 
 //OPI_Images
@@ -1433,7 +1428,6 @@ void Button::handle_events(int ID)
                                    {
                                 	   unsigned int amount;
 							           std::string clanTag;
-									   char *p, b1, b2, b3, b4;
 
                                       switch (popup_gui_menu)
                                       {
@@ -1588,7 +1582,7 @@ void Button::handle_events(int ID)
                                 //trade, clan, or party?
                                 if (draw_gui && popup_gui_menu == 2)
                                 { guiHit = true;
-                                   std::string packet = "0";
+                                   
                                    //trade
                                    if (x > 322 && x < 449 && y > 401 && y < 416)
                                    {
@@ -2621,13 +2615,16 @@ construct_frame()
 	if (!contentLoaded)
 		return;
 
+	if (menu < 4)
+		scroll_sky();
+
 	if (MyID > -1)
 		current_map = Player[MyID].current_map;
 
 	//printf("camera_x : %i\n", (int)camera_x);
 	//printf("camera_y : %i\n", (int)camera_y);
 
-	glClearColor(0.01f, 0.01f, 0.05f, 1.0f);
+	glClearColor(0.00f, 0.00f, 0.00f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     if (loaded)
@@ -4002,10 +3999,7 @@ bool blocked(float box1_x1, float box1_y1, float box1_x2, float box1_y2)
 
 int pressKey(int key)
 {
-
    int returnKey = 0;
-   char *p, b1,b2,b3,b4;
-   std::string Packet = "";
 
    //movement
    if (menu == 4)//game
@@ -4607,22 +4601,13 @@ int pressKey(int key)
 void HandleUI()
 {
 
-	if (menu < 4)
-			scroll_sky();
-
-    std::string Packet;
-    char *p;
-    char b1, b2, b3, b4;
-
     if (keyRepeat && SDL_GetTicks() - keyTicker > 500)
     {
       pressKey(keyRepeat);
     }
 
-
     for (int loopVar = 0; loopVar < UI_LOOPS && (SDL_PollEvent (&event)); loopVar++)
     {
-
 
         int x = event.button.x;
         int y = event.button.y;
@@ -4632,7 +4617,6 @@ void HandleUI()
 
             //mouse clickies
             case SDL_MOUSEBUTTONDOWN:
-
 
             	if (!lclick){
 					//buttons!!
@@ -5631,8 +5615,6 @@ int main (int argc, char *argv[])
         Kill();
     }
 
-
-
     SDL_Delay(30);
 
     if (pthread_create(&physicsThread, NULL, PhysicsLoop, 0)){
@@ -5642,7 +5624,6 @@ int main (int argc, char *argv[])
 
     SDL_Delay(30);
 
-
     KE_Timestep *timestep = new KE_Timestep(60);
 
     printf("Starting input and graphics . . . \n");
@@ -5651,19 +5632,12 @@ int main (int argc, char *argv[])
     //Input & graphics
     while (!done)
     {
-
           timestep->Update();
 
+		  HandleUI();
           while (timestep->Check())
           {
-			#ifdef WINDOWS_OS
         	 HandleUI();
-			#endif
-
-			#ifdef MAC_OS
-			 HandleUI();
-			#endif
-
              Graphics();
           }
 
@@ -5725,9 +5699,6 @@ int numDigits(int num)
 
 void physics()
 {
-#ifdef LINUX_OS
-	HandleUI();
-#endif
 	if (menu != STATE_PLAY)
 		return;
 
