@@ -5058,6 +5058,8 @@ int main (int argc, char *argv[])
 	{
 		printf("ERROR! COULD NOT INIT SOUND!\n");
 		enableSND = false;
+		enableMUS = false;
+		enableSFX = false;
 	}
 
     std::ifstream optionFile("DAT/options.dat", std::ios::in|std::ios::binary|std::ios::ate);
