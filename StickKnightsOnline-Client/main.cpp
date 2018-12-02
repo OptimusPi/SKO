@@ -4861,9 +4861,6 @@ void HandleUI()
 
 void* Network(void *arg)
 {
-	//ping
-	unsigned int currentTime = SDL_GetTicks();
-
 	//connect normally
 	connectError = ConnectToSKOServer();
 	tryingToConnect = false;
