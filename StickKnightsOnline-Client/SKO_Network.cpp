@@ -12,6 +12,7 @@
 SKO_Network::SKO_Network()
 {
 	socket = new KE_Socket();
+	log = true;// turn this on for debugging log information
 }
 
 std::string SKO_Network::init(std::string server, unsigned short port)
@@ -274,9 +275,19 @@ void SKO_Network::sendChat(std::string message)
 template<typename First, typename ... Rest>
 void SKO_Network::send(First const& first, Rest const& ... rest)
 {
+	printf("SKO_Network send() called with packet code: %i\r\n", first);
+
 	//fill with formatted packet data
 	std::string packet = SKO_PacketFactory::getPacket(first, rest ...);
 	
+	printf("SKO_Network send() has created this packet: \r\n");
+
+	for (int i = 0; i < packet.length(); i++)
+	{
+		printf("[%i]", (unsigned char)packet[i]);
+	}
+	printf("\r\n\r\n");
+
 	//send packet
 	socket->Send(packet);
 }

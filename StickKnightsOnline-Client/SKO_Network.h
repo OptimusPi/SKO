@@ -80,4 +80,7 @@ class SKO_Network
 
 		template<typename First, typename ... Rest>
 		void send(First const& first, Rest const& ... rest);
+
+		//debug flag for logging
+		bool log;
 };

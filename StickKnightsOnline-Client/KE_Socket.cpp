@@ -3,7 +3,6 @@
 KE_Socket::KE_Socket()
 {           
 	Connected = false;
-	len = 0;
 	result = 0;
 	sock_set = NULL;
 	sock = NULL;
@@ -71,7 +70,8 @@ void KE_Socket::Close()
 
 void KE_Socket::Send(std::string packet)
 {
-     len = packet.length();
+     int len = packet.length();
+
 	 if (sock)
  		 if (SDLNet_TCP_Send(sock, packet.c_str(), len) < len)
   		 {
@@ -80,7 +80,7 @@ void KE_Socket::Send(std::string packet)
 			fprintf(stderr, "==== packet: ");
 
 			for (int i = 0; i < len; i++)
-				fprintf(stderr, "[%i]", packet[i]);
+				fprintf(stderr, "[%i]", (unsigned char)packet[i]);
 
 			fprintf(stderr, "\r\n\r\n");
 
