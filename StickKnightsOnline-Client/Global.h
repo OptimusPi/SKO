@@ -1,7 +1,20 @@
 // Temporary file until we get everything sorted
 
+#ifdef WINDOWS_OS
+	#include "SDL.h"
+	#include "SDL_mixer.h"
+#elif defined MAC_OS
+	#include <SDL/SDL.h>
+	#include <SDL/SDL_mixer.h> 
+#elif defined LINUX_OS
+	#include <SDL/SDL.h>
+	#include <SDL/SDL_mixer.h>
+	#include <GL/gl.h>
+#endif
+
+
+
 #include "OPI_Text.h"
-#include "SDL_mixer.h"
 #include "SKO_Player.h"
 #include "SKO_Map.h"
 #include "InputBox.h"
@@ -51,3 +64,8 @@ extern int selectedRemoteItem;
 extern bool shopBuyMode;
 extern int currentShop;
 extern int MyID;
+extern bool connectError;
+extern bool versionError;
+extern void TryToLogin();
+extern int chat_box;
+extern std::string username;

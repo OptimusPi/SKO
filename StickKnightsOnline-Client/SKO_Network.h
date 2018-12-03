@@ -2,7 +2,8 @@
 #include "KE_Socket.h"
 #include "SKO_PacketTypes.h"
 #include "SKO_PacketFactory.h"
-#include <string>
+#include "OPI_Text.h"
+#include <string> 
 
 class SKO_Network
 {
@@ -10,9 +11,11 @@ class SKO_Network
 		SKO_Network();
 		std::string init(std::string server, unsigned short port);
 		std::string connect();
-		std::string sendVersion(unsigned char major, unsigned char minor, unsigned char patch);
+		void disconnect();
+
+		void sendVersion(unsigned char major, unsigned char minor, unsigned char patch);
 		bool isConnected();
-		bool SKO_Network::TryReconnect(unsigned int timeout);
+		bool TryReconnect(unsigned int timeout);
 		
 		void receivePacket(bool);
 		void saveInventory(unsigned int [24][2]);
@@ -61,8 +64,8 @@ class SKO_Network
 		void checkPing();
 
 		//SKO account functions.
-		std::string createAccount(std::string, std::string);
-		std::string sendLoginRequest(std::string username, std::string password);
+		void createAccount(std::string, std::string);
+		void sendLoginRequest(std::string username, std::string password);
 		std::string getSaltedHash(std::string username, std::string password);
 	private:
 		//TCP Socket to SKO Server
@@ -79,4 +82,7 @@ class SKO_Network
 
 		template<typename First, typename ... Rest>
 		void send(First const& first, Rest const& ... rest);
+
+		//debug flag for logging
+		bool log;
 };

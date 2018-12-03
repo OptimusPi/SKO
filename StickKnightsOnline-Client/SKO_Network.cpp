@@ -4,20 +4,19 @@
 #include <sstream>
 
 #include "SKO_PacketTypes.h"
-#include "SKO_Network.h"
+#include "SKO_Network.h" 
 #include "KE_Socket.h"
 #include "hasher.h"
 #include "Global.h"
-#include "SDL_mixer.h"
 
 SKO_Network::SKO_Network()
 {
 	socket = new KE_Socket();
+	log = true;// turn this on for debugging log information
 }
 
 std::string SKO_Network::init(std::string server, unsigned short port)
 {
-
 	if (!socket->Startup()) {
 		socket->Cleanup();
 		return "error";
@@ -35,43 +34,22 @@ std::string SKO_Network::connect()
 {
 	if (!socket->Connect(this->server, this->port))
 	{
-		socket->Cleanup();
 		return "error";
 	}
 
 	return "success";
 }
 
+//Close networking
+void SKO_Network::disconnect()
+{
+	socket->Close();
+}
+
 //Send client version to validate newest software version
-std::string SKO_Network::sendVersion(unsigned char major, unsigned char minor, unsigned char patch)
+void SKO_Network::sendVersion(unsigned char major, unsigned char minor, unsigned char patch)
 {
 	send(VERSION_CHECK, VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, VERSION_OS);
-
-	if (!isConnected())
-	{
-		if (!TryReconnect(5000))
-			return "error";
-	}
-
-	//Receive a packet from the server
-	if (socket->BReceive() > 0)
-	{
-		if (socket->Data[1] == VERSION_SUCCESS)
-		{
-			socket->Data = socket->Data.substr(socket->Data[0]);
-			return "version correct";
-		}
-
-		if (socket->Data[1] == VERSION_FAIL)
-			return "version error";
-
-		if (socket->Data[1] == SERVER_FULL)
-			return "server full";
-	}
-	else
-	{
-		return "error";
-	}
 }
 
 bool SKO_Network::isConnected()
@@ -93,86 +71,19 @@ bool SKO_Network::TryReconnect(unsigned int timeout)
 
 // Request to create an account
 // Returns a string indicating success or error type
-std::string SKO_Network::createAccount(std::string desiredUsername, std::string desiredPassword)
+void SKO_Network::createAccount(std::string desiredUsername, std::string desiredPassword)
 {
 	send(REGISTER, desiredUsername, " ", getSaltedHash(desiredUsername, desiredPassword));
-
-
-	// Check connection first
-	if (!isConnected())
-	{
-		if (!TryReconnect(5000))
-			return "error";
-	}
-
-	//Receive a packet from the server
-	if (socket->BReceive() > 0)
-	{
-		int code = socket->Data[1];
-		socket->Data = "";
-		if (code == REGISTER_SUCCESS) // 8 is REGISTER_SUCCESS
-		{
-			// Register successfully, return successful to the client
-			return "success";
-		}
-		else if (code == REGISTER_FAIL_DOUBLE) // 9 is REGISTER_DOUBLE_DAIL
-		{
-			// Registration failed due to duplicate username in the database
-			return "username exists";
-		}
-
-		return "error";
-	}
-	else 
-	{
-		return "error";
-	}
+	Message[0].SetText("Creating your user...");
+	Message[1].SetText("");
 }
 
 // Request to login
 // Returns a string indicating success or error type
-std::string SKO_Network::sendLoginRequest(std::string username, std::string password)
+void SKO_Network::sendLoginRequest(std::string username, std::string password)
 {
 	std::string returnVal = "";
-
 	send(LOGIN, username, " ", getSaltedHash(username, password));
-
-	// Check connection first
-	if (!isConnected())
-	{
-		if (!TryReconnect(5000))
-			return "error";
-	}
-
-	//Receive a packet from the server
-	if (socket->BReceive() > 0)
-	{
-		int code = socket->Data[1];
-		if (code == LOGIN_SUCCESS)
-		{
-			MyID = socket->Data[2];
-			returnVal = "success";
-		}
-		else if (code == LOGIN_FAIL_DOUBLE)
-		{
-			returnVal = "already online";
-		}
-		else if (code == LOGIN_FAIL_NONE)
-		{
-			returnVal = "login failed";
-		}
-		else if (code == LOGIN_FAIL_BANNED)
-		{
-			returnVal = "banned";
-		}
-
-		socket->Data = "";
-		return returnVal;
-	}
-	else 
-	{
-		return "error";
-	}
 }
 
 // Send a clan creation request
@@ -2068,6 +1979,58 @@ void SKO_Network::receivePacket(bool connectErr)
 				for (int i = 0; i < 12; i++)
 					Message[i + 3].SetText(chat_line[i]->c_str());
 			}//end chat
+			else if (code == VERSION_SUCCESS)
+			{
+				Message[0].SetText("   You are connected to the server!");
+				Message[1].SetText("Login or create a new account to play.");
+			}
+			else if (code == VERSION_FAIL)
+			{
+				Message[0].SetText("Your game is out of date and needs to update. Please re-launch the game.");
+				Message[1].SetText("If that doesn't work, please visit StickKnightsOnline.com and reinstall.");
+			}
+			else if (socket->Data[1] == SERVER_FULL)
+			{
+				Message[0].SetText("                The server is full!");
+				Message[1].SetText("Join chat for help. www.StickKnightsOnline.com/chat");
+			}
+			else if (code == REGISTER_SUCCESS) // 8 is REGISTER_SUCCESS
+			{
+				// Register successfully, try to login
+				TryToLogin();
+			}
+			else if (code == REGISTER_FAIL_DOUBLE) // 9 is REGISTER_DOUBLE_DAIL
+			{
+				Message[0].SetText("    The username already exists...");
+				Message[1].SetText("Please try a different character name.");
+			}
+			else if (code == LOGIN_SUCCESS)
+			{
+				menu = STATE_LOADING;
+
+				MyID = socket->Data[2];
+				Player[MyID].Nick = username;
+				SetUsername(MyID);
+				Player[MyID].animation_ticker = SDL_GetTicks();
+				Player[MyID].Status = true;
+
+				chat_box = 4;//in-game chat (no chat status)
+			}
+			else if (code == LOGIN_FAIL_DOUBLE)
+			{
+				Message[0].SetText("   The username is already online. Please try again.");
+				Message[1].SetText("If your character is stuck online, tell a staff member.");
+			}
+			else if (code == LOGIN_FAIL_NONE)
+			{
+				Message[0].SetText("Wrong username or password.");
+				Message[1].SetText("    Please try again...");
+			}
+			else if (code == LOGIN_FAIL_BANNED)
+			{
+				Message[0].SetText("The username is banned. Please try a different account.");
+				Message[1].SetText("  Join chat for help. www.StickKnightsOnline.com/chat");
+			}
 			else 
 			{
 				//Unknown packets should not happen but might if they are parsed wrong or perhaps if the client is outdated

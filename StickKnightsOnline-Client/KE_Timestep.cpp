@@ -8,7 +8,6 @@ KE_Timestep::KE_Timestep(unsigned int FPS)
    newTime = 0;
    accumulator = 0;
    ready = false;
-
 }
 
 void KE_Timestep::Update()
