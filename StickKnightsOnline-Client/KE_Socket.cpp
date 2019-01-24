@@ -26,6 +26,8 @@ bool KE_Socket::Startup()
 
 bool KE_Socket::Connect(std::string Hostname, int port)
 {
+	printf("KE_Socket::Connect(%s, %i);\n", Hostname.c_str(), port);
+
 	Connected = false;
     IPaddress ip;
 
@@ -41,7 +43,7 @@ bool KE_Socket::Connect(std::string Hostname, int port)
 	if (!(sock = SDLNet_TCP_Open(&ip)))
 	{
 		std::string error = SDLNet_GetError();
-		fprintf(stderr, "SDLNet_TCP_Open: %s\n", error.c_str());
+		printf("Error from SDLNet_TCP_Open: %s\n", error.c_str());
 		return false;
 	}
 	

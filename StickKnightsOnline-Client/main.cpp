@@ -82,50 +82,6 @@ bool contentLoaded = false;
 std::string username, password;
 Hasher hasher;
 void TryToLogin();
-// moved to being defined in global.h
-// Packet Codes
-/*const char VERSION_CHECK = 255,
-           LOADED = 254,
-           SERVER_FULL = 253,
-           PONG = 252,
-           VERSION_MAJOR = 1,
-           VERSION_MINOR = 2,
-           VERSION_PATCH = 1,
-           VERSION_OS = MY_OS,
-           PING = 0,
-           CHAT = 1,
-
-           INVITE = 1,
-           CANCEL = 2,
-           BUSY = 3,
-           ACCEPT = 4,
-           CONFIRM = 5,
-           OFFER = 6,
-           READY = 7,
-
-           LOGIN = 2, REGISTER = 3,
-           LOGIN_SUCCESS = 4, LOGIN_FAIL_DOUBLE = 5, LOGIN_FAIL_NONE = 6,  LOGIN_FAIL_BANNED = 7,
-           REGISTER_SUCCESS = 8, REGISTER_FAIL_DOUBLE = 9,
-           MOVE_LEFT = 10, MOVE_RIGHT = 11, MOVE_JUMP = 12, MOVE_STOP = 13,
-           JOIN = 14, EXIT = 15,
-           VERSION_SUCCESS = 16, VERSION_FAIL = 17,
-           STAT_HP = 18, STAT_XP = 19, STAT_LEVEL = 20, STAT_STR = 21, STAT_DEF = 22,
-           STATMAX_HP = 23, STATMAX_XP = 24,
-           RESPAWN = 26,
-           SPAWN_ITEM = 27,
-			DESPAWN_ITEM = 28, POCKET_ITEM = 29, DEPOCKET_ITEM = 30, BANK_ITEM = 31, DEBANK_ITEM = 32,
-           STAT_POINTS = 33, ATTACK = 34,
-           ENEMY_ATTACK = 35, ENEMY_MOVE_LEFT = 36, ENEMY_MOVE_RIGHT = 37, ENEMY_MOVE_STOP = 38,
-           USE_ITEM = 39, EQUIP = 40, TARGET_HIT = 41, STAT_REGEN = 42,
-           DROP_ITEM = 43, TRADE = 44, PARTY = 45, CLAN = 46, BANK = 47, SHOP = 48, BUY = 49, SELL = 50,
-           ENEMY_HP = 51,
-           INVENTORY = 52,
-           BUDDY_XP = 53, BUDDY_HP = 54, BUDDY_LEVEL = 55,
-           WARP = 56,
-           SPAWN_TARGET = 57, DESPAWN_TARGET = 58,
-		   NPC_MOVE_LEFT = 59, NPC_MOVE_RIGHT = 60, NPC_MOVE_STOP = 61, NPC_TALK = 62,
-		   MAKE_CLAN = 63,
-		   CAST_SPELL = 64;*/
 
 // Maps and stuff ! :)
 const char NUM_MAPS = 6;
@@ -343,10 +299,6 @@ void inventory();
 
 void setTitle()
 {
-	
-	//get current date
-	time_t t = time(0);   // get time now
-	struct tm * now = localtime(&t);
 
 	std::stringstream title;
 		title << "Stick Knights Online (Beta) v"
@@ -460,7 +412,7 @@ void SetUsername(int i)
 
 	 printf("SetUsername(%i): %s %s\n", i, Player[i].Nick.c_str(), Player[i].str_clantag.c_str());
  	 Player[i].clantag.SetText(Player[i].str_clantag);
-     Player[i].nametag.SetText(Player[i].Nick);
+    Player[i].nametag.SetText(Player[i].Nick);
 }
 
 void inventory()
@@ -1221,7 +1173,7 @@ void Button::handle_events(int ID)
                                         if (clickWasRight && popup_gui_menu == 4 && Player[MyID].inventory[itmx][1] > 0)
                                         {
                                            int item = Player[MyID].inventory[itmx][0];
-                                           int amount = 0;
+                                           unsigned int amount = 0;
 
 
                                            //find if there's an item: om nom nom the amount
@@ -1236,7 +1188,7 @@ void Button::handle_events(int ID)
                                         if (clickWasRight && popup_gui_menu == 5 && Player[MyID].inventory[itmx][1] > 0)
                                         {
                                            int item = Player[MyID].inventory[itmx][0];
-                                           int amount = 0;
+                                           unsigned int amount = 0;
 
 
                                            //find if there's an item: om nom nom the amount
@@ -1272,7 +1224,7 @@ void Button::handle_events(int ID)
                                         if (clickWasRight && Player[MyID].localTrade[itmx][1] > 0)
                                         {
                                             int item = Player[MyID].localTrade[itmx][0];
-                                            int amount = 0;
+                                            unsigned int amount = 0;
 
 
                                            //find if there's an item: om nom nom the amount
@@ -1327,7 +1279,7 @@ void Button::handle_events(int ID)
                                         //bank items withdrawl
                                         if (clickWasRight && popup_gui_menu == 5 && Player[MyID].bank[btmx] > 0)
                                         {
-                                           int amount = Player[MyID].bank[btmx];
+                                           unsigned int amount = Player[MyID].bank[btmx];
 
                                            	if (amount >= offerIncrement)
                                            		amount = offerIncrement;
@@ -1782,7 +1734,7 @@ void Button::handle_events(int ID)
                                if (popup_gui_menu == 5)
                                {guiHit = true;
                                    int item = selectedBankItem;
-                                   int amount = Player[MyID].bank[selectedBankItem];
+                                   unsigned int amount = Player[MyID].bank[selectedBankItem];
 
                                    if (amount > 0)
                                    {
@@ -2239,7 +2191,7 @@ void Button::handle_events(int ID)
                                    /*update text*/
                                   //selected
                                   {
-                                      int amount = Player[MyID].inventory[selectedInventoryItem][1];
+                                      unsigned int amount = Player[MyID].inventory[selectedInventoryItem][1];
                                       std::stringstream ss_am;
                                       std::string s_am;
                                       int tamount = amount;
@@ -2274,7 +2226,7 @@ void Button::handle_events(int ID)
                                   }
                                   //hovered
                                   {
-                                      int amount = Player[MyID].inventory[itmx][1];
+                                      unsigned int amount = Player[MyID].inventory[itmx][1];
                                       std::stringstream ss_am;
                                       std::string s_am;
                                       int tamount = amount;
@@ -3465,12 +3417,13 @@ construct_frame()
                //items
                int i = 0;
                for(int y = 0; y < 4; y++)
+               {
                   for (int x = 0; x < 6; x++)
                   {
 
 
                       int item = Player[MyID].inventory[i][0];
-                      int amount = Player[MyID].inventory[i][1];
+                      unsigned int amount = Player[MyID].inventory[i][1];
 
                       int offset_x = (32-Item[item].w)/2;
                       int offset_y = (32-Item[item].h)/2;
@@ -3526,8 +3479,7 @@ construct_frame()
 
 
                   }
-
-
+               }
 
                   //equipment window
                   if (popup_gui_menu == 7)
@@ -3541,7 +3493,6 @@ construct_frame()
                      {
                         //draw the icon
                         DrawImage(465+(32-Item_img[eq].w)/2, 348+(32-Item_img[eq].h)/2,Item_img[eq]);
-
                      }
 
                      //draw the hat
@@ -3555,37 +3506,36 @@ construct_frame()
 
                      //draw the trophy
                      eq = Player[MyID].equipI[2];
-					  if (eq > 0)
-					  {
-						 //draw the icon
-						 DrawImage(330+(32-Item_img[eq].w)/2, 321+(32-Item_img[eq].h)/2,Item_img[eq]);
-					  }
-
-
-
-                     //where to draw the selector
-                     switch (equipmentSlot)
+                     if (eq > 0)
                      {
-                            case 0://sword
-                                    DrawImage(459, 347, inventorySelectorBox);
-                            break;
-                            case 1://hat
-                                   DrawImage(459, 273, inventorySelectorBox);
-                            break;
-                            case 2://trophy
-								   DrawImage(325, 316, inventorySelectorBox);
-							break;
-
-                            default:break;
+                        //draw the icon
+                        DrawImage(330+(32-Item_img[eq].w)/2, 321+(32-Item_img[eq].h)/2,Item_img[eq]);
                      }
 
 
-                     drawText(162);
-                     drawText(163);
-                     drawText(164);
-                     drawText(165);
 
+                  //where to draw the selector
+                  switch (equipmentSlot)
+                  {
+                  case 0://sword
+                     DrawImage(459, 347, inventorySelectorBox);
+                     break;
+                  case 1://hat
+                     DrawImage(459, 273, inventorySelectorBox);
+                     break;
+                  case 2://trophy
+                     DrawImage(325, 316, inventorySelectorBox);
+							break;
+
+                  default:
+                     break;
                   }
+
+                  drawText(162);
+                  drawText(163);
+                  drawText(164);
+                  drawText(165);
+               }
 
             }
             else if (popup_menu == 2)
@@ -3691,7 +3641,7 @@ construct_frame()
                       // LOCAL
                       //
                       int item = Player[MyID].localTrade[i][0];
-                      int amount = Player[MyID].localTrade[i][1];
+                      unsigned int amount = Player[MyID].localTrade[i][1];
 
 
                       if (amount > 0)
@@ -3784,7 +3734,7 @@ construct_frame()
                       // bank items :)
                       //
                       int item = i;
-                      int amount = Player[MyID].bank[i];
+                      unsigned int amount = Player[MyID].bank[i];
 
 
                       // if (amount > 0)
@@ -3855,7 +3805,7 @@ construct_frame()
                       // shop
                       //
 					  int item = 0;
-					  int amount = 0;
+					  unsigned int amount = 0;
 
 					  if (shopBuyMode)
 					  {
@@ -4870,22 +4820,26 @@ void* Network(void *arg)
 
 	// If client could not connect upon opening the game
 	// patiently reconnect until a connection is made or the user exists the game.
-	for (int i = 0; connectError && i < 15; i++)
+	for (int i = 0; connectError && i < 10; i++)
 	{
-		if (Client.TryReconnect(2000))
+		if (Client.TryReconnect(1000))
 		{
 			connectError = false;
-			Message[0].SetText("   You are connected to the server!");
-			Message[1].SetText("Login or create a new account to play.");
+			Client.sendVersion(VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
 		}
 		else
 		{
-			std::string message = "Trying to reconnect for 30 seconds";
+			std::string message = "    Trying to reconnect for 10 seconds";
 			for (int dot = 0; dot < i; dot++)
-				message += ".";
+				message += "...";
 			Message[1].SetText(message);
 		}
 	}
+
+   if (connectError) 
+   {
+      Message[1].SetText("Try again later? Use www.StickKnightsOnline.com/Chat for help!");
+   }
 
 	while (!done && !connectError && !versionError)
 	{
@@ -4980,7 +4934,7 @@ void loadContent()
 			}
 			else
 			{
-				printf("Loaded %i tile images.", i);
+				printf("Loaded %i tile images.\n", i);
 				break;
 			}
 	}
@@ -5665,7 +5619,7 @@ bool ConnectToSKOServer()
     if (Client.connect() == "error")
     {
         Message[0].SetText("There was an error connecting to the server!");
-        Message[1].SetText("Trying to reconnect for 30 seconds");
+        Message[1].SetText("");
         return true;
     }
 
@@ -6473,13 +6427,13 @@ void Disconnect()
 	menu = STATE_DISCONNECT;
 	Graphics();
 
-	//Try reconnecting for 30 seconds
-	if (Client.TryReconnect(30000))
+	//Try reconnecting for 10 seconds
+	if (Client.TryReconnect(10000))
 	{
 		if (loaded)
 			TryToLogin();
 	}
-	else 
+	else
 	{
 		Kill();
 	}

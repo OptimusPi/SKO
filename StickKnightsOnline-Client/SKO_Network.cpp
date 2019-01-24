@@ -60,9 +60,9 @@ bool SKO_Network::isConnected()
 bool SKO_Network::TryReconnect(unsigned int timeout)
 {
 	unsigned long int startTime = SDL_GetTicks();
-	while (connect() != "success" && SDL_GetTicks() - startTime < timeout);
+	while (connect() != "success" && SDL_GetTicks() - startTime < timeout)
 	{ 
-		SDL_Delay(100); 
+		SDL_Delay(500); 
 	} 
 
 	socket->Data = "";
@@ -305,7 +305,7 @@ std::string SKO_Network::getSaltedHash(std::string username, std::string passwor
 void SKO_Network::checkPing()
 {
 	//get the ping
-	if (menu == STATE_PLAY && (SDL_GetTicks() - pingRequestTicker) >= 950 && !pingWaiting)
+	if (menu == STATE_PLAY && (SDL_GetTicks() - pingRequestTicker) >= 314 && !pingWaiting)
 	{
 		unsigned int currentTime = SDL_GetTicks();
 
@@ -323,7 +323,7 @@ void SKO_Network::checkPing()
 void SKO_Network::receivePacket(bool connectErr)
 {
 	unsigned int currentTime;
-	int code = 0;
+	unsigned char code = 0;
 	int data_len = 0;
 	int pack_len = 0;
 	int ping = 0;
@@ -365,15 +365,21 @@ void SKO_Network::receivePacket(bool connectErr)
 		//rip the command
 		code = socket->Data[1];
 
-
-		//respond to server's PING or die!
-		if (code == PING)
+		if (code == DISCONNECT)
 		{
+			printf("You were forcefully disconnected from the server. Goodbye!\n");
+			//Kill the client without grace because the server wants to kill this client's connection
+			exit(DISCONNECT);
+		}
+		else if (code == PING)
+		{
+			//respond to server's PING or die!
 			send(PONG);
 		}
-		else
-			if (code == PONG)
+		else if (code == PONG)
 			{
+				//tell the counters that the ping came back
+				pingWaiting = false;
 
 				//calculate the ping
 				ping = currentTime - pingRequestTime;
@@ -381,7 +387,6 @@ void SKO_Network::receivePacket(bool connectErr)
 				//show the ping
 				std::stringstream ss;
 				ss << "Ping:   ";
-				// ss << (float)(ping+ping_old)/2.0;
 				ss << ping;
 				Message[15].SetText(ss.str());
 
@@ -390,26 +395,31 @@ void SKO_Network::receivePacket(bool connectErr)
 					Message[15].G = 255 / 255.0;
 					Message[15].B = 150 / 255.0;
 				}
-				else
-					if (ping < 100) {
-						Message[15].R = 230 / 255.0;
-						Message[15].G = 255 / 255.0;
-						Message[15].B = 90 / 255.0;
-					}
-					else
-						if (ping < 250) {
-							Message[15].R = 255 / 255.0;
-							Message[15].G = 200 / 255.0;
-							Message[15].B = 150 / 255.0;
-						}
-						else {
-							Message[15].R = 255 / 255.0;
-							Message[15].G = 80 / 255.0;
-							Message[15].B = 80 / 255.0;
-						}
-
-						//tell the counters that the ping came back
-						pingWaiting = false;
+				else if (ping < 75) {
+					Message[15].R = 180 / 255.0;
+					Message[15].G = 255 / 255.0;
+					Message[15].B = 100 / 255.0;
+				}
+				else if (ping < 100) {
+					Message[15].R = 230 / 255.0;
+					Message[15].G = 255 / 255.0;
+					Message[15].B = 90 / 255.0;
+				}
+				else if (ping < 200) {
+					Message[15].R = 245 / 255.0;
+					Message[15].G = 240 / 255.0;
+					Message[15].B = 130 / 255.0;
+				}
+				else if (ping < 250) {
+					Message[15].R = 255 / 255.0;
+					Message[15].G = 200 / 255.0;
+					Message[15].B = 150 / 255.0;
+				}
+				else {
+					Message[15].R = 255 / 255.0;
+					Message[15].G = 80 / 255.0;
+					Message[15].B = 80 / 255.0;
+				}
 			}
 			else if (code == LOADED)
 			{
@@ -943,7 +953,6 @@ void SKO_Network::receivePacket(bool connectErr)
 
 				//hold the result...
 				float numx;
-
 
 				//build a float from 4 bytes
 				((char*)&numx)[0] = socket->Data[3];
