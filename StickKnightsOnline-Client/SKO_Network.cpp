@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <sstream>
 
+#include "OPI_Clock.h"
+#include "OPI_Sleep.h"
 #include "SKO_PacketTypes.h"
 #include "SKO_Network.h" 
 #include "KE_Socket.h"
@@ -59,11 +61,11 @@ bool SKO_Network::isConnected()
 
 bool SKO_Network::TryReconnect(unsigned int timeout)
 {
-	unsigned long int startTime = SDL_GetTicks();
-	while (connect() != "success" && SDL_GetTicks() - startTime < timeout)
+	unsigned long long int startTime = OPI_Clock::milliseconds();
+	while (connect() != "success" && OPI_Clock::milliseconds() - startTime < timeout)
 	{ 
-		SDL_Delay(500); 
-	} 
+		OPI_Sleep::milliseconds(100);
+	}
 
 	socket->Data = "";
 	return isConnected();
@@ -305,9 +307,9 @@ std::string SKO_Network::getSaltedHash(std::string username, std::string passwor
 void SKO_Network::checkPing()
 {
 	//get the ping
-	if (menu == STATE_PLAY && (SDL_GetTicks() - pingRequestTicker) >= 314 && !pingWaiting)
+	if (menu == STATE_PLAY && (OPI_Clock::milliseconds() - pingRequestTicker) >= 314 && !pingWaiting)
 	{
-		unsigned int currentTime = SDL_GetTicks();
+		unsigned long long int currentTime = OPI_Clock::milliseconds();
 
 		if (socket->Connected) {
 			send(PING);
@@ -337,7 +339,7 @@ void SKO_Network::receivePacket(bool connectErr)
 	// If the data holds a complete data
 	data_len = socket->Data.length();
 	pack_len = 0;
-	currentTime = SDL_GetTicks();
+	currentTime = OPI_Clock::milliseconds();
 
 
 	if (data_len > 0)
@@ -886,8 +888,8 @@ void SKO_Network::receivePacket(bool connectErr)
 				if (type == 0) // enemy
 				{
 					map[current_map]->Enemy[id].hit = true;
-					map[current_map]->Enemy[id].hit_ticker = SDL_GetTicks();
-					map[current_map]->Enemy[id].hp_ticker = SDL_GetTicks() + 1500;
+					map[current_map]->Enemy[id].hit_ticker = OPI_Clock::milliseconds();
+					map[current_map]->Enemy[id].hp_ticker = OPI_Clock::milliseconds() + 1500;
 					float px = map[current_map]->Enemy[id].x - camera_x;
 					float py = map[current_map]->Enemy[id].y - camera_y;
 					if (px > -32 && px < 1024 && py > -32 && py < 600)
@@ -896,7 +898,7 @@ void SKO_Network::receivePacket(bool connectErr)
 				else if (type == 1) // player
 				{
 					Player[id].hit = true;
-					Player[id].hit_ticker = SDL_GetTicks();
+					Player[id].hit_ticker = OPI_Clock::milliseconds();
 					float px = Player[id].x - camera_x;
 					float py = Player[id].y - camera_y;
 					if (px > -32 && px < 1024 && py > -32 && py < 600)
@@ -2020,10 +2022,11 @@ void SKO_Network::receivePacket(bool connectErr)
 				MyID = socket->Data[2];
 				Player[MyID].Nick = username;
 				SetUsername(MyID);
-				Player[MyID].animation_ticker = SDL_GetTicks();
+				Player[MyID].animation_ticker = OPI_Clock::milliseconds();
 				Player[MyID].Status = true;
 
 				chat_box = 4;//in-game chat (no chat status)
+				printf("MyId becomes: %i and Player[MyID] party is: %i\n", MyID, Player[MyID].party);
 			}
 			else if (code == LOGIN_FAIL_DOUBLE)
 			{

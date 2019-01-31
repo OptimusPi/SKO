@@ -17,6 +17,10 @@
 #include <sstream>
 #include <cmath>
 #include <cctype>
+#include <thread>
+#include <chrono>
+#include "OPI_Sleep.h"
+#include "OPI_Clock.h"
 
 #ifdef WINDOWS_OS
 	#include "SDL.h"
@@ -39,7 +43,6 @@
 	#include <GL/gl.h>
 #endif
 
-#include "pthread.h"
 #include "OPI_Text.h"
 #include "SKO_Player.h"
 #include "SKO_Enemy.h"
@@ -118,7 +121,7 @@ bool done = false;
 bool lclick = false;
 bool rclick = false;
 long int cosmeticTicker;
-long int cosmeticTime = 100;
+unsigned long long int cosmeticTime = 100;
 bool connectError = false;
 bool versionError = false;
 bool fatalNetworkError = false;
@@ -223,14 +226,16 @@ int hoveredShopItemY = -1;
 //players
 SKO_Player Player[MAX_CLIENTS];
 
+
+
 //items
 SKO_Item Item[256];
 
 //controls
 bool LEFT = false;
 bool RIGHT = false;
-unsigned long int keyTicker = 0;
-unsigned long int keyRepeatTicker = 0;
+unsigned long long int keyTicker = 0;
+unsigned long long int keyRepeatTicker = 0;
 int keyRepeat = 0;
 bool actionKeyDown = false;
 
@@ -256,7 +261,7 @@ std::string *chat_line[NUM_CHAT_LINES];
 //int animation_speed = 90;
 //went from 8 frames to 6 frames
 float animation_speed = 90;
-int attack_speed = 40;
+unsigned long long int attack_speed = 40;
 
 //music
 Mix_Music *music = NULL;
@@ -2030,10 +2035,10 @@ void Button::handle_events(int ID)
                            break;
 
                            case 42:
-                                   if (Player[MyID].party >= 0)
-                                   {
-									   Client.cancelParty();
-                                   }
+                              if (Player[MyID].party >= 0)
+                              {
+                                 Client.cancelParty();
+                              }
                            break;
 
                            case 43:
@@ -2851,7 +2856,7 @@ construct_frame()
 			  }
             }
 
-            if ((Uint32)enemy.hp_ticker > SDL_GetTicks())
+            if ((Uint32)enemy.hp_ticker > OPI_Clock::milliseconds())
             {
                 //draw hp above their heads, centered
                 float barX = enemy.x +
@@ -4547,11 +4552,11 @@ int pressKey(int key)
 void HandleUI()
 {
 	//When a user is typing and holds down a key, repeat it
-    if (keyRepeat && SDL_GetTicks() - keyTicker > 500)
+    if (keyRepeat && OPI_Clock::milliseconds() - keyTicker > 500)
     {
-		if (SDL_GetTicks() - keyRepeatTicker > 20) {
+		if (OPI_Clock::milliseconds() - keyRepeatTicker > 20) {
 			pressKey(keyRepeat);
-			keyRepeatTicker = SDL_GetTicks();
+			keyRepeatTicker = OPI_Clock::milliseconds();
 		}
     }
 
@@ -4740,7 +4745,7 @@ void HandleUI()
 
 			//keys
 		case SDL_KEYDOWN:
-			keyTicker = SDL_GetTicks();
+			keyTicker = OPI_Clock::milliseconds();
 			keyRepeat = pressKey(event.key.keysym.sym);
 
 			//disable space on jumping
@@ -4752,7 +4757,7 @@ void HandleUI()
 
 
 		case SDL_KEYUP:
-			keyTicker = SDL_GetTicks();
+			keyTicker = OPI_Clock::milliseconds();
 			keyRepeat = 0;
 
 			switch (event.key.keysym.sym)
@@ -4809,14 +4814,11 @@ void HandleUI()
 	}
 }//end handle ui
 
-void* Network(void *arg)
+void Network()
 {
 	//connect normally
 	connectError = ConnectToSKOServer();
 	tryingToConnect = false;
-
-	if (fatalNetworkError)
-		return NULL;
 
 	// If client could not connect upon opening the game
 	// patiently reconnect until a connection is made or the user exists the game.
@@ -4854,36 +4856,39 @@ void* Network(void *arg)
 
 		Client.receivePacket(connectError);
 		Client.checkPing();
-		SDL_Delay(1);
+		OPI_Sleep::microseconds(100);
 	}
 
 	//Close connection gracefully
 	Client.disconnect();
-
-	return NULL;
 }
 
-void* PhysicsLoop(void *arg)
+void Graphics();
+
+
+void PhysicsLoop()
 {
 	KE_Timestep *timestep = new KE_Timestep(60);
 
 	while (!done)
 	{
-		//update the timestep
 		timestep->Update();
 
+      bool draw = false;
 		while (timestep->Check())
 		{
 			physics();
+         HandleUI();
+         draw = true;
 		}
+      
+      if (draw)
+         Graphics();
 
-		/* Don't run too fast */
-		SDL_Delay(1);
+		OPI_Sleep::microseconds(1);
 	}
-	return NULL;
 }
 
-void Graphics();
 
 /* loadContent - this is both a place to store
  * 	hard-coded content as a "TODO" to fix in the future
@@ -4955,6 +4960,8 @@ int main (int argc, char *argv[])
 {
 
 #endif
+printf("Initial value of blank player party: %i\n", Player[0].party);
+
 	std::string hashTestResult = hasher.Hash(toLower("pASsWoRD"));
 	printf("Testing hasher...%s\r\n", hashTestResult.c_str());
 
@@ -5531,11 +5538,12 @@ int main (int argc, char *argv[])
 
     //initialize all the clients
     for ( int i = 0; i < MAX_CLIENTS; i++ )
-	{
+	 {
         Player[i] = SKO_Player();
     }
+   printf("After SKO_Player(): Player[0] party is: %i\n", Player[0].party);
 
-    loadContent();
+   loadContent();
 
 	if (enableSND && enableMUS)
 	{
@@ -5545,61 +5553,26 @@ int main (int argc, char *argv[])
 			printf("music played ok.");
 	}
 
-    //start drawing
-    pthread_t networkThread, physicsThread; //GraphicsThread;
+   printf("Starting network thread . . . \n");
+   std::thread networkThread(Network);
 
-    //here goes nothin'
-    if (pthread_create(&networkThread, NULL, Network, 0)){
-        printf("Could not create thread for Network...\n");
-        Kill();
-    }
+   OPI_Sleep::milliseconds(100);
 
-    SDL_Delay(100);
+   printf("Starting input and graphics . . . \n");
+   PhysicsLoop();
 
-    if (pthread_create(&physicsThread, NULL, PhysicsLoop, 0)){
-        printf("Could not create thread for Physics...\n");
-        Kill();
-    }
-
-    SDL_Delay(100);
-
-    KE_Timestep *timestep = new KE_Timestep(60);
-
-    printf("Starting input and graphics . . . \n");
-
-
-    //Input & graphics
-    while (!done)
-    {
-          timestep->Update();
-
-		  //limit graphics to about 60FPS but it can be lower if there is not enough processing power
-		  if (timestep->Check())
-		  {
-			  Graphics();
-		  }
-
-		  // With a sleep of 1 millisecond, 
-		  // UI handler will fire at max 1000 times per second
-		  // minus however long it takes to draw graphics
-		  HandleUI();
-          SDL_Delay(1);
-    }
-
-    printf("done == true. joining threads.\r\n");
-
-	pthread_join(networkThread, NULL);
-	pthread_join(physicsThread, NULL);
+   printf("done == true. joining threads.\r\n");
+	networkThread.join();
 
 	printf("Quitting Stick Knights Online.");
 	SDL_Quit();
-    return 0;
+   return 0;
 }//end main
 
 void Graphics()
 {
 	//Clear color buffer
-	glClear( GL_COLOR_BUFFER_BIT );
+	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
     //graphics
     construct_frame();
@@ -5654,7 +5627,7 @@ void physics()
 	for (int i = 0; i < map[current_map]->num_enemies; i++)
 	{
 		//turn off flash effect
-		if (map[current_map]->Enemy[i].hit && SDL_GetTicks() - map[current_map]->Enemy[i].hit_ticker > 100)
+		if (map[current_map]->Enemy[i].hit && OPI_Clock::milliseconds() - map[current_map]->Enemy[i].hit_ticker > 100)
 		{
 			map[current_map]->Enemy[i].hit = false;
 		}
@@ -5763,17 +5736,17 @@ void physics()
 		if ((map[current_map]->Enemy[i].x_speed != 0 && map[current_map]->Enemy[i].ground) || map[current_map]->Enemy[i].attacking)
 		{
 			//if it is time to change the frame
-			if (!map[current_map]->Enemy[i].attacking && SDL_GetTicks() - map[current_map]->Enemy[i].animation_ticker >= (unsigned int)animation_speed)
+			if (!map[current_map]->Enemy[i].attacking && OPI_Clock::milliseconds() - map[current_map]->Enemy[i].animation_ticker >= animation_speed)
 			{
 				map[current_map]->Enemy[i].current_frame++;
 
 				if (map[current_map]->Enemy[i].current_frame >= 6)
 					map[current_map]->Enemy[i].current_frame = 0;
 
-				map[current_map]->Enemy[i].animation_ticker = SDL_GetTicks();
+				map[current_map]->Enemy[i].animation_ticker = OPI_Clock::milliseconds();
 			}
 			//if it is time to change the frame
-			if (map[current_map]->Enemy[i].attacking && SDL_GetTicks() - map[current_map]->Enemy[i].attack_ticker >= attack_speed / 2.0)
+			if (map[current_map]->Enemy[i].attacking && OPI_Clock::milliseconds() - map[current_map]->Enemy[i].attack_ticker >= attack_speed / 2.0)
 			{
 				map[current_map]->Enemy[i].current_frame++;
 
@@ -5783,7 +5756,7 @@ void physics()
 					if (map[current_map]->Enemy[i].attacking)
 						map[current_map]->Enemy[i].attacking = false;
 				}
-				map[current_map]->Enemy[i].attack_ticker = SDL_GetTicks();
+				map[current_map]->Enemy[i].attack_ticker = OPI_Clock::milliseconds();
 			}
 		}
 		else
@@ -5903,14 +5876,14 @@ void physics()
 		if ((map[current_map]->NPC[i].x_speed != 0 && map[current_map]->NPC[i].ground))
 		{
 			//if it is time to change the frame
-			if (SDL_GetTicks() - map[current_map]->NPC[i].animation_ticker >= (unsigned int)animation_speed)
+			if (OPI_Clock::milliseconds() - map[current_map]->NPC[i].animation_ticker >= animation_speed)
 			{
 				map[current_map]->NPC[i].current_frame++;
 
 				if (map[current_map]->NPC[i].current_frame >= 6)
 					map[current_map]->NPC[i].current_frame = 0;
 
-				map[current_map]->NPC[i].animation_ticker = SDL_GetTicks();
+				map[current_map]->NPC[i].animation_ticker = OPI_Clock::milliseconds();
 			}
 
 		}
@@ -5925,7 +5898,7 @@ void physics()
 		if (Player[i].Status && Player[i].current_map == current_map)
 		{
 			//turn off flash effect
-			if (Player[i].hit && SDL_GetTicks() - Player[i].hit_ticker > 100)
+			if (Player[i].hit && OPI_Clock::milliseconds() - Player[i].hit_ticker > 100)
 			{
 				Player[i].hit = false;
 			}
@@ -6084,7 +6057,7 @@ void physics()
 					Player[i].x_speed = 0;
 
 				//cosmetic updates
-				if (SDL_GetTicks() - cosmeticTicker >= (unsigned int)cosmeticTime)
+				if (OPI_Clock::milliseconds() - cosmeticTicker >= cosmeticTime)
 				{
 					//coordinates
 					std::stringstream ss;
@@ -6195,6 +6168,7 @@ void physics()
 						{
 							if (Player[MyID].party >= 0 && Player[pp].party == Player[MyID].party)
 							{
+                        printf("Player party is: %i\n", Player[MyID].party);
 								Player[MyID].nametag.R = 0.2;
 								Player[MyID].nametag.G = 0.9;
 								Player[MyID].nametag.B = 0.2;
@@ -6275,8 +6249,6 @@ void physics()
 
 									buddy++;
 								}
-
-
 							}
 							else //(not in party)
 							{
@@ -6288,7 +6260,7 @@ void physics()
 					}
 
 
-					cosmeticTicker = SDL_GetTicks();
+					cosmeticTicker = OPI_Clock::milliseconds();
 				}
 			}
 
@@ -6299,17 +6271,18 @@ void physics()
 			if ((Player[i].x_speed != 0 && Player[i].ground) || Player[i].attacking)
 			{
 				//if it is time to change the frame
-				if (!Player[i].attacking && SDL_GetTicks() - Player[i].animation_ticker >= (unsigned int)animation_speed)
+				if (!Player[i].attacking && OPI_Clock::milliseconds() - Player[i].animation_ticker >= animation_speed)
 				{
 					Player[i].current_frame++;
 
 					if (Player[i].current_frame >= 6)
 						Player[i].current_frame = 0;
 
-					Player[i].animation_ticker = SDL_GetTicks();
+					Player[i].animation_ticker = OPI_Clock::milliseconds();
 				}
+
 				//if it is time to change the frame
-				if (Player[i].attacking && SDL_GetTicks() - Player[i].attack_ticker >= (unsigned int)attack_speed)
+				if (Player[i].attacking && OPI_Clock::milliseconds() - Player[i].attack_ticker >= attack_speed)
 				{
 					Player[i].current_frame++;
 
@@ -6319,7 +6292,7 @@ void physics()
 						if (Player[i].attacking)
 							Player[i].attacking = false;
 					}
-					Player[i].attack_ticker = SDL_GetTicks();
+					Player[i].attack_ticker = OPI_Clock::milliseconds();
 				}
 			}
 			else // reset to standing frame!

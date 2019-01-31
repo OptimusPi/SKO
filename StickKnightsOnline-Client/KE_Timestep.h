@@ -1,15 +1,7 @@
 #ifndef KE_TIMESTEP
 #define KE_TIMESTEP
 
-
 #include <iostream>
-
-#include "operating_system.h"
-#ifdef WINDOWS_OS
-	#include "SDL.h"
-#else
-	#include <SDL/SDL.h>
-#endif
 
 /*
  * KE_Engine 
@@ -20,7 +12,9 @@
  * Created: 09/27/2010
  * Revised: 12/8/2010 //added support for clock_t or SDL
  * Revised: 1/10/2011 //added fix for spiral of death
- * 7/16/2011 no library.h
+ * Revised: 7/16/2011 //no library.h
+ * Revised: 1/30/2019 // using std::chrono instead of SDL
+ * 
  */
  
 class KE_Timestep
@@ -30,10 +24,10 @@ class KE_Timestep
             bool ready; 
              
             //timestep
-            unsigned long int frameTime;
-            unsigned long int currentTime;
-            unsigned long int accumulator;
-            unsigned long int newTime;
+            unsigned long long int frameTime;
+            unsigned long long int currentTime;
+            unsigned long long int accumulator;
+            unsigned long long int newTime;
 
       public:
             //functions

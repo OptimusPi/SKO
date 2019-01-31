@@ -92,19 +92,15 @@ void KE_Socket::Send(std::string packet)
 
 int KE_Socket::Receive()
 {
-    
     result = 0;
     
     //only receive if there is data
     if (SDLNet_CheckSockets(sock_set, 0))
     {
-         //time = clock();
+        //time = clock();
     	// receive some text from sock
     	result = SDLNet_TCP_Recv(sock,msg,MAXLEN);
-        //printf("\t* TIME IS: %i\n", SDL_GetTicks()); 
-        if (result > 0) {
-           //printf("\t* * * TIME IS: %i\n", SDL_GetTicks());        
-           
+        if (result > 0) {   
            Data.append(msg, result);  
         } else if (result == 0){
 			printf("There was an error in KE_Socket::Receive(): \r\n");
