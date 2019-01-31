@@ -29,8 +29,8 @@ public:
        
       bool facing_right; 
       bool ground;
-      int current_frame;
-      int animation_ticker;
+      unsigned int current_frame;
+      unsigned long long int animation_ticker;
       std::string final;
 
   	static const int NUM_LINES = 10;

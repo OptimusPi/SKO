@@ -699,7 +699,7 @@ void drawText(int i)
 		drawText(Message[i]);
 }
 
-void DrawImageFuncL( float x, float y, OPI_Image img)
+void DrawImagefuncL( float x, float y, OPI_Image img)
 {
 	float rotation = 180.0;
 	 glTranslatef( x + img.w/2, y + img.h/2, 0);
@@ -738,7 +738,7 @@ void DrawImageFuncL( float x, float y, OPI_Image img)
 
 	     glLoadIdentity();
 }
-void DrawImageFunc( float x, float y, OPI_Image img)
+void DrawImagefunc( float x, float y, OPI_Image img)
 {
 	//pixel perfect drawing
 	     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -770,21 +770,21 @@ void DrawImagef( float x, float y, OPI_Image img)
 
      glBindTexture( GL_TEXTURE_2D,  img.texture);
 
-     DrawImageFunc( x, y, img);
+     DrawImagefunc( x, y, img);
 
 }
 void DrawImage( float x, float y, OPI_Image img)
 {
 	DrawImagef((int)x, (int)y, img);
 }
-void DrawImageL(float x, float y, OPI_Image img)
+void DrawImagefL(float x, float y, OPI_Image img)
 {
 	glBindTexture( GL_TEXTURE_2D,  img.texture);
-	DrawImageFuncL( x, y, img);
+	DrawImagefuncL( x, y, img);
 }
 
 
-void DrawImageRotatedL( float x, float y, OPI_Image img, float rotation)
+void DrawImagefRotatedL( float x, float y, OPI_Image img, float rotation)
 {
 	 glTranslatef( x + img.w/2, y + img.h/2, 0);
 
@@ -827,7 +827,7 @@ void DrawImageRotatedL( float x, float y, OPI_Image img, float rotation)
 
 }
 
-void DrawImageRotated( float x, float y, OPI_Image img, float rotation)
+void DrawImagefRotated( float x, float y, OPI_Image img, float rotation)
 {
 
 	 glTranslatef( x + img.w/2, y + img.h/2, 0);
@@ -2629,7 +2629,7 @@ construct_frame()
 		  draw_x < 1024 &&
 		  draw_y < 600 &&
 		  draw_y >= 0-tile_img[map[current_map]->tile[i]].h)
-	   DrawImage(draw_x, draw_y, tile_img[map[current_map]->tile[i]]);
+	   DrawImagef(draw_x, draw_y, tile_img[map[current_map]->tile[i]]);
 
 	   //printf("\nDraw_x=%i draw_y=%i tile[i]=%i i=%i\n", draw_x, draw_y, map[current_map]->tile[i], i);
 
@@ -2639,48 +2639,48 @@ construct_frame()
     if (draw_gui && menu < 4 && menu != STATE_DISCONNECT)
     {
     	//draw logo banner
-    	DrawImage(168, 100, banner_img);
+    	DrawImagef(168, 100, banner_img);
 
     	if (menu == STATE_TITLE)
     	{
-    			DrawImage(428, 220, blank_button_img);
-				DrawImage(428, 220, login_button_img);
+    			DrawImagef(428, 220, blank_button_img);
+				DrawImagef(428, 220, login_button_img);
 
-				DrawImage(428, 310, blank_button_img);
-				DrawImage(428, 310, create_button_img);
+				DrawImagef(428, 310, blank_button_img);
+				DrawImagef(428, 310, create_button_img);
 
-				DrawImage(428, 400, blank_button_img);
-				DrawImage(428, 400, quit_button_img);
+				DrawImagef(428, 400, blank_button_img);
+				DrawImagef(428, 400, quit_button_img);
     	}
 
 		if (draw_gui && (menu == STATE_LOGIN || menu == STATE_CREATE))
 		{
 
 		   //draw credentials bars
-		   DrawImage(364, 223, cred_bar);
-		   DrawImage(364, 277, cred_bar);
+		   DrawImagef(364, 223, cred_bar);
+		   DrawImagef(364, 277, cred_bar);
 
 		   if (chat_box == 1)
 		   {
-			  DrawImage(uSeek*8+366, 224, chatcursor);
+			  DrawImagef(uSeek*8+366, 224, chatcursor);
 		   }
 		   if (chat_box == 2)
 		   {
-			  DrawImage(pSeek*8+366, 278, chatcursor);
+			  DrawImagef(pSeek*8+366, 278, chatcursor);
 		   }
 
 		   //[PLAY]
-		   DrawImage(428, 310, blank_button_img);
-		   DrawImage(428, 310, play_button_img);
+		   DrawImagef(428, 310, blank_button_img);
+		   DrawImagef(428, 310, play_button_img);
 
 		   //[BACK]
-		   DrawImage(428, 400, blank_button_img);
-		   DrawImage(428, 400, back_button_img);
+		   DrawImagef(428, 400, blank_button_img);
+		   DrawImagef(428, 400, back_button_img);
 
 		}
 
 		//draw vignette shadow
-		DrawImage(0, 0, shadow);
+		DrawImagef(0, 0, shadow);
 
     }
     else if (menu == STATE_PLAY)
@@ -2692,7 +2692,7 @@ construct_frame()
        {
          if (map[current_map]->ItemObj[i].status)
          {
-            DrawImage(map[current_map]->ItemObj[i].x - camera_x,
+            DrawImagef(map[current_map]->ItemObj[i].x - camera_x,
             		  map[current_map]->ItemObj[i].y - camera_y,
             		  Item_img[(int)map[current_map]->ItemObj[i].itemID]);
          }
@@ -2704,7 +2704,7 @@ construct_frame()
        		SKO_Target target = map[current_map]->Target[i];
 
        		if (target.active)
-       			DrawImage(target.x - camera_x, target.y - camera_y, target_img[target.pic]);
+       			DrawImagef(target.x - camera_x, target.y - camera_y, target_img[target.pic]);
        	}
 
         //Enemies
@@ -2734,7 +2734,7 @@ construct_frame()
                {
             	   //draw enemy weapon
             	   if (sprite.weapon >= 0) {
-					   DrawImageRotated(enemy.x - camera_x +
+					   DrawImagefRotated(enemy.x - camera_x +
 										getWeaponAttackOffsetX(enemy.current_frame),
 										enemy.y - camera_y +
 										getWeaponAttackOffsetY(enemy.current_frame),
@@ -2755,7 +2755,7 @@ construct_frame()
 
             	   //draw hat
             	   if (sprite.hat >= 0)
-            	   DrawImage(enemy.x - camera_x + hat_offset_x,
+            	   DrawImagef(enemy.x - camera_x + hat_offset_x,
             	   			 enemy.y - camera_y + hat_offset_y,
             	   			 hat_img[sprite.hat]);
                }
@@ -2763,7 +2763,7 @@ construct_frame()
                {
             	   //draw enemy weapon
             	   if (sprite.weapon >= 0) {
-					   DrawImageRotatedL(enemy.x - camera_x +
+					   DrawImagefRotatedL(enemy.x - camera_x +
 										-getWeaponAttackOffsetX(enemy.current_frame),
 										enemy.y - camera_y +
 										getWeaponAttackOffsetY(enemy.current_frame),
@@ -2783,7 +2783,7 @@ construct_frame()
             	   }
 				   //draw hat
 				   if (sprite.hat >= 0)
-				   DrawImageL(enemy.x - camera_x + -hat_offset_x,
+				   DrawImagefL(enemy.x - camera_x + -hat_offset_x,
 							 enemy.y - camera_y + hat_offset_y,
 							 hat_img[sprite.hat]);
                }
@@ -2800,7 +2800,7 @@ construct_frame()
 
 				   //draw enemy weapon
             	   if (sprite.weapon >= 0) {
-					   DrawImageRotated(enemy.x - camera_x +
+					   DrawImagefRotated(enemy.x - camera_x +
 										getWeaponWalkOffsetX(enemy.current_frame),
 										enemy.y - camera_y +
 										getWeaponWalkOffsetY(enemy.current_frame),
@@ -2822,7 +2822,7 @@ construct_frame()
 
 				   //draw hat
             	   if (sprite.hat >= 0)
-				   DrawImage(enemy.x - camera_x + hat_offset_x,
+				   DrawImagef(enemy.x - camera_x + hat_offset_x,
 							 enemy.y - camera_y + hat_offset_y,
 							 hat_img[sprite.hat]);
 			   }
@@ -2830,7 +2830,7 @@ construct_frame()
 			   {
 				   //draw enemy weapon
 				   if (sprite.weapon >= 0){
-					   DrawImageRotatedL(enemy.x - camera_x +
+					   DrawImagefRotatedL(enemy.x - camera_x +
 										-getWeaponWalkOffsetX(enemy.current_frame),
 										enemy.y - camera_y +
 										getWeaponWalkOffsetY(enemy.current_frame),
@@ -2850,7 +2850,7 @@ construct_frame()
 				   }
 				   //draw hat
 				   if (sprite.hat >= 0)
-				   DrawImageL(enemy.x - camera_x + -hat_offset_x,
+				   DrawImagefL(enemy.x - camera_x + -hat_offset_x,
 							 enemy.y - camera_y + hat_offset_y,
 							 hat_img[sprite.hat]);
 			  }
@@ -2871,7 +2871,7 @@ construct_frame()
 
                 //iterate health bar
                 for (int a = 0; a < enemy.hp_draw; a++)
-                    DrawImage(barX + a - camera_x, barY - camera_y, enemy_hp);
+                    DrawImagef(barX + a - camera_x, barY - camera_y, enemy_hp);
             }
 
         }//end enemy loop
@@ -2898,7 +2898,7 @@ construct_frame()
 
 				   //draw npc weapon
 				   if (sprite.weapon >= 0) {
-					   DrawImageRotated(npc.x - camera_x +
+					   DrawImagefRotated(npc.x - camera_x +
 										getWeaponWalkOffsetX(npc.current_frame),
 										npc.y - camera_y +
 										getWeaponWalkOffsetY(npc.current_frame),
@@ -2920,7 +2920,7 @@ construct_frame()
 
 				   //draw hat
 				   if (sprite.hat >= 0)
-				   DrawImage(npc.x - camera_x + hat_offset_x,
+				   DrawImagef(npc.x - camera_x + hat_offset_x,
 							 npc.y - camera_y + hat_offset_y,
 							 hat_img[sprite.hat]);
 			   }
@@ -2928,7 +2928,7 @@ construct_frame()
 			   {
 				   //draw npc weapon
 				   if (sprite.weapon >= 0){
-					   DrawImageRotatedL(npc.x - camera_x +
+					   DrawImagefRotatedL(npc.x - camera_x +
 										-getWeaponWalkOffsetX(npc.current_frame),
 										npc.y - camera_y +
 										getWeaponWalkOffsetY(npc.current_frame),
@@ -2948,7 +2948,7 @@ construct_frame()
 				   }
 				   //draw hat
 				   if (sprite.hat >= 0)
-				   DrawImageL(npc.x - camera_x + -hat_offset_x,
+				   DrawImagefL(npc.x - camera_x + -hat_offset_x,
 							 npc.y - camera_y + hat_offset_y,
 							 hat_img[sprite.hat]);
 			  }
@@ -3026,13 +3026,13 @@ construct_frame()
 						   //draw walk
 						   if (Player[i].facing_right)
 						   {
-							   DrawImage(p_x + 32 - trophy_offset_x - Item[Player[i].equipI[2]].w/2,
+							   DrawImagef(p_x + 32 - trophy_offset_x - Item[Player[i].equipI[2]].w/2,
 										  p_y + trophy_offset_y - Item[Player[i].equipI[2]].h/4,
 										  trophy_img[Player[i].equip[2]-1]);
 						   }
 						   else
 						   {
-							  DrawImage(p_x + 32 + trophy_offset_x - Item[Player[i].equipI[2]].w/2,
+							  DrawImagef(p_x + 32 + trophy_offset_x - Item[Player[i].equipI[2]].w/2,
 										 p_y + trophy_offset_y - Item[Player[i].equipI[2]].h/4,
 										 trophy_img[Player[i].equip[2]-1]);
 						   }
@@ -3058,7 +3058,7 @@ construct_frame()
                   {
                       if (Player[i].facing_right)
                       {
-                          DrawImageRotated(p_x + getWeaponAttackOffsetX(Player[i].current_frame),
+                          DrawImagefRotated(p_x + getWeaponAttackOffsetX(Player[i].current_frame),
                         		  	  	   p_y + getWeaponAttackOffsetY(Player[i].current_frame),
                         		  	  	   weapon_img[Player[i].equip[0]-1],
                         		  	  	   getWeaponAttackRotate(Player[i].current_frame));
@@ -3068,7 +3068,7 @@ construct_frame()
                       }
                       else
                       {
-                          DrawImageRotatedL(p_x + -getWeaponAttackOffsetX(Player[i].current_frame),
+                          DrawImagefRotatedL(p_x + -getWeaponAttackOffsetX(Player[i].current_frame),
                         		  	  	   p_y + getWeaponAttackOffsetY(Player[i].current_frame),
                         		  	  	   weapon_img[Player[i].equip[0]-1],
                         		  	  	   getWeaponAttackRotate(Player[i].current_frame));
@@ -3090,13 +3090,13 @@ construct_frame()
             	  								   //draw walk
             	  								   if (Player[i].facing_right)
             	  								   {
-            	  									   DrawImage(p_x + 32 - trophy_offset_x - Item[Player[i].equipI[2]].w/2,
+            	  									   DrawImagef(p_x + 32 - trophy_offset_x - Item[Player[i].equipI[2]].w/2,
             	  												  p_y + trophy_offset_y - Item[Player[i].equipI[2]].h/4,
             	  												  trophy_img[Player[i].equip[2]-1]);
             	  								   }
             	  								   else
             	  								   {
-            	  									  DrawImage(p_x + 32 + trophy_offset_x - Item[Player[i].equipI[2]].w/2,
+            	  									  DrawImagef(p_x + 32 + trophy_offset_x - Item[Player[i].equipI[2]].w/2,
             	  												 p_y + trophy_offset_y - Item[Player[i].equipI[2]].h/4,
             	  												 trophy_img[Player[i].equip[2]-1]);
             	  								   }
@@ -3123,7 +3123,7 @@ construct_frame()
                        //draw walk
                        if (Player[i].facing_right)
                        {
-                          DrawImageRotated(p_x + getWeaponWalkOffsetX(Player[i].current_frame),
+                          DrawImagefRotated(p_x + getWeaponWalkOffsetX(Player[i].current_frame),
                             		   p_y + getWeaponWalkOffsetY(Player[i].current_frame),
                             		   weapon_img[Player[i].equip[0]-1],
                             		   getWeaponWalkRotate(Player[i].current_frame));
@@ -3134,7 +3134,7 @@ construct_frame()
                        }
                        else
                        {
-                          DrawImageRotatedL(p_x + -getWeaponWalkOffsetX(Player[i].current_frame),
+                          DrawImagefRotatedL(p_x + -getWeaponWalkOffsetX(Player[i].current_frame),
                             		   p_y + getWeaponWalkOffsetY(Player[i].current_frame),
                             		   weapon_img[Player[i].equip[0]-1],
                             		   getWeaponWalkRotate(Player[i].current_frame));
@@ -3179,13 +3179,13 @@ construct_frame()
                    //draw walk
                    if (Player[i].facing_right)
                    {
-                      DrawImage(p_x + hat_offset_x,
+                      DrawImagef(p_x + hat_offset_x,
                     		    p_y + hat_offset_y,
                     		    hat_img[Player[i].equip[1]-1]);
                    }
                    else
                    {
-                      DrawImageL(p_x - hat_offset_x,
+                      DrawImagefL(p_x - hat_offset_x,
                     		    p_y + hat_offset_y,
                     		    hat_img[Player[i].equip[1]-1]);
                    }
@@ -3196,10 +3196,10 @@ construct_frame()
 
         		   //draw grey box for it
                    for (int nameSlot = 0; (std::size_t)nameSlot < Player[i].Nick.length(); nameSlot++)
-                       DrawImage(Player[i].nametag.pos_x + nameSlot*8 + 1, Player[i].nametag.pos_y + 1, chatcursor);
+                       DrawImagef(Player[i].nametag.pos_x + nameSlot*8 + 1, Player[i].nametag.pos_y + 1, chatcursor);
 
                    for (unsigned int nameSlot = 0; (std::size_t)nameSlot < (std::size_t)Player[i].clantag.length; nameSlot++)
-                       DrawImage(Player[i].clantag.pos_x + nameSlot*8 + 1, Player[i].clantag.pos_y + 1, chatcursor);
+                       DrawImagef(Player[i].clantag.pos_x + nameSlot*8 + 1, Player[i].clantag.pos_y + 1, chatcursor);
 
 
             }//if player.status and map
@@ -3233,13 +3233,13 @@ construct_frame()
               draw_x < 1024 &&
               draw_y < 600 &&
               draw_y >= 0-tile_img[map[current_map]->fringe[i]].h)
-           DrawImage(draw_x, draw_y, tile_img[map[current_map]->fringe[i]]);
+           DrawImagef(draw_x, draw_y, tile_img[map[current_map]->fringe[i]]);
            //printf("\nDraw_x=%i draw_y=%i tile[i]=%i i=%i\n", draw_x, draw_y, tile[i], i);
 
        }
 
        //draw vignette shadow
-       DrawImage(0, 0, shadow);
+       DrawImagef(0, 0, shadow);
 
         //GUI
         if (draw_gui)
@@ -3256,27 +3256,27 @@ construct_frame()
                 {
                     if (first)
                     {
-                       DrawImage(224+652, 45, leave_party_img);
+                       DrawImagef(224+652, 45, leave_party_img);
                     }
                     first = false;
 
-                    DrawImage(858, 81 + current_buddy*65, buddy_container);
+                    DrawImagef(858, 81 + current_buddy*65, buddy_container);
                     drawText(current_buddy+166);
 
                     //drawXP bar
                     for (unsigned int x = 0; x < Player[i].xp; x++)
                     {
-                        DrawImage(224+637+x*2, 103 + current_buddy*65, party_filler[0]);
+                        DrawImagef(224+637+x*2, 103 + current_buddy*65, party_filler[0]);
                     }
 
                     //draw HP bar
                     for (int h = 0; h < Player[i].hp; h++)
                     {
-                        DrawImage(224+637+h*2, 115 + current_buddy*65, party_filler[1]);
+                        DrawImagef(224+637+h*2, 115 + current_buddy*65, party_filler[1]);
                     }
 
                     //draw direction arrow
-                    DrawImage(224+637, 125 + current_buddy*65, arrow[Player[i].arrow]);
+                    DrawImagef(224+637, 125 + current_buddy*65, arrow[Player[i].arrow]);
 
                     drawText(current_buddy+171);
 
@@ -3287,26 +3287,26 @@ construct_frame()
 
 
             if (draw_chat_back)
-               DrawImage(0, 0, chatBackImg);
+               DrawImagef(0, 0, chatBackImg);
 
             //TODO stats gui
-            DrawImage(0, 500, stats_gui);
+            DrawImagef(0, 500, stats_gui);
             for (int i = 0; i < 4; i++)
             {
-            	DrawImage(700 + 81*i, 515, hud_button_img);
-            	DrawImage(708 + 81*i, 515, hud_icon[i]);
+            	DrawImagef(700 + 81*i, 515, hud_button_img);
+            	DrawImagef(708 + 81*i, 515, hud_icon[i]);
 
             }
             for (int i = 0; i < ((Player[MyID].hp / (float)Player[MyID].max_hp)*(209)); i++)
             {
-                   DrawImage(41+2*i, 543, hp_filler);
+                   DrawImagef(41+2*i, 543, hp_filler);
             }
 
 
             //XP bar
             for (int i = 0; i < ((Player[MyID].xp / (float)Player[MyID].max_xp)*(209)); i++)
             {
-                   DrawImage(41+2*i, 515, xp_filler);
+                   DrawImagef(41+2*i, 515, xp_filler);
             }
             drawText(51);//xp
             drawText(52);//hp
@@ -3315,12 +3315,12 @@ construct_frame()
 
            //chat bar
            if (chat_box == 3){
-              DrawImage(tSeek*8+2, 584, chatcursor);
+              DrawImagef(tSeek*8+2, 584, chatcursor);
            }
 
            //sign
            if (popup_sign){
-        	   DrawImage(150, 372, sign_bubble);
+        	   DrawImagef(150, 372, sign_bubble);
         	   for (int i = 0; i < current_sign.NUM_LINES; i++)
         		   drawText(current_sign.line[i]);
            }
@@ -3331,10 +3331,10 @@ construct_frame()
 		     //if not on final
 		     if (current_page != FINAL_PAGE)
 		     {
-		    	 DrawImage(150, 372, sign_bubble);
+		    	 DrawImagef(150, 372, sign_bubble);
 		    	 for (int i = 0; i < current_npc.NUM_LINES; i++)
 		    		 drawText(*current_npc.line[current_page][i]);
-		    	 DrawImage(860, 372, next_page);
+		    	 DrawImagef(860, 372, next_page);
 		     }else {
 		    	 // _handler for quests
 		    	 switch (current_npc.quest)
@@ -3415,8 +3415,8 @@ construct_frame()
             if (popup_menu == 1)
             {
                //inventory window
-               DrawImage(0, 244, inventory_gui);
-               DrawImage(256, 244, equip_show_gui);
+               DrawImagef(0, 244, inventory_gui);
+               DrawImagef(256, 244, equip_show_gui);
 
 
                //items
@@ -3433,12 +3433,12 @@ construct_frame()
                       int offset_x = (32-Item[item].w)/2;
                       int offset_y = (32-Item[item].h)/2;
                       if (amount > 0)
-                         DrawImage(14+offset_x+39*x, 256+offset_y+56*y,Item_img[item]);
+                         DrawImagef(14+offset_x+39*x, 256+offset_y+56*y,Item_img[item]);
 
                       //selector box
                       if (i == selectedInventoryItem)
                       {
-                         DrawImage(11+39*x, 255+56*y, inventorySelectorBox);
+                         DrawImagef(11+39*x, 255+56*y, inventorySelectorBox);
 
 
                          std::stringstream ss;
@@ -3460,7 +3460,7 @@ construct_frame()
                       }
                       else if (i == hoveredInventoryItem)
                       {
-                          DrawImage(11+39*x, 255+56*y, inventorySelectorBox);
+                          DrawImagef(11+39*x, 255+56*y, inventorySelectorBox);
                       }
 
 
@@ -3476,7 +3476,7 @@ construct_frame()
 						  if (itemAmount > 0) {
 							  offset_x -= 16;
 							  offset_y -= 16;
-							  DrawImage(hoverItemX + offset_x, hoverItemY + offset_y, Item_img[item]);
+							  DrawImagef(hoverItemX + offset_x, hoverItemY + offset_y, Item_img[item]);
 						  }
                       }
 
@@ -3490,14 +3490,14 @@ construct_frame()
                   if (popup_gui_menu == 7)
                   {
                      //draw the window
-                     DrawImage(256, 244, equip_img);
+                     DrawImagef(256, 244, equip_img);
 
                      //draw the sword
                      int eq = Player[MyID].equipI[0];
                      if (eq > 0)
                      {
                         //draw the icon
-                        DrawImage(465+(32-Item_img[eq].w)/2, 348+(32-Item_img[eq].h)/2,Item_img[eq]);
+                        DrawImagef(465+(32-Item_img[eq].w)/2, 348+(32-Item_img[eq].h)/2,Item_img[eq]);
                      }
 
                      //draw the hat
@@ -3505,7 +3505,7 @@ construct_frame()
                      if (eq > 0)
                      {
                         //draw the icon
-                        DrawImage(466+(32-Item_img[eq].w)/2, 274+(32-Item_img[eq].h)/2,Item_img[eq]);
+                        DrawImagef(466+(32-Item_img[eq].w)/2, 274+(32-Item_img[eq].h)/2,Item_img[eq]);
                      }
 
 
@@ -3514,7 +3514,7 @@ construct_frame()
                      if (eq > 0)
                      {
                         //draw the icon
-                        DrawImage(330+(32-Item_img[eq].w)/2, 321+(32-Item_img[eq].h)/2,Item_img[eq]);
+                        DrawImagef(330+(32-Item_img[eq].w)/2, 321+(32-Item_img[eq].h)/2,Item_img[eq]);
                      }
 
 
@@ -3523,13 +3523,13 @@ construct_frame()
                   switch (equipmentSlot)
                   {
                   case 0://sword
-                     DrawImage(459, 347, inventorySelectorBox);
+                     DrawImagef(459, 347, inventorySelectorBox);
                      break;
                   case 1://hat
-                     DrawImage(459, 273, inventorySelectorBox);
+                     DrawImagef(459, 273, inventorySelectorBox);
                      break;
                   case 2://trophy
-                     DrawImage(325, 316, inventorySelectorBox);
+                     DrawImagef(325, 316, inventorySelectorBox);
 							break;
 
                   default:
@@ -3546,7 +3546,7 @@ construct_frame()
             else if (popup_menu == 2)
             {
 
-               DrawImage(0, 358, stats_popup);
+               DrawImagef(0, 358, stats_popup);
 
 
                //stats text
@@ -3558,29 +3558,29 @@ construct_frame()
             }
             else if (popup_menu == 3)
             {
-               DrawImage(0, 244, options_popup);
+               DrawImagef(0, 244, options_popup);
 
                /* draw little options selectors */
 			   //Sign enabling
 			   if (enableSIGN)
-				   DrawImage(169, 393, option_selector);
+				   DrawImagef(169, 393, option_selector);
 			   else
-				   DrawImage(206, 393, option_selector);
+				   DrawImagef(206, 393, option_selector);
                //Master sound
                if (enableSND)
-                  DrawImage(169, 417, option_selector);
+                  DrawImagef(169, 417, option_selector);
                else
-                  DrawImage(206, 417,option_selector);
+                  DrawImagef(206, 417,option_selector);
                //Sound Effects
                if (enableSFX)
-                  DrawImage(169, 441, option_selector);
+                  DrawImagef(169, 441, option_selector);
                else
-                  DrawImage(206, 441,option_selector);
+                  DrawImagef(206, 441,option_selector);
                //GameMusic
                if (enableMUS)
-                  DrawImage(169, 465, option_selector);
+                  DrawImagef(169, 465, option_selector);
                else
-                  DrawImage(206, 465, option_selector);
+                  DrawImagef(206, 465, option_selector);
 
 
             }
@@ -3589,10 +3589,10 @@ construct_frame()
             //gui input box pop up
             if (popup_gui_menu == 1 || popup_gui_menu == 10)
             {
-              DrawImage(256, 372, popup_gui_input_img);
+              DrawImagef(256, 372, popup_gui_input_img);
               //input gui pop up
                if (chat_box == 5){
-                  DrawImage(iSeek*8+308, 429, chatcursor);
+                  DrawImagef(iSeek*8+308, 429, chatcursor);
                }
               drawText(85);
               drawText(86);
@@ -3602,12 +3602,12 @@ construct_frame()
             //gui player request popup
             if (popup_gui_menu == 2)
             {
-               DrawImage(256, 372, popup_gui_request_img);
+               DrawImagef(256, 372, popup_gui_request_img);
                drawText(89);
             } else
             if (popup_gui_menu == 3 || popup_gui_menu == 8 || popup_gui_menu == 9 || popup_gui_menu == 11)
             {
-               DrawImage(256, 372, popup_gui_confirm_img);
+               DrawImagef(256, 372, popup_gui_confirm_img);
                drawText(85);
                drawText(87);
                drawText(88);
@@ -3616,19 +3616,19 @@ construct_frame()
             {//trade
 
 
-               DrawImage(224+256, 225, trade_gui_img);
+               DrawImagef(224+256, 225, trade_gui_img);
 
 
                //selector for increment mass trading
                switch (offerIncrement)
                {
-                      case 1:         DrawImage(224+429, 232, mass_trade_selector); break;
-                      case 10:        DrawImage(224+457, 232, mass_trade_selector); break;
-                      case 100:       DrawImage(224+485, 232, mass_trade_selector); break;
-                      case 1000:      DrawImage(224+513, 232, mass_trade_selector); break;
-                      case 10000:     DrawImage(224+541, 232, mass_trade_selector); break;
-                      case 100000:    DrawImage(224+569, 232, mass_trade_selector); break;
-                      case 1000000:   DrawImage(224+597, 232, mass_trade_selector); break;
+                      case 1:         DrawImagef(224+429, 232, mass_trade_selector); break;
+                      case 10:        DrawImagef(224+457, 232, mass_trade_selector); break;
+                      case 100:       DrawImagef(224+485, 232, mass_trade_selector); break;
+                      case 1000:      DrawImagef(224+513, 232, mass_trade_selector); break;
+                      case 10000:     DrawImagef(224+541, 232, mass_trade_selector); break;
+                      case 100000:    DrawImagef(224+569, 232, mass_trade_selector); break;
+                      case 1000000:   DrawImagef(224+597, 232, mass_trade_selector); break;
                       default: break;
                }
 
@@ -3650,12 +3650,12 @@ construct_frame()
 
 
                       if (amount > 0)
-                         DrawImage(224+270+(32-Item[item].w)/2+39*x, 256+(32-Item[item].h)/2+56*y,Item_img[item]);
+                         DrawImagef(224+270+(32-Item[item].w)/2+39*x, 256+(32-Item[item].h)/2+56*y,Item_img[item]);
 
                       //selector box
                       if (i == selectedLocalItem)
                       {
-                         DrawImage(224+267+39*x, 255+56*y, inventorySelectorBox);
+                         DrawImagef(224+267+39*x, 255+56*y, inventorySelectorBox);
 
                          std::stringstream ss;
                          ss << amount;
@@ -3683,12 +3683,12 @@ construct_frame()
 
 
                       if (amount > 0)
-                         DrawImage(782+(32-Item[item].w)/2+39*x, 256+(32-Item[item].h)/2+56*y,Item_img[item]);
+                         DrawImagef(782+(32-Item[item].w)/2+39*x, 256+(32-Item[item].h)/2+56*y,Item_img[item]);
 
                       //selector box
                       if (i == selectedRemoteItem)
                       {
-                         DrawImage(779+39*x, 255+56*y, inventorySelectorBox);
+                         DrawImagef(779+39*x, 255+56*y, inventorySelectorBox);
 
                          std::stringstream ss;
                          ss << amount;
@@ -3714,18 +3714,18 @@ construct_frame()
             }//end trade
             else if (popup_gui_menu == 5)
             {//bank!
-                    DrawImage(768, 244, bank_gui_img);
+                    DrawImagef(768, 244, bank_gui_img);
 
             //selector for increment mass trading
                switch (offerIncrement)
                {
-                      case 1:         DrawImage(224+573, 254, mass_trade_selector); break;
-                      case 10:        DrawImage(224+601, 254, mass_trade_selector); break;
-                      case 100:       DrawImage(224+629, 254, mass_trade_selector); break;
-                      case 1000:      DrawImage(224+657, 254, mass_trade_selector); break;
-                      case 10000:     DrawImage(224+685, 254, mass_trade_selector); break;
-                      case 100000:    DrawImage(224+713, 254, mass_trade_selector); break;
-                      case 1000000:   DrawImage(224+741, 254, mass_trade_selector); break;
+                      case 1:         DrawImagef(224+573, 254, mass_trade_selector); break;
+                      case 10:        DrawImagef(224+601, 254, mass_trade_selector); break;
+                      case 100:       DrawImagef(224+629, 254, mass_trade_selector); break;
+                      case 1000:      DrawImagef(224+657, 254, mass_trade_selector); break;
+                      case 10000:     DrawImagef(224+685, 254, mass_trade_selector); break;
+                      case 100000:    DrawImagef(224+713, 254, mass_trade_selector); break;
+                      case 1000000:   DrawImagef(224+741, 254, mass_trade_selector); break;
                       default: break;
                }
 
@@ -3743,17 +3743,17 @@ construct_frame()
 
 
                       // if (amount > 0)
-                      DrawImage(782+(32-Item[item].w)/2+39*x, 278+(32-Item[item].h)/2+56*y,Item_img[item]);
+                      DrawImagef(782+(32-Item[item].w)/2+39*x, 278+(32-Item[item].h)/2+56*y,Item_img[item]);
                       if (amount == 0)
                       {
                                  //draw a "greyed out" look over the image
-                                 DrawImage(780+39*x, 278+56*y, greyedImg);
+                                 DrawImagef(780+39*x, 278+56*y, greyedImg);
                       }
 
                       //selector box
                       if (i == selectedBankItem)
                       {
-                         DrawImage(779+39*x, 277+56*y, inventorySelectorBox);
+                         DrawImagef(779+39*x, 277+56*y, inventorySelectorBox);
 
                          std::stringstream ss;
                          ss << amount;
@@ -3784,18 +3784,18 @@ construct_frame()
             }//end bank
             else if (popup_gui_menu == 6)
             {//shop!
-               DrawImage(768, 244, shop_gui_img);
+               DrawImagef(768, 244, shop_gui_img);
 
                //selector for increment mass trading
                switch (offerIncrement)
                {
-                      case 1:         DrawImage(224+573, 254, mass_trade_selector); break;
-                      case 10:        DrawImage(224+601, 254, mass_trade_selector); break;
-                      case 100:       DrawImage(224+629, 254, mass_trade_selector); break;
-                      case 1000:      DrawImage(224+657, 254, mass_trade_selector); break;
-                      case 10000:     DrawImage(224+685, 254, mass_trade_selector); break;
-                      case 100000:    DrawImage(224+713, 254, mass_trade_selector); break;
-                      case 1000000:   DrawImage(224+741, 254, mass_trade_selector); break;
+                      case 1:         DrawImagef(224+573, 254, mass_trade_selector); break;
+                      case 10:        DrawImagef(224+601, 254, mass_trade_selector); break;
+                      case 100:       DrawImagef(224+629, 254, mass_trade_selector); break;
+                      case 1000:      DrawImagef(224+657, 254, mass_trade_selector); break;
+                      case 10000:     DrawImagef(224+685, 254, mass_trade_selector); break;
+                      case 100000:    DrawImagef(224+713, 254, mass_trade_selector); break;
+                      case 1000000:   DrawImagef(224+741, 254, mass_trade_selector); break;
                       default: break;
                }
 
@@ -3836,13 +3836,13 @@ construct_frame()
 					  // and only draw it if a legit inventory slot is selected.
                       if ((price > 0 && amount > 0 && shopBuyMode)
 				       || (x == 0 && y == 0 && amount > 0 && item > 0 && !shopBuyMode))
-                         DrawImage(782+(32-Item[item].w)/2+39*x, 278+(32-Item[item].h)/2+42*y, Item_img[item]);
+                         DrawImagef(782+(32-Item[item].w)/2+39*x, 278+(32-Item[item].h)/2+42*y, Item_img[item]);
 
 
                       //selector box
                       if (i == selectedShopItem)
                       {
-                         DrawImage(779+39*x, 277+42*y, inventorySelectorBox);
+                         DrawImagef(779+39*x, 277+42*y, inventorySelectorBox);
 
                          if (price > 0 && amount > 0)
                          {
@@ -3880,7 +3880,7 @@ construct_frame()
                if (hoveredShopItemX > -1 && hoveredShopItemY > -1 && shopBuyMode)
                {
                   //-1 is disabled else it's the item X :)
-            	   DrawImage(768-89, 244, hover);
+            	   DrawImagef(768-89, 244, hover);
 
             	   //draw these values, woot!
             	   drawText(176);
@@ -3898,18 +3898,18 @@ construct_frame()
     if (draw_gui)
     {
        if (enableSND)
-          DrawImage(982, 10, soundon);
+          DrawImagef(982, 10, soundon);
        else
-          DrawImage(982, 10, soundoff);
+          DrawImagef(982, 10, soundoff);
     }
 
     if (menu == STATE_LOADING){
-    	DrawImage(0, 0, shadow);
-    	DrawImage(0, 0, loading_img);
+    	DrawImagef(0, 0, shadow);
+    	DrawImagef(0, 0, loading_img);
     }
 
     if (menu == STATE_DISCONNECT) {
-    	DrawImage(0, 0, background);
+    	DrawImagef(0, 0, background);
     }
 }//end draw construct_frame
 

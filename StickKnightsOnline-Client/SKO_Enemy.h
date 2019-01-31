@@ -22,17 +22,17 @@ public:
        
       //cosmetic hp
       int hp_draw;
-      int hp_ticker;
+      unsigned long long int hp_ticker;
        
       bool facing_right; 
       bool attacking;
       bool ground;
       bool dead;
       bool hit;
-      int current_frame;
-      int animation_ticker;
-      int attack_ticker;
-      int hit_ticker;
+      unsigned int current_frame;
+      unsigned long long int animation_ticker;
+      unsigned long long int attack_ticker;
+      unsigned long long int hit_ticker;
 };
 
 #endif

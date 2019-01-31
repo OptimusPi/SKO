@@ -73,7 +73,7 @@ class SKO_Player
         unsigned int equipI[3];
         
         bool hit;
-        int hit_ticker;
+        unsigned long long int hit_ticker;
 };
 
 #endif
