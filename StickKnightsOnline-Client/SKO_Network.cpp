@@ -59,12 +59,12 @@ bool SKO_Network::isConnected()
 	return socket->Connected;
 }
 
-bool SKO_Network::TryReconnect(unsigned int timeout)
+bool SKO_Network::TryReconnect(unsigned long long int timeout)
 {
 	unsigned long long int startTime = OPI_Clock::milliseconds();
-	while (connect() != "success" && OPI_Clock::milliseconds() - startTime < timeout)
+	while (!done && connect() != "success" && OPI_Clock::milliseconds() - startTime < timeout)
 	{ 
-		OPI_Sleep::milliseconds(100);
+		OPI_Sleep::milliseconds(500);
 	}
 
 	socket->Data = "";

@@ -120,7 +120,7 @@ int MyID = -1;
 bool done = false;
 bool lclick = false;
 bool rclick = false;
-long int cosmeticTicker;
+unsigned long long int cosmeticTicker;
 unsigned long long int cosmeticTime = 100;
 bool connectError = false;
 bool versionError = false;
@@ -2856,7 +2856,7 @@ construct_frame()
 			  }
             }
 
-            if ((Uint32)enemy.hp_ticker > OPI_Clock::milliseconds())
+            if (enemy.hp_ticker > OPI_Clock::milliseconds())
             {
                 //draw hp above their heads, centered
                 float barX = enemy.x +
@@ -6414,6 +6414,7 @@ void Disconnect()
 
 void TryToLogin()
 {
+   printf("Client.sendLoginRequest('%s', '%s');\n", username.c_str(), password.c_str());
 	Client.sendLoginRequest(username, password);
 }
 
@@ -6421,7 +6422,9 @@ void TryToLogin()
 
 void Kill()
 {
+   printf("Kill();\n");
 	done = true;
+   Client.done = true;
 }
 
 

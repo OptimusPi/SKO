@@ -12,10 +12,11 @@ class SKO_Network
 		std::string init(std::string server, unsigned short port);
 		std::string connect();
 		void disconnect();
+		bool done = false;
 
 		void sendVersion(unsigned char major, unsigned char minor, unsigned char patch);
 		bool isConnected();
-		bool TryReconnect(unsigned int timeout);
+		bool TryReconnect(unsigned long long int timeout);
 		
 		void receivePacket(bool);
 		void saveInventory(unsigned int [24][2]);
