@@ -8,7 +8,7 @@
 #include "SKO_PacketTypes.h"
 #include "SKO_Network.h" 
 #include "KE_Socket.h"
-#include "hasher.h"
+#include "OPI_Hasher.h"
 #include "Global.h"
 
 SKO_Network::SKO_Network()
@@ -75,17 +75,16 @@ bool SKO_Network::TryReconnect(unsigned long long int timeout)
 // Returns a string indicating success or error type
 void SKO_Network::createAccount(std::string desiredUsername, std::string desiredPassword)
 {
-	send(REGISTER, desiredUsername, " ", getSaltedHash(desiredUsername, desiredPassword));
+	send(REGISTER, desiredUsername, " ", desiredPassword);
 	Message[0].SetText("Creating your user...");
 	Message[1].SetText("");
 }
 
 // Request to login
 // Returns a string indicating success or error type
-void SKO_Network::sendLoginRequest(std::string username, std::string password)
+void SKO_Network::sendLoginRequest(std::string username, std::string passwordHash)
 {
-	std::string returnVal = "";
-	send(LOGIN, username, " ", getSaltedHash(username, password));
+	send(LOGIN, username, " ", passwordHash);
 }
 
 // Send a clan creation request
@@ -211,7 +210,7 @@ void SKO_Network::setTradeItemOffer(unsigned char itemId, unsigned int amount)
 	send(TRADE, OFFER, itemId, amount);
 }
 
-void SKO_Network::openShop(unsigned char shopId)
+void SKO_Network::openStall(unsigned char shopId)
 {
 	send(SHOP, INVITE, shopId);
 }
@@ -288,19 +287,6 @@ void SKO_Network::send(First const& first, Rest const& ... rest)
 	
 	//send packet
 	socket->Send(packet);
-}
-
-
-
-//Standard way for create and login functions to get a salted hash of the username and password
-std::string SKO_Network::getSaltedHash(std::string username, std::string password)
-{
-	Hasher hasher = Hasher();
-
-	//We must use a lowercase username because a user may want to login sometimes as "pifreak" and sometimes as "PiFreak"
-	std::transform(username.begin(), username.end(), username.begin(), ::tolower);
-
-	return hasher.Hash(username + password);
 }
 
 //This will periodically check for the client ping to the server in milliseconds
@@ -541,7 +527,7 @@ void SKO_Network::receivePacket(bool connectErr)
 				((char*)&npc_y)[2] = socket->Data[10];
 				((char*)&npc_y)[3] = socket->Data[11];
 
-				map[current_map]->Enemy[npc_id].x_speed = 2;
+				map[current_map]->Enemy[npc_id].x_speed = WALK_SPEED;
 				map[current_map]->Enemy[npc_id].x = npc_x;
 				map[current_map]->Enemy[npc_id].y = npc_y;
 				map[current_map]->Enemy[npc_id].facing_right = true;
@@ -561,7 +547,7 @@ void SKO_Network::receivePacket(bool connectErr)
 				((char*)&npc_y)[2] = socket->Data[10];
 				((char*)&npc_y)[3] = socket->Data[11];
 
-				map[current_map]->Enemy[npc_id].x_speed = -2;
+				map[current_map]->Enemy[npc_id].x_speed = -WALK_SPEED;
 				map[current_map]->Enemy[npc_id].x = npc_x;
 				map[current_map]->Enemy[npc_id].y = npc_y;
 				map[current_map]->Enemy[npc_id].facing_right = false;
@@ -636,7 +622,7 @@ void SKO_Network::receivePacket(bool connectErr)
 				((char*)&npc_y)[2] = socket->Data[10];
 				((char*)&npc_y)[3] = socket->Data[11];
 
-				map[current_map]->NPC[npc_id].x_speed = 2;
+				map[current_map]->NPC[npc_id].x_speed = WALK_SPEED;
 				map[current_map]->NPC[npc_id].x = npc_x;
 				map[current_map]->NPC[npc_id].y = npc_y;
 				map[current_map]->NPC[npc_id].facing_right = true;
@@ -656,7 +642,7 @@ void SKO_Network::receivePacket(bool connectErr)
 				((char*)&npc_y)[2] = socket->Data[10];
 				((char*)&npc_y)[3] = socket->Data[11];
 
-				map[current_map]->NPC[npc_id].x_speed = -2;
+				map[current_map]->NPC[npc_id].x_speed = -WALK_SPEED;
 				map[current_map]->NPC[npc_id].x = npc_x;
 				map[current_map]->NPC[npc_id].y = npc_y;
 				map[current_map]->NPC[npc_id].facing_right = false;
@@ -723,7 +709,7 @@ void SKO_Network::receivePacket(bool connectErr)
 				unsigned char a = Message[0];
 
 				//move the player
-				Player[a].x_speed = 2;
+				Player[a].x_speed = WALK_SPEED;
 				Player[a].x = numx;
 				Player[a].y = numy;
 				Player[a].facing_right = true;
@@ -773,7 +759,7 @@ void SKO_Network::receivePacket(bool connectErr)
 				unsigned char a = Message[0];
 
 				//move the player
-				Player[a].x_speed = -2;
+				Player[a].x_speed = -WALK_SPEED;
 				Player[a].x = numx;
 				Player[a].y = numy;
 				Player[a].facing_right = false;
@@ -2020,7 +2006,7 @@ void SKO_Network::receivePacket(bool connectErr)
 				menu = STATE_LOADING;
 
 				MyID = socket->Data[2];
-				Player[MyID].Nick = username;
+				Player[MyID].Nick = hasher->getUsername(); 
 				SetUsername(MyID);
 				Player[MyID].animation_ticker = OPI_Clock::milliseconds();
 				Player[MyID].Status = true;

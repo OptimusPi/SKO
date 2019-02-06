@@ -19,12 +19,14 @@
 #include "SKO_Map.h"
 #include "InputBox.h"
 #include <iostream>
+#include "OPI_Hasher.h"
 
 #define MAX_CLIENTS 16
 
 #define ENEMY_DEAD_X -1000
 #define ENEMY_DEAD_Y -1000
 
+extern const float WALK_SPEED;
 extern OPI_Text Message[];
 extern Mix_Music *music;
 extern bool enableMUS;
@@ -68,4 +70,4 @@ extern bool connectError;
 extern bool versionError;
 extern void TryToLogin();
 extern int chat_box;
-extern std::string username;
+extern OPI_Hasher *hasher;

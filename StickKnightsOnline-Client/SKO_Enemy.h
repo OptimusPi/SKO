@@ -9,7 +9,7 @@
 class SKO_Enemy
 {
 public:
-	  SKO_Enemy();
+	SKO_Enemy();
       SKO_Enemy(std::string enemySprite);
       void Respawn();
       

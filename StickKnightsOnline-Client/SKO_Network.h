@@ -51,7 +51,7 @@ class SKO_Network
 		void setTradeItemOffer(unsigned char itemId, unsigned int amount);
 
 		//Using a shop
-		void openShop(unsigned char shopId);
+		void openStall(unsigned char shopId);
 		void closeShop();
 		void buyItem(unsigned char itemSelectionId, unsigned int amount);
 		void sellItem(unsigned char itemId, unsigned int amount);
@@ -66,8 +66,7 @@ class SKO_Network
 
 		//SKO account functions.
 		void createAccount(std::string, std::string);
-		void sendLoginRequest(std::string username, std::string password);
-		std::string getSaltedHash(std::string username, std::string password);
+		void sendLoginRequest(std::string username, std::string passwordHash);
 	private:
 		//TCP Socket to SKO Server
 		KE_Socket *socket;

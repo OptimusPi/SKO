@@ -60,7 +60,7 @@
 #include "INIReader.h"
 #include "OPI_Image.h"
 #include "md5.h"
-#include "hasher.h"
+#include "OPI_Hasher.h"
 #include "SKO_Network.h"
 
 // Define global variables to be used externally (in networking clasS)
@@ -72,6 +72,8 @@
 // HIT_LOOPS is how many times to loop the collision detection adjustment (formerly while)
 #define HIT_LOOPS 100
 
+// Player walking speed
+const float WALK_SPEED = 3;
 
 // Debug flag for cheating to find bugs
 bool DEBUG_FLAG = false;
@@ -80,10 +82,8 @@ bool DEBUG_FLAG = false;
 bool loaded = false;
 bool contentLoaded = false;
 
-// LEETODO Look at making these part of the hasher function, no need for password to be in global namespace
 // Login and out
-std::string username, password;
-Hasher hasher;
+OPI_Hasher *hasher;
 void TryToLogin();
 
 // Maps and stuff ! :)
@@ -302,15 +302,40 @@ std::string toLower(std::string);
 void inventory();
 
 
+#include <iostream>
+#include <string>
+
+void replace(std::string& str, const std::string& from, const std::string& to) {
+    size_t start_pos = str.find(from);
+    if(start_pos == std::string::npos)
+        return;
+    str.replace(start_pos, from.length(), to);
+}
+
+std::string getBuildDate()
+{
+	// Compile-time date.
+	std::string date = __DATE__;
+
+	// Format single-digit date such as: "Jan  8" to "Jan 8"
+	replace(date, "  ", " ");
+
+	// Insert comma
+	date.insert(date.find_last_of(" "), ",");
+
+	// Return formatted date
+	return date;
+}
+
 void setTitle()
 {
 
 	std::stringstream title;
-	title << "Stick Knights Online (Beta) v"
+	title << "Stick Knights Online "
 		<< (int)VERSION_MAJOR << "."
 		<< (int)VERSION_MINOR << "."
-		<< (int)VERSION_PATCH << " "
-		<< __DATE__ << " "
+		<< (int)VERSION_PATCH << " ("
+		<< getBuildDate() << ")     "
 		<< SERVER_IP << ":" << SERVER_PORT
 		;//<< " {Dev Version: 1.1.2A}";
 
@@ -764,7 +789,6 @@ void DrawImagefunc(float x, float y, OPI_Image img)
 	//glLoadIdentity();
 }
 
-
 void DrawImagef(float x, float y, OPI_Image img)
 {
 
@@ -783,7 +807,30 @@ void DrawImagefL(float x, float y, OPI_Image img)
 	DrawImagefuncL(x, y, img);
 }
 
+void authenticateUser()
+{
+	if (menu != STATE_CREATE && menu != STATE_LOGIN)
+		return;
 
+	guiHit = true;
+	Message[0].SetText("Hashing password...");
+	Message[1].SetText("");
+	drawText(0);
+	drawText(1);
+
+	//store and send a salted hash of the password and username, instead of clear text password
+	//this salted hash of the username and password will also be 
+	hasher->storePassword(uMessage, pMessage);
+		
+	if (menu == STATE_CREATE) //creating account
+	{
+		Client.createAccount(uMessage, pMessage);
+	}
+	if (menu == STATE_LOGIN)//logging in
+	{
+		TryToLogin();
+	}
+}
 void DrawImagefRotatedL(float x, float y, OPI_Image img, float rotation)
 {
 	glTranslatef(x + img.w / 2, y + img.h / 2, 0);
@@ -1071,30 +1118,8 @@ void Button::handle_events(int ID)
 
 					//[ok]
 				case 4:
-
-					if (menu != STATE_PLAY)
-					{
-						guiHit = true;
-						//clear message in corner
-						Message[0].SetText("");
-						Message[1].SetText("");
-						drawText(0);
-						drawText(1);
-
-						username = uMessage;
-						password = pMessage;
-					}
-
-					if (menu == STATE_CREATE) //creating account
-					{
-						Client.createAccount(uMessage, pMessage);
-					}
-					if (menu == STATE_LOGIN)//logging in
-					{
-						TryToLogin();
-					}
+					authenticateUser();
 					break;
-
 
 					//[username]
 				case 5:
@@ -1511,7 +1536,7 @@ void Button::handle_events(int ID)
 							if (popup_gui_menu != 5 && x > x1 && x < x2 && y > y1 && y < y2)
 							{
 								printf("shop\n");
-								Client.openShop(i);
+								Client.openStall(i);
 								return;
 							}
 						}
@@ -2638,12 +2663,8 @@ construct_frame()
 	int tcam_x = (int)(camera_x + 0.5);
 	int tcam_y = (int)(camera_y + 0.5);
 
-
 	// SKY
-	for (int i = 0; i < 32; i++)
-		DrawImagef(i * 32, 0, back_img[0]);
-
-
+	DrawImagef(0, 0, back_img[0]);
 
 	// FAR CLOUDS
 	for (int x = -1; x <= TILES_WIDE; x++)
@@ -2757,9 +2778,8 @@ construct_frame()
 			SKO_Enemy  enemy = map[current_map]->Enemy[i];
 			SKO_Sprite sprite = EnemySprite[enemy.sprite];
 
-
 			if (enemy.hit)
-				glColor3f(1.0f, 0.1f, 0.1f);
+				glColor4f(1.0f, 0.5f, 0.5f, 0.5f);
 			else
 				glColor3f(1.0f, 1.0f, 1.0f);
 
@@ -3035,7 +3055,7 @@ construct_frame()
 
 				//getting hit flash
 				if (Player[i].hit)
-					glColor3f(1.0f, 0.1f, 0.1f);
+					glColor4f(1.0f, 0.5f, 0.5f, 0.5f);
 				else
 					glColor3f(1.0f, 1.0f, 1.0f);
 
@@ -4086,7 +4106,7 @@ int pressKey(int key)
 				LEFT = true;
 				RIGHT = false;
 
-				Player[MyID].x_speed = -2;
+				Player[MyID].x_speed = -WALK_SPEED;
 				Player[MyID].facing_right = false;
 			}
 			break;
@@ -4101,7 +4121,7 @@ int pressKey(int key)
 				//Client prediction physics
 				RIGHT = true;
 				LEFT = false;
-				Player[MyID].x_speed = 2;
+				Player[MyID].x_speed = WALK_SPEED;
 				Player[MyID].facing_right = true;
 			}
 
@@ -4336,39 +4356,7 @@ int pressKey(int key)
 	//if you hit enter, send the message
 	else if (key == SDLK_RETURN)
 	{
-		if (chat_box == 3)
-		{
-			if (tMessage[0] == '&')
-				DEBUG_FLAG = true;
-			else if (tMessage[0] > 0)
-				Client.sendChat(tMessage);
-
-			//clear chat bar
-			//TODO: this was here, but leaves a dirty character:  for (int i = 0; i < MAX_T_MESSAGE - 2; i++)
-			for (int i = 0; i < MAX_T_MESSAGE - 1; i++)
-				tMessage[i] = 0;
-
-			tSeek = 0;
-			chat_box = 4;
-		}
-		else if (chat_box == 4)
-		{
-			chat_box = 3;
-		}
-
-		if (menu == STATE_LOGIN)//logging in
-		{
-			//clear message in corner
-			Message[0].SetText("");
-			Message[1].SetText("");
-			drawText(0);
-			drawText(1);
-
-			username = uMessage;
-			password = pMessage;
-
-			TryToLogin();
-		}
+		authenticateUser();
 	}
 	else if (key == SDLK_BACKSPACE)
 	{
@@ -5018,14 +5006,12 @@ int main(int argc, char *argv[])
 #endif
 	printf("Initial value of blank player party: %i\n", Player[0].party);
 
-	std::string hashTestResult = hasher.Hash(toLower("pASsWoRD"));
-	printf("Testing hasher...%s\r\n", hashTestResult.c_str());
+	hasher = new OPI_Hasher();
 
-	if (hashTestResult != "Quq6He1Ku8vXTw4hd0cXeEZAw0nqbpwPxZn50NcOVbk=")
-	{
-		printf("The hasher does not seem to be working properly. Check argon2 version.\r\n");
+	hasher->storePassword("username", "password");
+	printf("manual test print of hash result: %s\n", hasher->getPasswordHash().c_str());
+	if (!hasher->verifyHash(toLower("pASsWoRD"), "Quq6He1Ku8vXTw4hd0cXeEZAw0nqbpwPxZn50NcOVbk="))
 		return 1;
-	}
 
 	if (SDL_Init(SDL_INIT_EVERYTHING) == -1)
 	{
@@ -5092,9 +5078,13 @@ int main(int argc, char *argv[])
 	setTitle();
 
 	if (FULLSCREEN)
+	{
 		screen = SDL_SetVideoMode(1024, 600, 32, SDL_OPENGL | SDL_FULLSCREEN);
+	}
 	else
+	{
 		screen = SDL_SetVideoMode(1024, 600, 32, SDL_OPENGL);
+	}
 
 	screenOptions();
 
@@ -5441,7 +5431,7 @@ int main(int argc, char *argv[])
 	enemy_hp.setImage("IMG/MISC/enemy_hp.png");
 
 	// tiled background
-	back_img[0].setImage("IMG/MISC/sky_back.png");
+	back_img[0].setImage("IMG/MISC/sky_back_new.png");
 	back_img[1].setImage("IMG/MISC/far_back.png");
 	back_img[2].setImage("IMG/MISC/med_back.png");
 	back_img[3].setImage("IMG/MISC/close_back.png");
@@ -6096,7 +6086,7 @@ void physics()
 					Client.playerAction("left", Player[MyID].x, Player[MyID].y);
 
 					//Client prediction physics
-					Player[MyID].x_speed = -2;
+					Player[MyID].x_speed = -WALK_SPEED;
 					Player[MyID].facing_right = false;
 				}
 				if (RIGHT && !Player[MyID].attacking && Player[MyID].x_speed != 2)
@@ -6105,7 +6095,7 @@ void physics()
 					Client.playerAction("right", Player[MyID].x, Player[MyID].y);
 
 					//Client prediction physics
-					Player[MyID].x_speed = 2;
+					Player[MyID].x_speed = WALK_SPEED;
 					Player[MyID].facing_right = true;
 				}
 
@@ -6470,8 +6460,8 @@ void Disconnect()
 
 void TryToLogin()
 {
-	printf("Client.sendLoginRequest('%s', '%s');\n", username.c_str(), password.c_str());
-	Client.sendLoginRequest(username, password);
+	printf("Client.sendLoginRequest(%s, %s);\n", hasher->getUsername().c_str(), hasher->getPasswordHash().c_str());
+	Client.sendLoginRequest(hasher->getUsername(), hasher->getPasswordHash());
 }
 
 
