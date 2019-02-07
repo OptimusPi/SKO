@@ -1,5 +1,5 @@
 CXX=g++
-CXXFLAGS=-c -Wall -g -D_GLIBCXX_USE_NANOSLEEP 
+CXXFLAGS=-c -Wall -g -D_GLIBCXX_USE_NANOSLEEP -std=c++11 -O3
 LDLIBS=-lpthread -lGL -lSDL -lSDL_image -lSDL_mixer -lSDL_net -largon2
 SOURCES:=$(wildcard *.cpp)
 OBJECTS:=$(patsubst %.cpp,%.o,$(SOURCES))

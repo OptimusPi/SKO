@@ -69,7 +69,7 @@
 // Maximum number of clients allowed to connect
 // #define MAX_CLIENTS 16
 
-// HIT_LOOPS is how many times to loop the collision detection adjustment (formerly while)
+// HIT_LOOPS is maximum times to gravitate toward the ground (snap to ground) when a falling collision happens
 #define HIT_LOOPS 100
 
 // Player walking speed
@@ -824,7 +824,7 @@ void authenticateUser()
 		
 	if (menu == STATE_CREATE) //creating account
 	{
-		Client.createAccount(uMessage, pMessage);
+		Client.createAccount(hasher->getUsername(), hasher->getPasswordHash());
 	}
 	if (menu == STATE_LOGIN)//logging in
 	{
@@ -2197,7 +2197,7 @@ void Button::handle_events(int ID)
 							popup_gui_menu = 0;
 							chat_box = 4;
 
-							for (int i = 0; i < 31; i++)
+							for (int i = 0; i < 20; i++)
 							{
 								iMessage[i] = 0;
 								iSeek = 0;

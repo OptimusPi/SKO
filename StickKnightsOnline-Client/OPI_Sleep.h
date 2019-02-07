@@ -21,6 +21,6 @@ public:
 
     static void seconds(unsigned int time)
     {
-        std::this_thread::sleep_for(std::chrono::microseconds(time));
+        std::this_thread::sleep_for(std::chrono::seconds(time));
     }
 };
