@@ -1138,7 +1138,7 @@ void SKO_Network::receivePacket(bool connectErr)
 			}
 			else if (code == STAT_DEF)
 			{
-				Player[MyID].defence = socket->Data[2];
+				Player[MyID].defense = socket->Data[2];
 			}
 			else if (code == STAT_STR)
 			{

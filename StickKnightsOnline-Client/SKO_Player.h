@@ -49,9 +49,9 @@ class SKO_Player
         unsigned char stat_points;
         unsigned int xp;
         unsigned int max_xp;
-        //strength and defence
+        //strength and defense
         unsigned char strength;
-        unsigned char defence;
+        unsigned char defense;
         unsigned char regen;
         
         

@@ -4755,7 +4755,7 @@ void HandleUI()
 						ss1 << "+" << str;
 						Message[177].SetText(ss1.str());
 
-						//defence bonus
+						//defense bonus
 						def = Item[item].dp;
 						ss2 << "+" << def;
 						Message[178].SetText(ss2.str());
@@ -6159,7 +6159,7 @@ void physics()
 					//defend
 					std::stringstream ss3;
 					std::string dp_string;
-					ss3 << (unsigned int)Player[MyID].defence;
+					ss3 << (unsigned int)Player[MyID].defense;
 					dp_string = "" + ss3.str();
 					Message[82].SetText(dp_string);
 
