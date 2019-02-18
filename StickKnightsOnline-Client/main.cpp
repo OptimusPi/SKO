@@ -73,7 +73,7 @@
 #define HIT_LOOPS 100
 
 // Player walking speed
-const float WALK_SPEED = 3;
+const float WALK_SPEED = 2.5f;
 
 // Debug flag for cheating to find bugs
 bool DEBUG_FLAG = false;
@@ -244,7 +244,7 @@ bool actionKeyDown = false;
 const float GRAVITY = 0.17;
 
 //coords
-float camera_x = 0, camera_y = 0;
+int camera_x = 0, camera_y = 0; 
 int sky_x = 0;
 
 
@@ -553,7 +553,6 @@ float yadj = 2.0;
 
 void drawText(OPI_Text t)
 {
-
 	//only draw if it is used
 	if (t.used)
 	{
@@ -640,7 +639,7 @@ SDL_Rect getSpriteAttack(int frame)
 }
 
 
-void DrawFrameR(float screen_x, float screen_y, OPI_Image spriteSheet, SDL_Rect selection)
+void DrawFrameR(int screen_x, int screen_y, OPI_Image spriteSheet, SDL_Rect selection)
 {
 	glBindTexture(GL_TEXTURE_2D, spriteSheet.texture);
 
@@ -677,7 +676,7 @@ void DrawFrameR(float screen_x, float screen_y, OPI_Image spriteSheet, SDL_Rect 
 
 	glLoadIdentity();
 }
-void DrawFrameL(float screen_x, float screen_y, OPI_Image spriteSheet, SDL_Rect selection)
+void DrawFrameL(int screen_x, int screen_y, OPI_Image spriteSheet, SDL_Rect selection)
 {
 	glBindTexture(GL_TEXTURE_2D, spriteSheet.texture);
 
@@ -797,11 +796,11 @@ void DrawImagef(float x, float y, OPI_Image img)
 	DrawImagefunc(x, y, img);
 
 }
-void DrawImage(float x, float y, OPI_Image img)
+void DrawImage(int x, int y, OPI_Image img)
 {
-	DrawImagef((int)x, (int)y, img);
+	DrawImagef(x, y, img);
 }
-void DrawImagefL(float x, float y, OPI_Image img)
+void DrawImageL(int x, int y, OPI_Image img)
 {
 	glBindTexture(GL_TEXTURE_2D, img.texture);
 	DrawImagefuncL(x, y, img);
@@ -809,8 +808,6 @@ void DrawImagefL(float x, float y, OPI_Image img)
 
 void authenticateUser()
 {
-	if (menu != STATE_CREATE && menu != STATE_LOGIN)
-		return;
 
 	guiHit = true;
 	Message[0].SetText("Hashing password...");
@@ -822,6 +819,11 @@ void authenticateUser()
 	//this salted hash of the username and password will also be 
 	hasher->storePassword(uMessage, pMessage);
 		
+	Message[0].SetText("Hashing password...");
+	Message[1].SetText("Authenticating...");
+	drawText(0);
+	drawText(1);
+
 	if (menu == STATE_CREATE) //creating account
 	{
 		Client.createAccount(hasher->getUsername(), hasher->getPasswordHash());
@@ -2633,6 +2635,42 @@ int getTrophyWalkOffsetY(int frame)
 #define PLAYER_TEST false
 #define ENEMY_TEST false
 
+//  TODO - GUI Refactor
+bool openChat()
+{
+	bool wasAlreadyOpen = true;
+
+	if (chat_box == 4)
+	{
+		chat_box = 3;
+		wasAlreadyOpen = false;
+	}
+
+	return wasAlreadyOpen;
+}
+
+void sendChat()
+{
+	//If you just typed a message
+	if (chat_box == 3)
+	{
+		if (tMessage[0] == '&')
+			DEBUG_FLAG = true;
+		else if (tMessage[0] > 0)
+			Client.sendChat(tMessage);
+
+		//clear chat bar
+		//TODO: this was here, but leaves a dirty character:  
+		//      for (int i = 0; i < MAX_T_MESSAGE - 2; i++)
+		// TODO should this be - 0?
+		for (int i = 0; i < MAX_T_MESSAGE-1; i++)
+		tMessage[i] = 0;
+
+		tSeek = 0;
+		chat_box = 4;
+	}
+}
+
 void
 construct_frame()
 {
@@ -2640,8 +2678,11 @@ construct_frame()
 		return;
 
 	if (MyID > -1)
+	{
 		current_map = Player[MyID].current_map;
-
+		camera_x = Player[MyID].x - PLAYER_CAMERA_X;
+		camera_y = Player[MyID].y - PLAYER_CAMERA_Y;
+	}
 	//printf("camera_x : %i\n", (int)camera_x);
 	//printf("camera_y : %i\n", (int)camera_y);
 
@@ -2659,12 +2700,11 @@ construct_frame()
 		camera_y = 50;
 	}
 
-
-	int tcam_x = (int)(camera_x + 0.5);
-	int tcam_y = (int)(camera_y + 0.5);
+	int tcam_x = (int)(camera_x);
+	int tcam_y = (int)(camera_y);
 
 	// SKY
-	DrawImagef(0, 0, back_img[0]);
+	DrawImage(0, 0, back_img[0]);
 
 	// FAR CLOUDS
 	for (int x = -1; x <= TILES_WIDE; x++)
@@ -2693,7 +2733,7 @@ construct_frame()
 			draw_x < 1024 &&
 			draw_y < 600 &&
 			draw_y >= 0 - tile_img[map[current_map]->tile[i]].h)
-			DrawImagef(draw_x, draw_y, tile_img[map[current_map]->tile[i]]);
+			DrawImage(draw_x, draw_y, tile_img[map[current_map]->tile[i]]);
 
 		//printf("\nDraw_x=%i draw_y=%i tile[i]=%i i=%i\n", draw_x, draw_y, map[current_map]->tile[i], i);
 
@@ -2750,13 +2790,12 @@ construct_frame()
 	else if (menu == STATE_PLAY)
 	{
 
-
 		//Items
 		for (int i = 0; i < 256; i++)
 		{
 			if (map[current_map]->ItemObj[i].status)
 			{
-				DrawImagef(map[current_map]->ItemObj[i].x - camera_x,
+				DrawImage(map[current_map]->ItemObj[i].x - camera_x,
 					map[current_map]->ItemObj[i].y - camera_y,
 					Item_img[(int)map[current_map]->ItemObj[i].itemID]);
 			}
@@ -2768,7 +2807,7 @@ construct_frame()
 			SKO_Target target = map[current_map]->Target[i];
 
 			if (target.active)
-				DrawImagef(target.x - camera_x, target.y - camera_y, target_img[target.pic]);
+				DrawImage(target.x - camera_x, target.y - camera_y, target_img[target.pic]);
 		}
 
 		//Enemies
@@ -2819,7 +2858,7 @@ construct_frame()
 
 					//draw hat
 					if (sprite.hat >= 0)
-						DrawImagef(enemy.x - camera_x + hat_offset_x,
+						DrawImage(enemy.x - camera_x + hat_offset_x,
 							enemy.y - camera_y + hat_offset_y,
 							hat_img[sprite.hat]);
 				}
@@ -2848,7 +2887,7 @@ construct_frame()
 					}
 					//draw hat
 					if (sprite.hat >= 0)
-						DrawImagefL(enemy.x - camera_x + -hat_offset_x,
+						DrawImageL(enemy.x - camera_x + -hat_offset_x,
 							enemy.y - camera_y + hat_offset_y,
 							hat_img[sprite.hat]);
 				}
@@ -2917,7 +2956,7 @@ construct_frame()
 					}
 					//draw hat
 					if (sprite.hat >= 0)
-						DrawImagefL(enemy.x - camera_x + -hat_offset_x,
+						DrawImageL(enemy.x - camera_x + -hat_offset_x,
 							enemy.y - camera_y + hat_offset_y,
 							hat_img[sprite.hat]);
 				}
@@ -3017,7 +3056,7 @@ construct_frame()
 					}
 					//draw hat
 					if (sprite.hat >= 0)
-						DrawImagefL(npc.x - camera_x + -hat_offset_x,
+						DrawImageL(npc.x - camera_x + -hat_offset_x,
 							npc.y - camera_y + hat_offset_y,
 							hat_img[sprite.hat]);
 				}
@@ -3027,261 +3066,251 @@ construct_frame()
 		//draw players
 		for (int i = 0; i < MAX_CLIENTS; i++)
 		{
-			//if this player is online
-			if (Player[i].Status && Player[i].current_map == current_map)
+			// Only draw if they are logged in
+			if (!Player[i].Status)
+				continue;
+			
+			// Only draw players on your map
+			if (Player[i].current_map != current_map)
+				continue;
+
+			camera_x = Player[MyID].x - PLAYER_CAMERA_X;
+			camera_y = Player[MyID].y - PLAYER_CAMERA_Y;
+
+			//don't show edge of map
+			if (camera_x < 0)
+				camera_x = 0;
+			if (camera_y < 0)
+				camera_y = 0;
+
+			int p_x = (int)(Player[i].x - camera_x);
+			int p_y = (int)(Player[i].y - camera_y);
+
+			//username
+			Player[i].nametag.pos_x = p_x - (Player[i].Nick.length()*4.5) + 32;
+			Player[i].nametag.pos_y = p_y - 25;
+
+			//clan
+			Player[i].clantag.pos_x = p_x - (Player[i].clantag.length*4.5) + 32;
+			Player[i].clantag.pos_y = p_y - 36;
+
+
+			//getting hit flash
+			if (Player[i].hit)
+				glColor4f(1.0f, 0.5f, 0.5f, 0.5f);
+			else
+				glColor3f(1.0f, 1.0f, 1.0f);
+
+
+			if (!Player[i].ground)
+				Player[i].current_frame = 6;
+
+			//where to place the trophy?
+			//hint: your hand moves in the animation..
+			int trophy_offset_y = 0;
+			int trophy_offset_x = 0;
+
+			//attacking
+			if (Player[i].attacking)
 			{
-				camera_x = Player[MyID].x - PLAYER_CAMERA_X;
-				camera_y = Player[MyID].y - PLAYER_CAMERA_Y;
-
-				//don't show edge of map
-				if (camera_x < 0)
-					camera_x = 0;
-				if (camera_y < 0)
-					camera_y = 0;
-
-				int p_x = (int)Player[i].x - (int)camera_x;
-				int p_y = (int)Player[i].y - (int)camera_y;
-
-				//username
-				Player[i].nametag.pos_x = p_x - (Player[i].Nick.length()*4.5) + 32;
-				Player[i].nametag.pos_y = p_y - 25;
-
-
-
-				//clan
-				Player[i].clantag.pos_x = p_x - (Player[i].clantag.length*4.5) + 32;
-				Player[i].clantag.pos_y = p_y - 36;
-
-
-				//getting hit flash
-				if (Player[i].hit)
-					glColor4f(1.0f, 0.5f, 0.5f, 0.5f);
-				else
-					glColor3f(1.0f, 1.0f, 1.0f);
-
-
-				if (!Player[i].ground)
-					Player[i].current_frame = 6;
-
-				//where yto place the trophy?
-				//hint: your hand moves in the animation..
-				int trophy_offset_y = 0;
-				int trophy_offset_x = 0;
-
-				//attacking
-				if (Player[i].attacking)
+				if (Player[i].equip[0] != 0)
 				{
-
-
-
-					if (Player[i].equip[0] != 0)
-					{
-						//with weapon
-						trophy_offset_x = getTrophyAttackOffsetX(Player[i].current_frame);
-						trophy_offset_y = getTrophyAttackOffsetY(Player[i].current_frame);
-					}
-					else {
-						//without weapon
-						trophy_offset_x = getTrophyUnarmedAttackOffsetX(Player[i].current_frame);
-						trophy_offset_y = getTrophyUnarmedAttackOffsetY(Player[i].current_frame);
-					}
-
-
-
-
-					//always draw trophies! :D
-					if (Player[i].equip[2] != 0)
-					{
-						//draw walk
-						if (Player[i].facing_right)
-						{
-							DrawImagef(p_x + 32 - trophy_offset_x - Item[Player[i].equipI[2]].w / 2,
-								p_y + trophy_offset_y - Item[Player[i].equipI[2]].h / 4,
-								trophy_img[Player[i].equip[2] - 1]);
-						}
-						else
-						{
-							DrawImagef(p_x + 32 + trophy_offset_x - Item[Player[i].equipI[2]].w / 2,
-								p_y + trophy_offset_y - Item[Player[i].equipI[2]].h / 4,
-								trophy_img[Player[i].equip[2] - 1]);
-						}
-					}
-
-					if (Player[i].equip[0] == 0) //no weapon
-					{
-
-						if (Player[i].facing_right)
-						{
-							DrawFrameR(p_x, p_y,
-								stickman_sprite_img,
-								getSpriteAttack(Player[i].current_frame));
-						}
-						else
-						{
-							DrawFrameL(p_x, p_y,
-								stickman_sprite_img,
-								getSpriteAttack(Player[i].current_frame));
-						}
-					}
-					else // yes weapon
-					{
-						if (Player[i].facing_right)
-						{
-							DrawImagefRotated(p_x + getWeaponAttackOffsetX(Player[i].current_frame),
-								p_y + getWeaponAttackOffsetY(Player[i].current_frame),
-								weapon_img[Player[i].equip[0] - 1],
-								getWeaponAttackRotate(Player[i].current_frame));
-							DrawFrameR(p_x, p_y,
-								stickman_sprite_img,
-								getSpriteAttackArmed(Player[i].current_frame));
-						}
-						else
-						{
-							DrawImagefRotatedL(p_x + -getWeaponAttackOffsetX(Player[i].current_frame),
-								p_y + getWeaponAttackOffsetY(Player[i].current_frame),
-								weapon_img[Player[i].equip[0] - 1],
-								getWeaponAttackRotate(Player[i].current_frame));
-							DrawFrameL(p_x, p_y,
-								stickman_sprite_img,
-								getSpriteAttackArmed(Player[i].current_frame));
-						}
-					}
-
+					//with weapon
+					trophy_offset_x = getTrophyAttackOffsetX(Player[i].current_frame);
+					trophy_offset_y = getTrophyAttackOffsetY(Player[i].current_frame);
 				}
-				else //walking
+				else 
 				{
-					trophy_offset_x = getTrophyWalkOffsetX(Player[i].current_frame);
-					trophy_offset_y = getTrophyWalkOffsetY(Player[i].current_frame);
+					//without weapon
+					trophy_offset_x = getTrophyUnarmedAttackOffsetX(Player[i].current_frame);
+					trophy_offset_y = getTrophyUnarmedAttackOffsetY(Player[i].current_frame);
+				}
 
-					//always draw trophies! :D
-					if (Player[i].equip[2] != 0)
-					{
-						//draw walk
-						if (Player[i].facing_right)
-						{
-							DrawImagef(p_x + 32 - trophy_offset_x - Item[Player[i].equipI[2]].w / 2,
-								p_y + trophy_offset_y - Item[Player[i].equipI[2]].h / 4,
-								trophy_img[Player[i].equip[2] - 1]);
-						}
-						else
-						{
-							DrawImagef(p_x + 32 + trophy_offset_x - Item[Player[i].equipI[2]].w / 2,
-								p_y + trophy_offset_y - Item[Player[i].equipI[2]].h / 4,
-								trophy_img[Player[i].equip[2] - 1]);
-						}
-					}
-
-					if (Player[i].equip[0] == 0)
-					{
-						//draw walk
-						if (Player[i].facing_right)
-						{
-							DrawFrameR(p_x, p_y,
-								stickman_sprite_img,
-								getSpriteWalk(Player[i].current_frame));
-						}
-						else
-						{
-							DrawFrameL(p_x, p_y,
-								stickman_sprite_img,
-								getSpriteWalk(Player[i].current_frame));
-						}
-					}
-					else //some weapon is held
-					{
-						//draw walk
-						if (Player[i].facing_right)
-						{
-							DrawImagefRotated(p_x + getWeaponWalkOffsetX(Player[i].current_frame),
-								p_y + getWeaponWalkOffsetY(Player[i].current_frame),
-								weapon_img[Player[i].equip[0] - 1],
-								getWeaponWalkRotate(Player[i].current_frame));
-							DrawFrameR(p_x, p_y,
-								stickman_sprite_img,
-								getSpriteWalkArmed(Player[i].current_frame));
-
-						}
-						else
-						{
-							DrawImagefRotatedL(p_x + -getWeaponWalkOffsetX(Player[i].current_frame),
-								p_y + getWeaponWalkOffsetY(Player[i].current_frame),
-								weapon_img[Player[i].equip[0] - 1],
-								getWeaponWalkRotate(Player[i].current_frame));
-							DrawFrameL(p_x, p_y,
-								stickman_sprite_img,
-								getSpriteWalkArmed(Player[i].current_frame));
-						}
-
-					}
-				}//end walking
-
-
-				//always draw hats! :D
-				if (Player[i].equip[1] != 0)
+				//always draw trophies! :D
+				if (Player[i].equip[2] != 0)
 				{
-					//where yto place the hat?
-					//hint: your head movesin the animation now
-					int hat_offset_y = 0;
-					int hat_offset_x = 0;
-
-					if (Player[i].attacking)
-					{
-						//Armed attack
-						if (Player[i].equip[0] != 0)
-						{
-							hat_offset_x = getHatAttackOffsetX(Player[i].current_frame);
-							hat_offset_y = getHatAttackOffsetY(Player[i].current_frame);
-						}
-						///Unarmed Attack
-						else
-						{
-							hat_offset_x = getHatUnarmedAttackOffsetX(Player[i].current_frame);
-							hat_offset_y = getHatUnarmedAttackOffsetY(Player[i].current_frame);
-						}
-					}
-					else
-					{
-						hat_offset_x = getHatWalkOffsetX(Player[i].current_frame);
-						hat_offset_y = getHatWalkOffsetY(Player[i].current_frame);
-					}
-
 					//draw walk
 					if (Player[i].facing_right)
 					{
-						DrawImagef(p_x + hat_offset_x,
-							p_y + hat_offset_y,
-							hat_img[Player[i].equip[1] - 1]);
+						DrawImagef(p_x + 32 - trophy_offset_x - Item[Player[i].equipI[2]].w / 2,
+							p_y + trophy_offset_y - Item[Player[i].equipI[2]].h / 4,
+							trophy_img[Player[i].equip[2] - 1]);
 					}
 					else
 					{
-						DrawImagefL(p_x - hat_offset_x,
-							p_y + hat_offset_y,
-							hat_img[Player[i].equip[1] - 1]);
+						DrawImagef(p_x + 32 + trophy_offset_x - Item[Player[i].equipI[2]].w / 2,
+							p_y + trophy_offset_y - Item[Player[i].equipI[2]].h / 4,
+							trophy_img[Player[i].equip[2] - 1]);
 					}
 				}
 
-				//go back to white (turn off hit effect [red flash])
-				glColor3f(1.0f, 1.0f, 1.0f);
+				if (Player[i].equip[0] == 0) //no weapon
+				{
 
-				//draw grey box for it
-				for (int nameSlot = 0; (std::size_t)nameSlot < Player[i].Nick.length(); nameSlot++)
-					DrawImagef(Player[i].nametag.pos_x + nameSlot * 8 + 1, Player[i].nametag.pos_y + 1, chatcursor);
-
-				for (unsigned int nameSlot = 0; (std::size_t)nameSlot < (std::size_t)Player[i].clantag.length; nameSlot++)
-					DrawImagef(Player[i].clantag.pos_x + nameSlot * 8 + 1, Player[i].clantag.pos_y + 1, chatcursor);
-
-
-			}//if player.status and map
-			else
-			{
-				Player[i].nametag.pos_x = Player[i].clantag.pos_x = 1024;
+					if (Player[i].facing_right)
+					{
+						DrawFrameR(p_x, p_y,
+							stickman_sprite_img,
+							getSpriteAttack(Player[i].current_frame));
+					}
+					else
+					{
+						DrawFrameL(p_x, p_y,
+							stickman_sprite_img,
+							getSpriteAttack(Player[i].current_frame));
+					}
+				}
+				else // yes weapon
+				{
+					if (Player[i].facing_right)
+					{
+						DrawImagefRotated(p_x + getWeaponAttackOffsetX(Player[i].current_frame),
+							p_y + getWeaponAttackOffsetY(Player[i].current_frame),
+							weapon_img[Player[i].equip[0] - 1],
+							getWeaponAttackRotate(Player[i].current_frame));
+						DrawFrameR(p_x, p_y,
+							stickman_sprite_img,
+							getSpriteAttackArmed(Player[i].current_frame));
+					}
+					else
+					{
+						DrawImagefRotatedL(p_x + -getWeaponAttackOffsetX(Player[i].current_frame),
+							p_y + getWeaponAttackOffsetY(Player[i].current_frame),
+							weapon_img[Player[i].equip[0] - 1],
+							getWeaponAttackRotate(Player[i].current_frame));
+						DrawFrameL(p_x, p_y,
+							stickman_sprite_img,
+							getSpriteAttackArmed(Player[i].current_frame));
+					}
+				}
 
 			}
+			else //walking
+			{
+				trophy_offset_x = getTrophyWalkOffsetX(Player[i].current_frame);
+				trophy_offset_y = getTrophyWalkOffsetY(Player[i].current_frame);
+
+				//always draw trophies! :D
+				if (Player[i].equip[2] != 0)
+				{
+					//draw walk
+					if (Player[i].facing_right)
+					{
+						DrawImagef(p_x + 32 - trophy_offset_x - Item[Player[i].equipI[2]].w / 2,
+							p_y + trophy_offset_y - Item[Player[i].equipI[2]].h / 4,
+							trophy_img[Player[i].equip[2] - 1]);
+					}
+					else
+					{
+						DrawImagef(p_x + 32 + trophy_offset_x - Item[Player[i].equipI[2]].w / 2,
+							p_y + trophy_offset_y - Item[Player[i].equipI[2]].h / 4,
+							trophy_img[Player[i].equip[2] - 1]);
+					}
+				}
+
+				if (Player[i].equip[0] == 0)
+				{
+					//draw walk
+					if (Player[i].facing_right)
+					{
+						DrawFrameR(p_x, p_y,
+							stickman_sprite_img,
+							getSpriteWalk(Player[i].current_frame));
+					}
+					else
+					{
+						DrawFrameL(p_x, p_y,
+							stickman_sprite_img,
+							getSpriteWalk(Player[i].current_frame));
+					}
+				}
+				else //some weapon is held
+				{
+					//draw walk
+					if (Player[i].facing_right)
+					{
+						DrawImagefRotated(p_x + getWeaponWalkOffsetX(Player[i].current_frame),
+							p_y + getWeaponWalkOffsetY(Player[i].current_frame),
+							weapon_img[Player[i].equip[0] - 1],
+							getWeaponWalkRotate(Player[i].current_frame));
+						DrawFrameR(p_x, p_y,
+							stickman_sprite_img,
+							getSpriteWalkArmed(Player[i].current_frame));
+
+					}
+					else
+					{
+						DrawImagefRotatedL(p_x + -getWeaponWalkOffsetX(Player[i].current_frame),
+							p_y + getWeaponWalkOffsetY(Player[i].current_frame),
+							weapon_img[Player[i].equip[0] - 1],
+							getWeaponWalkRotate(Player[i].current_frame));
+						DrawFrameL(p_x, p_y,
+							stickman_sprite_img,
+							getSpriteWalkArmed(Player[i].current_frame));
+					}
+
+				}
+			}//end walking
+
+
+			//always draw hats! :D
+			if (Player[i].equip[1] != 0)
+			{
+				//where yto place the hat?
+				//hint: your head movesin the animation now
+				int hat_offset_y = 0;
+				int hat_offset_x = 0;
+
+				if (Player[i].attacking)
+				{
+					//Armed attack
+					if (Player[i].equip[0] != 0)
+					{
+						hat_offset_x = getHatAttackOffsetX(Player[i].current_frame);
+						hat_offset_y = getHatAttackOffsetY(Player[i].current_frame);
+					}
+					///Unarmed Attack
+					else
+					{
+						hat_offset_x = getHatUnarmedAttackOffsetX(Player[i].current_frame);
+						hat_offset_y = getHatUnarmedAttackOffsetY(Player[i].current_frame);
+					}
+				}
+				else
+				{
+					hat_offset_x = getHatWalkOffsetX(Player[i].current_frame);
+					hat_offset_y = getHatWalkOffsetY(Player[i].current_frame);
+				}
+
+				//draw walk
+				if (Player[i].facing_right)
+				{
+					DrawImagef(p_x + hat_offset_x,
+						p_y + hat_offset_y,
+						hat_img[Player[i].equip[1] - 1]);
+				}
+				else
+				{
+					DrawImageL(p_x - hat_offset_x,
+						p_y + hat_offset_y,
+						hat_img[Player[i].equip[1] - 1]);
+				}
+			}
+
+			//go back to white (turn off hit effect [red flash])
+			glColor3f(1.0f, 1.0f, 1.0f);
+
+			//draw grey box for it
+			for (int nameSlot = 0; (std::size_t)nameSlot < Player[i].Nick.length(); nameSlot++)
+				DrawImagef(Player[i].nametag.pos_x + nameSlot * 8 + 1, Player[i].nametag.pos_y + 1, chatcursor);
+
+			for (unsigned int nameSlot = 0; (std::size_t)nameSlot < (std::size_t)Player[i].clantag.length; nameSlot++)
+				DrawImagef(Player[i].clantag.pos_x + nameSlot * 8 + 1, Player[i].clantag.pos_y + 1, chatcursor);
+						
+			//draw each player's name tag and clan tag
 			drawText(Player[i].nametag);
 			drawText(Player[i].clantag);
 		}//for all clients
-
-
 
 		camera_x = Player[MyID].x - PLAYER_CAMERA_X;
 		camera_y = Player[MyID].y - PLAYER_CAMERA_Y;
@@ -3294,7 +3323,6 @@ construct_frame()
 		//draw fringe tiles
 		for (int i = 0; i < map[current_map]->number_of_fringe; i++)
 		{
-
 			int draw_x = (int)(map[current_map]->fringe_x[i] - tcam_x);
 			int draw_y = (int)(map[current_map]->fringe_y[i] - tcam_y);
 
@@ -3302,13 +3330,11 @@ construct_frame()
 				draw_x < 1024 &&
 				draw_y < 600 &&
 				draw_y >= 0 - tile_img[map[current_map]->fringe[i]].h)
-				DrawImagef(draw_x, draw_y, tile_img[map[current_map]->fringe[i]]);
-			//printf("\nDraw_x=%i draw_y=%i tile[i]=%i i=%i\n", draw_x, draw_y, tile[i], i);
-
+				DrawImage(draw_x, draw_y, tile_img[map[current_map]->fringe[i]]);
 		}
 
 		//draw vignette shadow
-		DrawImagef(0, 0, shadow);
+		DrawImage(0, 0, shadow);
 
 		//GUI
 		if (draw_gui)
@@ -4133,6 +4159,7 @@ int pressKey(int key)
 		case 307:
 		case 308:
 		case 's':
+		case SDLK_DOWN:
 			if (chat_box == 4 && Player[MyID].ground && !Player[MyID].attacking)
 			{
 				//send action to SKO network
@@ -4151,8 +4178,8 @@ int pressKey(int key)
 			break;
 		case SDLK_SPACE:
 		case 'w':
+		case SDLK_UP:
 			if (chat_box == 4 && !Player[MyID].attacking)
-
 				//verical collision detection
 				if (blocked(Player[MyID].x + 25, Player[MyID].y + Player[MyID].y_speed + 0 + 0.15, Player[MyID].x + 38, Player[MyID].y + Player[MyID].y_speed + 64 + 0.15))
 				{
@@ -4163,7 +4190,15 @@ int pressKey(int key)
 					Player[MyID].y_speed = -6;
 				}
 			break;
-		}
+		
+		case 't':
+			if (menu == STATE_PLAY)
+			{
+				if (!openChat())
+					key = SDLK_RETURN;
+			}
+			break;
+	}
 
 	//menus..
 	switch (key)
@@ -4354,29 +4389,13 @@ int pressKey(int key)
 	//if you hit enter, send the message
 	else if (key == SDLK_RETURN)
 	{
-		if (chat_box == 3)
+		if (menu == STATE_PLAY)
 		{
-			if (tMessage[0] == '&')
-				DEBUG_FLAG = true;
-			else if (tMessage[0] > 0)
-				Client.sendChat(tMessage);
-
-			//clear chat bar
-			//TODO: this was here, but leaves a dirty character:  
-			//      for (int i = 0; i < MAX_T_MESSAGE - 2; i++)
-			// TODO should this be - 0?
-			for (int i = 0; i < MAX_T_MESSAGE-1; i++)
-				tMessage[i] = 0;
-
-			tSeek = 0;
-			chat_box = 4;
-		}
-		else if (chat_box == 4)
-		{
-			chat_box = 3;
+			if (openChat())
+					sendChat();
 		}
 
-		if (menu == STATE_LOGIN)
+		if (menu == STATE_LOGIN || menu == STATE_CREATE)
 		{
 				authenticateUser();
 		}
@@ -4936,22 +4955,23 @@ void Graphics();
 void PhysicsLoop()
 {
 	KE_Timestep *timestep = new KE_Timestep(60);
+	bool draw = false;
 
 	while (!done)
 	{
 		timestep->Update();
 
-		bool draw = false;
+		draw = false;
 		while (timestep->Check())
 		{
 			physics();
-			HandleUI();
 			draw = true;
 		}
 
 		if (draw)
 			Graphics();
 
+		HandleUI();
 		OPI_Sleep::microseconds(1);
 	}
 }
@@ -6463,7 +6483,6 @@ void physics()
 			current_sign.triggered = false;
 			current_sign.hasBeenClosed = false;
 		}
-
 	}
 }
 
