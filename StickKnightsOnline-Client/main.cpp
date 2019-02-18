@@ -4350,13 +4350,36 @@ int pressKey(int key)
 				chat_box = 1;
 
 		} //tab
-
-
 	}
 	//if you hit enter, send the message
 	else if (key == SDLK_RETURN)
 	{
-		authenticateUser();
+		if (chat_box == 3)
+		{
+			if (tMessage[0] == '&')
+				DEBUG_FLAG = true;
+			else if (tMessage[0] > 0)
+				Client.sendChat(tMessage);
+
+			//clear chat bar
+			//TODO: this was here, but leaves a dirty character:  
+			//      for (int i = 0; i < MAX_T_MESSAGE - 2; i++)
+			// TODO should this be - 0?
+			for (int i = 0; i < MAX_T_MESSAGE-1; i++)
+				tMessage[i] = 0;
+
+			tSeek = 0;
+			chat_box = 4;
+		}
+		else if (chat_box == 4)
+		{
+			chat_box = 3;
+		}
+
+		if (menu == STATE_LOGIN)
+		{
+				authenticateUser();
+		}
 	}
 	else if (key == SDLK_BACKSPACE)
 	{
@@ -5629,18 +5652,25 @@ bool ConnectToSKOServer()
 {
 	if (Client.init(SERVER_IP, SERVER_PORT) == "error")
 	{
+		printf("FATAL: Client.init(SERVER_IP, SERVER_PORT) == \"error\"\n");
 		Message[0].SetText("There may be a problem with your internet connection.");
 		Message[1].SetText(" Join chat for help. www.StickKnightsOnline.com/chat");
+		Graphics();
 		fatalNetworkError = true;
 		return true;
 	}
 
 	if (Client.connect() == "error")
 	{
+		printf("FATAL: Client.connect() == \"error\"\n");
 		Message[0].SetText("There was an error connecting to the server!");
 		Message[1].SetText("");
+		Graphics();
 		return true;
 	}
+
+	Message[0].SetText("Connected!");
+	Message[1].SetText("Attempting to verify client version...");
 
 	Client.sendVersion(VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
 	return false;
@@ -5813,7 +5843,6 @@ void physics()
 	//npcs
 	for (int i = 0; i < map[current_map]->num_npcs; i++)
 	{
-
 		//fall
 		if (map[current_map]->NPC[i].y_speed < 10)
 			map[current_map]->NPC[i].y_speed += GRAVITY;
