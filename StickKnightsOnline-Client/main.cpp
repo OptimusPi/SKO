@@ -5041,12 +5041,8 @@ int main(int argc, char *argv[])
 {
 
 #endif
-	printf("Initial value of blank player party: %i\n", Player[0].party);
 
 	hasher = new OPI_Hasher();
-
-	hasher->storePassword("username", "password");
-	printf("manual test print of hash result: %s\n", hasher->getPasswordHash().c_str());
 	if (!hasher->verifyHash(toLower("pASsWoRD"), "Quq6He1Ku8vXTw4hd0cXeEZAw0nqbpwPxZn50NcOVbk="))
 		return 1;
 
