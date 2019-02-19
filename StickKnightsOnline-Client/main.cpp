@@ -3077,12 +3077,6 @@ construct_frame()
 			camera_x = Player[MyID].x - PLAYER_CAMERA_X;
 			camera_y = Player[MyID].y - PLAYER_CAMERA_Y;
 
-			//don't show edge of map
-			if (camera_x < 0)
-				camera_x = 0;
-			if (camera_y < 0)
-				camera_y = 0;
-
 			int p_x = (int)(Player[i].x - camera_x);
 			int p_y = (int)(Player[i].y - camera_y);
 
