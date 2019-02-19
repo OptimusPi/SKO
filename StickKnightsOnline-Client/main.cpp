@@ -565,7 +565,7 @@ void drawText(OPI_Text t)
 		for (int ii = 0; ii < t.length; ii++)
 		{
 
-			float
+			int
 				screen_x = t.pos_x + ii*letter_w + xadj,
 				screen_y = t.pos_y + yadj,
 				offset_x = t.letter_x[ii],
