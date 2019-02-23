@@ -91,6 +91,7 @@ const char NUM_MAPS = 6;
 SKO_Map *map[NUM_MAPS];
 int current_map = 2;
 
+
 // Sprites
 SKO_Sprite EnemySprite[7];
 SKO_Sprite NpcSprite[1];
@@ -148,6 +149,11 @@ unsigned char requestedPlayer = 0;
 int TILES_WIDE = 0, TILES_TALL = 0;
 double back_offsetx[4];
 double back_offsety[4];
+const float scrollBack = 0.02;
+const float scrollMid = 0.05;
+const float scrollFront = 0.10;
+
+
 unsigned int offerIncrement = 1;
 int bankScroll = 0;
 
@@ -245,8 +251,7 @@ const float GRAVITY = 0.17;
 
 //coords
 int camera_x = 0, camera_y = 0; 
-int sky_x = 0;
-
+float camera_xspeed = 0.0f, camera_yspeed = 0.0f;
 
 const int NUM_TEXT = 180;
 
@@ -968,7 +973,9 @@ void scroll_sky()
 {
 
 	/* horizontal */
-	back_offsetx[1] -= 0.02;
+	back_offsetx[1] -= 0.01;
+	back_offsetx[2] -= 0.02;
+	back_offsetx[3] -= 0.05;
 
 	if (back_offsetx[1] > back_img[1].w)
 		back_offsetx[1] -= back_img[1].w;
@@ -976,38 +983,18 @@ void scroll_sky()
 	if (back_offsetx[1] < -back_img[1].w)
 		back_offsetx[1] += back_img[1].w;
 
-	back_offsetx[2] -= 0.05;
-
 	if (back_offsetx[2] > back_img[2].w)
 		back_offsetx[2] -= back_img[2].w;
 
 	if (back_offsetx[2] < -back_img[2].w)
 		back_offsetx[2] += back_img[2].w;
 
-	back_offsetx[3] -= 0.1;
 
 	if (back_offsetx[3] > back_img[3].w)
 		back_offsetx[3] -= back_img[3].w;
 
 	if (back_offsetx[3] < -back_img[3].w)
 		back_offsetx[3] += back_img[3].w;
-
-	/* vertical */
-	back_offsety[1] -= 0.01;
-	back_offsety[2] += 0.015;
-	back_offsety[3] -= 0.01;
-
-
-	if (back_offsety[1] < -back_img[1].h)
-		back_offsety[1] += back_img[1].h;
-
-
-	if (back_offsety[2] > back_img[2].h)
-		back_offsety[2] -= back_img[2].h;
-
-
-	if (back_offsety[3] < -back_img[3].h)
-		back_offsety[3] += back_img[3].h;
 }
 
 void Button::handle_events(int ID)
@@ -2671,6 +2658,15 @@ void sendChat()
 	}
 }
 
+void setCamera()
+{
+	camera_xspeed = (Player[MyID].x - PLAYER_CAMERA_X - camera_x) * 0.1;
+	camera_x += camera_xspeed;
+
+	camera_yspeed = (Player[MyID].y - PLAYER_CAMERA_Y - camera_y) * 0.1;
+	camera_y += camera_yspeed;
+}
+
 void
 construct_frame()
 {
@@ -2680,8 +2676,7 @@ construct_frame()
 	if (MyID > -1)
 	{
 		current_map = Player[MyID].current_map;
-		camera_x = Player[MyID].x - PLAYER_CAMERA_X;
-		camera_y = Player[MyID].y - PLAYER_CAMERA_Y;
+		setCamera();
 	}
 	//printf("camera_x : %i\n", (int)camera_x);
 	//printf("camera_y : %i\n", (int)camera_y);
@@ -2699,9 +2694,6 @@ construct_frame()
 		camera_x = 0;
 		camera_y = 50;
 	}
-
-	int tcam_x = (int)(camera_x);
-	int tcam_y = (int)(camera_y);
 
 	// SKY
 	DrawImage(0, 0, back_img[0]);
@@ -2726,17 +2718,15 @@ construct_frame()
 	for (int i = 0; i < map[current_map]->number_of_tiles; i++)
 	{
 
-		int draw_x = (int)(map[current_map]->tile_x[i] - tcam_x);
-		int draw_y = (int)(map[current_map]->tile_y[i] - tcam_y);
+		int draw_x = map[current_map]->tile_x[i] - camera_x;
+		int draw_y = map[current_map]->tile_y[i] - camera_y;
 
 		if (draw_x >= 0 - tile_img[map[current_map]->tile[i]].w &&
-			draw_x < 1024 &&
-			draw_y < 600 &&
-			draw_y >= 0 - tile_img[map[current_map]->tile[i]].h)
+			  draw_y >= 0 - tile_img[map[current_map]->tile[i]].h &&
+				draw_x < 1024 && draw_y < 600)
+		{
 			DrawImage(draw_x, draw_y, tile_img[map[current_map]->tile[i]]);
-
-		//printf("\nDraw_x=%i draw_y=%i tile[i]=%i i=%i\n", draw_x, draw_y, map[current_map]->tile[i], i);
-
+		}
 	}
 
 	//menu gui
@@ -2759,7 +2749,6 @@ construct_frame()
 
 		if (draw_gui && (menu == STATE_LOGIN || menu == STATE_CREATE))
 		{
-
 			//draw credentials bars
 			DrawImagef(364, 223, cred_bar);
 			DrawImagef(364, 277, cred_bar);
@@ -3074,9 +3063,6 @@ construct_frame()
 			if (Player[i].current_map != current_map)
 				continue;
 
-			camera_x = Player[MyID].x - PLAYER_CAMERA_X;
-			camera_y = Player[MyID].y - PLAYER_CAMERA_Y;
-
 			int p_x = (int)(Player[i].x - camera_x);
 			int p_y = (int)(Player[i].y - camera_y);
 
@@ -3306,19 +3292,11 @@ construct_frame()
 			drawText(Player[i].clantag);
 		}//for all clients
 
-		camera_x = Player[MyID].x - PLAYER_CAMERA_X;
-		camera_y = Player[MyID].y - PLAYER_CAMERA_Y;
-
-		if (camera_x < 0)
-			camera_x = 0;
-		if (camera_y < 0)
-			camera_y = 0;
-
 		//draw fringe tiles
 		for (int i = 0; i < map[current_map]->number_of_fringe; i++)
 		{
-			int draw_x = (int)(map[current_map]->fringe_x[i] - tcam_x);
-			int draw_y = (int)(map[current_map]->fringe_y[i] - tcam_y);
+			int draw_x = map[current_map]->fringe_x[i] - camera_x;
+			int draw_y = map[current_map]->fringe_y[i] - camera_y;
 
 			if (draw_x >= 0 - tile_img[map[current_map]->fringe[i]].w &&
 				draw_x < 1024 &&
@@ -5032,7 +5010,6 @@ void loadContent()
 #ifdef WINDOWS_OS
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLine, int nCmdShow)
-
 {
 
 #else
@@ -5703,8 +5680,7 @@ int numDigits(int num)
 void physics()
 {
 	//always scroll sky
-	if (menu < 4)
-		scroll_sky();
+	scroll_sky();
 
 	if (menu != STATE_PLAY)
 		return;
@@ -6010,29 +5986,21 @@ void physics()
 
 				if (i == MyID) {
 					//move tiles background
-					if (camera_y > 0)
-					{
-						back_offsety[1] -= (Player[i].y_speed) / 3.3;
-						back_offsety[2] -= (Player[i].y_speed) / 2.2;
-						back_offsety[3] -= (Player[i].y_speed) / 1.75;
-						back_offsety[1] -= 0.01;
-					}
-
+					back_offsety[1] -= Player[i].y_speed * scrollBack;
+					back_offsety[2] -= Player[i].y_speed * scrollMid;
+					back_offsety[3] -= Player[i].y_speed * scrollFront;
+					
 					if (back_offsety[1] > back_img[1].h)
 						back_offsety[1] -= back_img[1].h;
 
 					if (back_offsety[1] < -back_img[1].h)
 						back_offsety[1] += back_img[1].h;
 
-					back_offsety[2] += 0.015;
-
 					if (back_offsety[2] > back_img[2].h)
 						back_offsety[2] -= back_img[2].h;
 
 					if (back_offsety[2] < -back_img[2].h)
 						back_offsety[2] += back_img[2].h;
-
-					back_offsety[3] -= 0.01;
 
 					if (back_offsety[3] > back_img[3].h)
 						back_offsety[3] -= back_img[3].h;
@@ -6081,18 +6049,10 @@ void physics()
 
 				//move tiles background
 				if (i == MyID) {
-
-					back_offsetx[1] -= 0.02;
-					back_offsetx[2] -= 0.05;
-					back_offsetx[3] -= 0.1;
-
-					if (camera_x > 0)
-					{
-
-						back_offsetx[1] -= (Player[i].x_speed) / 3.3;
-						back_offsetx[2] -= (Player[i].x_speed) / 2.2;
-						back_offsetx[3] -= (Player[i].x_speed) / 1.75;
-					}
+					back_offsetx[1] -= Player[i].x_speed * scrollBack;
+					back_offsetx[2] -= Player[i].x_speed * scrollMid;
+					back_offsetx[3] -= Player[i].x_speed * scrollFront;
+					
 
 					if (back_offsetx[1] > back_img[1].w)
 						back_offsetx[1] -= back_img[1].w;
@@ -6105,7 +6065,6 @@ void physics()
 
 					if (back_offsetx[2] < -back_img[2].w)
 						back_offsetx[2] += back_img[2].w;
-
 
 					if (back_offsetx[3] > back_img[3].w)
 						back_offsetx[3] -= back_img[3].w;

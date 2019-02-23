@@ -446,6 +446,9 @@ void SKO_Network::receivePacket(bool connectErr)
 				popup_gui_menu = 0;
 
 				loaded = true;
+				camera_x = Player[MyID].x;
+				camera_y = Player[MyID].y;
+				
 
 				//Play the music
 				if (!enableSND || !enableMUS)
