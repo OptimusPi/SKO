@@ -1497,12 +1497,6 @@ void Button::handle_events(int ID)
 								current_sign = map[current_map]->Sign[i];
 								return;
 							}
-
-
-
-
-
-
 						}
 
 
@@ -4001,6 +3995,11 @@ construct_frame()
 	}
 }//end draw construct_frame
 
+bool boxesIntersect(float box1_x1, float box1_y1, float box1_x2, float box1_y2, float box2_x1, float box2_y1, float box2_x2, float box2_y2)
+{
+	return	(box1_x2 > box2_x1 && box1_x1 < box2_x2 && box1_y2 > box2_y1 && box1_y1 < box2_y2);
+}
+
 bool blocked(float box1_x1, float box1_y1, float box1_x2, float box1_y2)
 {
 	unsigned char current_map = Player[MyID].current_map;
@@ -4011,15 +4010,10 @@ bool blocked(float box1_x1, float box1_y1, float box1_x2, float box1_y2)
 		float box2_x2 = map[current_map]->collision_rect[r].x + map[current_map]->collision_rect[r].w;
 		float box2_y2 = map[current_map]->collision_rect[r].y + map[current_map]->collision_rect[r].h;
 
-
-		if (box1_x2 > box2_x1 && box1_x1 < box2_x2 && box1_y2 > box2_y1 && box1_y1 < box2_y2)
-		{
-			// printf("collision with rect[%i]\n\tme:\t{%i,%i,%i,%i}\n\tit:\t{%i,%i,%i,%i}\n", r, box1_x1, box1_y1, box1_x2, box1_y2, box2_x1, box2_y1, box2_x2, box2_y2);
-			// printf("%i > %i && %i < %i && %i > %i && %i < %i\n\n", box1_x2, box2_x1, box1_x1, box2_x2, box1_y2, box2_y1, box1_y1, box2_y2);
+		if (boxesIntersect(box1_x1, box1_y1, box1_x2, box1_y2, box2_x1, box2_y1, box2_x2, box2_y2))
 			return true;
-
-		}
 	}
+
 	for (int r = 0; r < map[current_map]->num_targets; r++)
 	{
 		if (!map[current_map]->Target[r].active)
@@ -4029,8 +4023,7 @@ bool blocked(float box1_x1, float box1_y1, float box1_x2, float box1_y2)
 		float box2_x2 = map[current_map]->Target[r].x + map[current_map]->Target[r].w;
 		float box2_y2 = map[current_map]->Target[r].y + map[current_map]->Target[r].h;
 
-
-		if (box1_x2 > box2_x1 && box1_x1 < box2_x2 && box1_y2 > box2_y1 && box1_y1 < box2_y2)
+		if (boxesIntersect(box1_x1, box1_y1, box1_x2, box1_y2, box2_x1, box2_y1, box2_x2, box2_y2))
 			return true;
 	}
 
@@ -6377,16 +6370,24 @@ void physics()
 	{
 		for (int i = 0; i < map[current_map]->num_signs; i++)
 		{
-			float rangeX = (std::abs)(Player[MyID].x - map[current_map]->Sign[i].x + map[current_map]->Sign[i].w / 2.0);
-			float rangeY = (std::abs)(Player[MyID].y - map[current_map]->Sign[i].y + map[current_map]->Sign[i].h / 2.0);
-			float distance = sqrt((rangeX*rangeX) + (rangeY*rangeY));
-			bool inRange;
-			inRange = (distance < 32);
-			if (inRange) {
-				bool isNew = ((current_sign.hasBeenClosed) == (map[current_map]->Sign[i].hasBeenClosed));
+			//TODO - get player Rect function
+			float px1 = Player[MyID].x + 25;
+			float px2 = Player[MyID].x + 38;
+			float py1 = Player[MyID].y;
+			float py2 = Player[MyID].y + 64;
+			float tx1 = map[current_map]->Sign[i].x;
+			float tx2 = map[current_map]->Sign[i].x + map[current_map]->Sign[i].w;
+			float ty1 = map[current_map]->Sign[i].y;
+			float ty2 = map[current_map]->Sign[i].y + map[current_map]->Sign[i].h;
+			
+			bool intersects = boxesIntersect(px1, py1, px2, py2, tx1, ty1, tx2, ty2);
+
+			if (intersects) {
+				bool isNew = (current_sign.hasBeenClosed == map[current_map]->Sign[i].hasBeenClosed);
 				if (isNew) {
 					if (popup_sign == false) {
 						current_sign = map[current_map]->Sign[i];
+						printf("Opening sign: (%i, %i, %i, %i))\n", (int)tx1, (int)tx2, (int)ty1, (int)ty2);
 					}
 				}
 				if (!current_sign.triggered && !(current_sign.hasBeenClosed)) {
@@ -6395,20 +6396,34 @@ void physics()
 						popup_menu = 0;
 						popup_sign = true;
 						popup_npc = false;
+						printf("Sign triggered\n");
 					}
 				}
 			}
 		}
 
-		float rangeX = (std::abs)(Player[MyID].x - current_sign.x + current_sign.w / 2.0);
-		float rangeY = (std::abs)(Player[MyID].y - current_sign.y + current_sign.h / 2.0);
-		float distance = sqrt((rangeX*rangeX) + (rangeY*rangeY));
-		bool inRange = (distance < 48);
-		if (!inRange && current_sign.triggered) {
-			popup_sign = false;
-			current_sign.hasBeenClosed = false;
-		}
-		if (distance > 48) {
+		if (!popup_sign)
+			return;
+			
+		// Close currently open sign 
+		float px1 = Player[MyID].x + 25;
+		float px2 = Player[MyID].x + 38;
+		float py1 = Player[MyID].y;
+		float py2 = Player[MyID].y + 64;
+		float tx1 = current_sign.x - 32;
+		float tx2 = tx1 + current_sign.w + 32;
+		float ty1 = current_sign.y - 32;
+		float ty2 = ty1 + current_sign.h + 32;
+		bool intersects = boxesIntersect(px1, py1, px2, py2, tx1, ty1, tx2, ty2);
+
+		if (!intersects) 
+		{
+			printf("Sign not in range\n");
+			if (current_sign.triggered)
+			{
+				//close it if it has been triggered by walking, not by clicking
+				popup_sign = false;
+			}
 			current_sign.triggered = false;
 			current_sign.hasBeenClosed = false;
 		}
