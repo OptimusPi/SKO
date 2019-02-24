@@ -51,13 +51,12 @@ extern Mix_Chunk *hit2;
 extern Mix_Chunk *hit3;
 extern bool loaded;
 extern SKO_Player Player[MAX_CLIENTS];
-extern int camera_x;
-extern int camera_y;
+extern float camera_xf;
+extern float camera_yf;
 extern SKO_Map *map[];
 extern int popup_gui_menu;
 extern int bankScroll;
 extern InputBox inputBox;
-extern int current_map;
 extern int lastSfx;
 extern void SetUsername(int);
 extern std::string *chat_line[];
@@ -71,3 +70,10 @@ extern bool versionError;
 extern void TryToLogin();
 extern int chat_box;
 extern OPI_Hasher *hasher;
+
+
+// Center of screen for player
+#define PLAYER_CAMERA_X 480
+#define PLAYER_CAMERA_Y 300
+extern float camera_xspeed;
+extern float camera_yspeed;

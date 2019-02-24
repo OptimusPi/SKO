@@ -10,6 +10,7 @@
 #include "KE_Socket.h"
 #include "OPI_Hasher.h"
 #include "Global.h"
+#include <iomanip>
 
 SKO_Network::SKO_Network()
 {
@@ -293,16 +294,16 @@ void SKO_Network::send(First const& first, Rest const& ... rest)
 void SKO_Network::checkPing()
 {
 	//get the ping
-	if (menu == STATE_PLAY && (OPI_Clock::milliseconds() - pingRequestTicker) >= 314 && !pingWaiting)
+	if (menu == STATE_PLAY && (OPI_Clock::microseconds() - usPingRequestTicker) >= 1000000 && !pingWaiting)
 	{
-		unsigned long long int currentTime = OPI_Clock::milliseconds();
+		unsigned long long int usCurrentTime = OPI_Clock::microseconds();
 
 		if (socket->Connected) {
 			send(PING);
 			pingWaiting = true;
 
-			pingRequestTicker = currentTime;
-			pingRequestTime = currentTime;
+			usPingRequestTicker = usCurrentTime;
+			usPingRequestTime = usCurrentTime;
 		}
 	}
 }
@@ -310,11 +311,13 @@ void SKO_Network::checkPing()
 //Receive as much data that is ready, and process a single packet
 void SKO_Network::receivePacket(bool connectErr)
 {
-	unsigned int currentTime;
+	unsigned long long int usCurrentTime;
+	unsigned long long int usPing = 0;
+
 	unsigned char code = 0;
 	int data_len = 0;
 	int pack_len = 0;
-	int ping = 0;
+
 
 	//get messages from the server
 	if (socket->Data.length() == 0 || socket->Data.length() < (unsigned int)socket->Data[0])
@@ -325,7 +328,7 @@ void SKO_Network::receivePacket(bool connectErr)
 	// If the data holds a complete data
 	data_len = socket->Data.length();
 	pack_len = 0;
-	currentTime = OPI_Clock::milliseconds();
+	usCurrentTime = OPI_Clock::microseconds();
 
 
 	if (data_len > 0)
@@ -370,35 +373,46 @@ void SKO_Network::receivePacket(bool connectErr)
 				pingWaiting = false;
 
 				//calculate the ping
-				ping = currentTime - pingRequestTime;
+				usPing = usCurrentTime - usPingRequestTime;
 
 				//show the ping
 				std::stringstream ss;
-				ss << "Ping:   ";
-				ss << ping;
+
+				if (usPing == 0)
+				{
+					ss << "Ping: 0 ms";
+				}
+				else
+				{
+					ss << "Ping:  ";
+					ss << std::fixed << std::setprecision(1) << usPing / 1000.0;
+					ss << "ms";
+				}
+				printf("Real ping is: %llu microseconds\n", usPing);
+
 				Message[15].SetText(ss.str());
 
-				if (ping < 50) {
+				if (usPing < 50000) {
 					Message[15].R = 150 / 255.0;
 					Message[15].G = 255 / 255.0;
 					Message[15].B = 150 / 255.0;
 				}
-				else if (ping < 75) {
+				else if (usPing < 75000) {
 					Message[15].R = 180 / 255.0;
 					Message[15].G = 255 / 255.0;
 					Message[15].B = 100 / 255.0;
 				}
-				else if (ping < 100) {
+				else if (usPing < 100000) {
 					Message[15].R = 230 / 255.0;
 					Message[15].G = 255 / 255.0;
 					Message[15].B = 90 / 255.0;
 				}
-				else if (ping < 200) {
+				else if (usPing < 200000) {
 					Message[15].R = 245 / 255.0;
 					Message[15].G = 240 / 255.0;
 					Message[15].B = 130 / 255.0;
 				}
-				else if (ping < 250) {
+				else if (usPing < 250000) {
 					Message[15].R = 255 / 255.0;
 					Message[15].G = 200 / 255.0;
 					Message[15].B = 150 / 255.0;
@@ -446,8 +460,8 @@ void SKO_Network::receivePacket(bool connectErr)
 				popup_gui_menu = 0;
 
 				loaded = true;
-				camera_x = Player[MyID].x;
-				camera_y = Player[MyID].y;
+				camera_xf = Player[MyID].x - PLAYER_CAMERA_X;
+				camera_yf = Player[MyID].y - PLAYER_CAMERA_Y; 
 				
 
 				//Play the music
@@ -481,8 +495,8 @@ void SKO_Network::receivePacket(bool connectErr)
 				Player[CurrSock].x_speed = 0;
 
 				//if they are in sight
-				float px = Player[CurrSock].x - camera_x;
-				float py = Player[CurrSock].y - camera_y;
+				float px = Player[CurrSock].x - camera_xf;
+				float py = Player[CurrSock].y - camera_yf;
 
 				if (px > -32 && px < 1024 && py > -32 && py < 600)
 				{
@@ -869,18 +883,17 @@ void SKO_Network::receivePacket(bool connectErr)
 			}
 			else if (code == TARGET_HIT)
 			{
-
-
 				int type = socket->Data[2];
 				int id = socket->Data[3];
 				bool inSight = false;
 				if (type == 0) // enemy
 				{
+					unsigned char current_map = Player[MyID].current_map;
 					map[current_map]->Enemy[id].hit = true;
 					map[current_map]->Enemy[id].hit_ticker = OPI_Clock::milliseconds();
 					map[current_map]->Enemy[id].hp_ticker = OPI_Clock::milliseconds() + 1500;
-					float px = map[current_map]->Enemy[id].x - camera_x;
-					float py = map[current_map]->Enemy[id].y - camera_y;
+					float px = map[current_map]->Enemy[id].x - camera_xf;
+					float py = map[current_map]->Enemy[id].y - camera_yf;
 					if (px > -32 && px < 1024 && py > -32 && py < 600)
 						inSight = true;
 				}
@@ -888,8 +901,8 @@ void SKO_Network::receivePacket(bool connectErr)
 				{
 					Player[id].hit = true;
 					Player[id].hit_ticker = OPI_Clock::milliseconds();
-					float px = Player[id].x - camera_x;
-					float py = Player[id].y - camera_y;
+					float px = Player[id].x - camera_xf;
+					float py = Player[id].y - camera_yf;
 					if (px > -32 && px < 1024 && py > -32 && py < 600)
 						inSight = true;
 				}
@@ -992,10 +1005,6 @@ void SKO_Network::receivePacket(bool connectErr)
 				//what map are they on?
 				Player[a].current_map = (int)socket->Data[20];
 
-				printf("player is on map: %i\n", Player[a].current_map);
-				if (a == MyID)
-					current_map = Player[MyID].current_map;
-
 				std::string Username = "";
 				std::string Message1 = socket->Data;
 
@@ -1041,7 +1050,6 @@ void SKO_Network::receivePacket(bool connectErr)
 				//only if you're not first entering
 				if (loaded)
 				{
-
 					//display they logged on
 					std::string jMessage = "";
 					jMessage += Player[a].Nick;
@@ -1928,17 +1936,18 @@ void SKO_Network::receivePacket(bool connectErr)
 				((char*)&numy)[2] = b7;
 				((char*)&numy)[3] = b8;
 
-				if (pl == MyID)
-					current_map = map;
+				float cameraOffsetX = Player[MyID].x - PLAYER_CAMERA_X -camera_xf;
+				float cameraOffsetY = Player[MyID].y - PLAYER_CAMERA_Y - camera_yf;
 
 				Player[pl].current_map = map;
 				Player[pl].x = numx;
 				Player[pl].y = numy;
 
-
-
-
-				printf("map is: %i\n", map);
+				if (pl == MyID) 
+				{
+					camera_xf = Player[MyID].x - PLAYER_CAMERA_X - cameraOffsetX; 
+					camera_yf = Player[MyID].y - PLAYER_CAMERA_Y - cameraOffsetY;
+				}
 			} // end WARP
 			else if (code == SPAWN_TARGET)
 			{
@@ -1989,7 +1998,7 @@ void SKO_Network::receivePacket(bool connectErr)
 				Message[0].SetText("Your game is out of date and needs to update. Please re-launch the game.");
 				Message[1].SetText("If that doesn't work, please visit StickKnightsOnline.com and reinstall.");
 			}
-			else if (socket->Data[1] == SERVER_FULL)
+			else if (code == SERVER_FULL)
 			{
 				Message[0].SetText("                The server is full!");
 				Message[1].SetText("Join chat for help. www.StickKnightsOnline.com/chat");

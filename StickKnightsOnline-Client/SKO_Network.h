@@ -76,8 +76,8 @@ class SKO_Network
 		unsigned short port;
 
 		//ping stuff
-		unsigned long long int pingRequestTime = 0;
-		unsigned long long int pingRequestTicker = 0;
+		unsigned long long int usPingRequestTime = 0;
+		unsigned long long int usPingRequestTicker = 0;
 		bool pingWaiting = false;
 
 		template<typename First, typename ... Rest>

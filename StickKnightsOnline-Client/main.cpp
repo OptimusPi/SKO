@@ -89,7 +89,6 @@ void TryToLogin();
 // Maps and stuff ! :)
 const char NUM_MAPS = 6;
 SKO_Map *map[NUM_MAPS];
-int current_map = 2;
 
 
 // Sprites
@@ -106,10 +105,6 @@ static int numDigits(int num);
 // Screen surface
 SDL_Surface *screen;
 SDL_Event event = SDL_Event();
-
-// Center of screen for player
-#define PLAYER_CAMERA_X 480
-#define PLAYER_CAMERA_Y 300
 
 // Networking
 SKO_Network Client;
@@ -251,6 +246,7 @@ const float GRAVITY = 0.17;
 
 //coords
 int camera_x = 0, camera_y = 0; 
+float camera_xf = 0, camera_yf = 0; 
 float camera_xspeed = 0.0f, camera_yspeed = 0.0f;
 
 const int NUM_TEXT = 180;
@@ -730,35 +726,32 @@ void drawText(int i)
 
 void DrawImagefuncL(float x, float y, OPI_Image img)
 {
-	float rotation = 180.0;
+	//bind rotated image
+	glBindTexture(GL_TEXTURE_2D, img.texture);
 	glTranslatef(x + img.w / 2, y + img.h / 2, 0);
 
 	//rotate the image
+	float rotation = 180.0;
 	glRotatef(rotation, 0.0, 1.0, 0.0);
 
-
-	//bind rotated image
-	glBindTexture(GL_TEXTURE_2D, img.texture);
-
-
+	// Pixel perfect drawing
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); 
 
 
 	glBegin(GL_QUADS);
+
 	//Top-left vertex (corner)
 	glTexCoord2f(0, 0);
 	glVertex3f(-img.w / 2, -img.h / 2, 0);
-
 
 	//Top-right vertex (corner)
 	glTexCoord2f(1, 0);
 	glVertex3f(img.w / 2, -img.h / 2, 0);
 
-
 	//Bottom-right vertex (corner)
 	glTexCoord2f(1, 1);
 	glVertex3f(img.w / 2, img.h / 2, 0);
-
 
 	//Bottom-left vertex (corner)
 	glTexCoord2f(0, 1);
@@ -769,9 +762,12 @@ void DrawImagefuncL(float x, float y, OPI_Image img)
 }
 void DrawImagefunc(float x, float y, OPI_Image img)
 {
+	//bind the texture for drawing
+	glBindTexture(GL_TEXTURE_2D, img.texture);
+
 	//pixel perfect drawing
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); 
 
 	glBegin(GL_QUADS);
 	//Top-left vertex (corner)
@@ -790,16 +786,13 @@ void DrawImagefunc(float x, float y, OPI_Image img)
 	glTexCoord2f(1, 0);
 	glVertex3f(x + img.w, y, 0);
 	glEnd();
-	//glLoadIdentity();
+
+	glLoadIdentity();
 }
 
 void DrawImagef(float x, float y, OPI_Image img)
 {
-
-	glBindTexture(GL_TEXTURE_2D, img.texture);
-
 	DrawImagefunc(x, y, img);
-
 }
 void DrawImage(int x, int y, OPI_Image img)
 {
@@ -807,7 +800,6 @@ void DrawImage(int x, int y, OPI_Image img)
 }
 void DrawImageL(int x, int y, OPI_Image img)
 {
-	glBindTexture(GL_TEXTURE_2D, img.texture);
 	DrawImagefuncL(x, y, img);
 }
 
@@ -838,39 +830,33 @@ void authenticateUser()
 		TryToLogin();
 	}
 }
-void DrawImagefRotatedL(float x, float y, OPI_Image img, float rotation)
+void DrawImagefRotatedL(int x, int y, OPI_Image img, float rotation)
 {
-	glTranslatef(x + img.w / 2, y + img.h / 2, 0);
+		//bind rotated image
+	glBindTexture(GL_TEXTURE_2D, img.texture);
 
 	//flip
+	glTranslatef(x + img.w / 2, y + img.h / 2, 0);
 	glRotatef(180.0, 0.0, 1.0, 0.0);
 
 	//rotate the image
 	glRotatef(rotation, 0.0, 0.0, 1.0);
 
-
-	//bind rotated image
-	glBindTexture(GL_TEXTURE_2D, img.texture);
-
-
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); 
 
 	glBegin(GL_QUADS);
 	//Top-left vertex (corner)
 	glTexCoord2f(0, 0);
 	glVertex3f(-img.w / 2, -img.h / 2, 0);
 
-
 	//Top-right vertex (corner)
 	glTexCoord2f(1, 0);
 	glVertex3f(img.w / 2, -img.h / 2, 0);
 
-
 	//Bottom-right vertex (corner)
 	glTexCoord2f(1, 1);
 	glVertex3f(img.w / 2, img.h / 2, 0);
-
 
 	//Bottom-left vertex (corner)
 	glTexCoord2f(0, 1);
@@ -878,40 +864,33 @@ void DrawImagefRotatedL(float x, float y, OPI_Image img, float rotation)
 	glEnd();
 
 	glLoadIdentity();
-
 }
 
-void DrawImagefRotated(float x, float y, OPI_Image img, float rotation)
+void DrawImagefRotated(int x, int y, OPI_Image img, float rotation)
 {
-
-	glTranslatef(x + img.w / 2, y + img.h / 2, 0);
-
-	//rotate the image
-	glRotatef(rotation, 0.0, 0.0, 1.0);
-
-
 	//bind rotated image
 	glBindTexture(GL_TEXTURE_2D, img.texture);
 
-
+	//Prevent texture wrapping
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); 
 
+	//rotate the image
+	glTranslatef(x + img.w / 2, y + img.h / 2, 0);
+	glRotatef(rotation, 0.0f, 0.0f, 1.0f);
 
 	glBegin(GL_QUADS);
 	//Top-left vertex (corner)
 	glTexCoord2f(0, 0);
 	glVertex3f(-img.w / 2, -img.h / 2, 0);
 
-
 	//Top-right vertex (corner)
 	glTexCoord2f(1, 0);
 	glVertex3f(img.w / 2, -img.h / 2, 0);
 
-
 	//Bottom-right vertex (corner)
 	glTexCoord2f(1, 1);
 	glVertex3f(img.w / 2, img.h / 2, 0);
-
 
 	//Bottom-left vertex (corner)
 	glTexCoord2f(0, 1);
@@ -919,7 +898,6 @@ void DrawImagefRotated(float x, float y, OPI_Image img, float rotation)
 	glEnd();
 
 	glLoadIdentity();
-
 }
 
 //The button
@@ -969,36 +947,11 @@ void Button::setBounds(int x, int y, int w, int h)
 
 }
 
-void scroll_sky()
-{
 
-	/* horizontal */
-	back_offsetx[1] -= 0.01;
-	back_offsetx[2] -= 0.02;
-	back_offsetx[3] -= 0.05;
-
-	if (back_offsetx[1] > back_img[1].w)
-		back_offsetx[1] -= back_img[1].w;
-
-	if (back_offsetx[1] < -back_img[1].w)
-		back_offsetx[1] += back_img[1].w;
-
-	if (back_offsetx[2] > back_img[2].w)
-		back_offsetx[2] -= back_img[2].w;
-
-	if (back_offsetx[2] < -back_img[2].w)
-		back_offsetx[2] += back_img[2].w;
-
-
-	if (back_offsetx[3] > back_img[3].w)
-		back_offsetx[3] -= back_img[3].w;
-
-	if (back_offsetx[3] < -back_img[3].w)
-		back_offsetx[3] += back_img[3].w;
-}
 
 void Button::handle_events(int ID)
 {
+	unsigned char current_map = Player[MyID].current_map;
 
 	//printf("handle_events(%i) guiHit: %i\n", ID, (int)guiHit);
 	if (guiHit) return;
@@ -1463,6 +1416,9 @@ void Button::handle_events(int ID)
 					if (!guiHit && menu == STATE_PLAY)
 					{
 						printf("CLICK AT (%i,%i)\n", (int)(x + camera_x), (int)(y + camera_y));
+						printf("Camera: (%i, %i)\n", camera_x, camera_y);
+						printf("Cameraf: (%.4f, %.4f)\n", camera_xf, camera_yf);
+						printf("Cameras: (%.4f, %.4f)\n\n", camera_xspeed, camera_yspeed);
 
 						//check for interaction with player
 						for (int i = 0; i < MAX_CLIENTS; i++)
@@ -2658,13 +2614,84 @@ void sendChat()
 	}
 }
 
+
+void loopCloudTiles()
+{
+	if (back_offsety[1] > back_img[1].h)
+		back_offsety[1] -= back_img[1].h;
+
+	if (back_offsety[1] < -back_img[1].h)
+		back_offsety[1] += back_img[1].h;
+
+	if (back_offsety[2] > back_img[2].h)
+		back_offsety[2] -= back_img[2].h;
+
+	if (back_offsety[2] < -back_img[2].h)
+		back_offsety[2] += back_img[2].h;
+
+	if (back_offsety[3] > back_img[3].h)
+		back_offsety[3] -= back_img[3].h;
+
+	if (back_offsety[3] < -back_img[3].h)
+		back_offsety[3] += back_img[3].h;
+
+	if (back_offsetx[1] > back_img[1].w)
+		back_offsetx[1] -= back_img[1].w;
+
+	if (back_offsetx[1] < -back_img[1].w)
+		back_offsetx[1] += back_img[1].w;
+
+	if (back_offsetx[2] > back_img[2].w)
+		back_offsetx[2] -= back_img[2].w;
+
+	if (back_offsetx[2] < -back_img[2].w)
+		back_offsetx[2] += back_img[2].w;
+
+	if (back_offsetx[3] > back_img[3].w)
+		back_offsetx[3] -= back_img[3].w;
+
+	if (back_offsetx[3] < -back_img[3].w)
+		back_offsetx[3] += back_img[3].w;
+}
+
+void scroll_sky()
+{
+	/* horizontal */
+	back_offsetx[1] -= 0.01;
+	back_offsetx[2] -= 0.02;
+	back_offsetx[3] -= 0.05;
+	loopCloudTiles();
+}
+
 void setCamera()
 {
-	camera_xspeed = (Player[MyID].x - PLAYER_CAMERA_X - camera_x) * 0.1;
-	camera_x += camera_xspeed;
+	const float snapLimit = 0.25f;
+	 
+	//Smooth camera movement
+	camera_xspeed = (Player[MyID].x - PLAYER_CAMERA_X - camera_xf) * 0.08;
+	camera_yspeed = (Player[MyID].y - PLAYER_CAMERA_Y - camera_yf) * 0.05;
 
-	camera_yspeed = (Player[MyID].y - PLAYER_CAMERA_Y - camera_y) * 0.1;
-	camera_y += camera_yspeed;
+	//snap to player when it's very close
+	if ((camera_xspeed < snapLimit && camera_xspeed > 0) || (camera_xspeed > -snapLimit && camera_xspeed < 0))
+	{
+		camera_xspeed = 0;
+	}
+	if ((camera_yspeed < snapLimit && camera_yspeed > 0) || (camera_yspeed > -snapLimit && camera_yspeed < 0))
+	{
+		camera_yspeed = 0;
+	}
+
+	camera_xf += camera_xspeed;
+	camera_yf += camera_yspeed;
+
+	// pixel perfect camera
+	camera_x = round(camera_xf);
+	camera_y = round(camera_yf);
+	
+	if (camera_x < 0)
+		camera_x = 0;
+	if (camera_y < 0)
+		camera_y = 0;
 }
 
 void
@@ -2673,11 +2700,8 @@ construct_frame()
 	if (!contentLoaded)
 		return;
 
-	if (MyID > -1)
-	{
-		current_map = Player[MyID].current_map;
-		setCamera();
-	}
+	unsigned char current_map = 2;
+
 	//printf("camera_x : %i\n", (int)camera_x);
 	//printf("camera_y : %i\n", (int)camera_y);
 
@@ -2686,8 +2710,8 @@ construct_frame()
 
 	if (loaded)
 	{
-		//printf("debug opportunity here.");
-		;
+		current_map = Player[MyID].current_map;
+		setCamera();
 	}
 	else
 	{
@@ -3986,6 +4010,7 @@ construct_frame()
 
 bool blocked(float box1_x1, float box1_y1, float box1_x2, float box1_y2)
 {
+	unsigned char current_map = Player[MyID].current_map;
 	for (int r = 0; r < map[current_map]->number_of_rects; r++)
 	{
 		float box2_x1 = map[current_map]->collision_rect[r].x;
@@ -4623,6 +4648,7 @@ void HandleUI()
 	{
 		int x = event.button.x;
 		int y = event.button.y;
+		unsigned char current_map = Player[MyID].current_map;
 
 		switch (event.type)
 		{
@@ -5685,6 +5711,8 @@ void physics()
 	if (menu != STATE_PLAY)
 		return;
 
+	unsigned char current_map = Player[MyID].current_map;
+
 	//enemies
 	for (int i = 0; i < map[current_map]->num_enemies; i++)
 	{
@@ -5983,32 +6011,6 @@ void physics()
 				Player[i].ground = false;
 
 				Player[i].y += Player[i].y_speed;
-
-				if (i == MyID) {
-					//move tiles background
-					back_offsety[1] -= Player[i].y_speed * scrollBack;
-					back_offsety[2] -= Player[i].y_speed * scrollMid;
-					back_offsety[3] -= Player[i].y_speed * scrollFront;
-					
-					if (back_offsety[1] > back_img[1].h)
-						back_offsety[1] -= back_img[1].h;
-
-					if (back_offsety[1] < -back_img[1].h)
-						back_offsety[1] += back_img[1].h;
-
-					if (back_offsety[2] > back_img[2].h)
-						back_offsety[2] -= back_img[2].h;
-
-					if (back_offsety[2] < -back_img[2].h)
-						back_offsety[2] += back_img[2].h;
-
-					if (back_offsety[3] > back_img[3].h)
-						back_offsety[3] -= back_img[3].h;
-
-					if (back_offsety[3] < -back_img[3].h)
-						back_offsety[3] += back_img[3].h;
-				}
-
 			}
 			else
 			{  //blocked, stop
@@ -6046,32 +6048,6 @@ void physics()
 			if (!block_x)
 			{//not blocked, walk
 				Player[i].x += (Player[i].x_speed);
-
-				//move tiles background
-				if (i == MyID) {
-					back_offsetx[1] -= Player[i].x_speed * scrollBack;
-					back_offsetx[2] -= Player[i].x_speed * scrollMid;
-					back_offsetx[3] -= Player[i].x_speed * scrollFront;
-					
-
-					if (back_offsetx[1] > back_img[1].w)
-						back_offsetx[1] -= back_img[1].w;
-
-					if (back_offsetx[1] < -back_img[1].w)
-						back_offsetx[1] += back_img[1].w;
-
-					if (back_offsetx[2] > back_img[2].w)
-						back_offsetx[2] -= back_img[2].w;
-
-					if (back_offsetx[2] < -back_img[2].w)
-						back_offsetx[2] += back_img[2].w;
-
-					if (back_offsetx[3] > back_img[3].w)
-						back_offsetx[3] -= back_img[3].w;
-
-					if (back_offsetx[3] < -back_img[3].w)
-						back_offsetx[3] += back_img[3].w;
-				}
 			}
 
 			//yourself
