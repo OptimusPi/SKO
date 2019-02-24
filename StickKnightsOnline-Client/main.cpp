@@ -987,9 +987,6 @@ void Button::handle_events(int ID)
 			//If the mouse is over the button
 			if ((x > box.x) && (x < box.x + box.w) && (y > box.y) && (y < box.y + box.h))
 			{
-				//printf("inside my button\n");
-
-
 			  //inventory items
 				int itmx = x - 11, itmy = y - 253;
 				//shop
@@ -1415,10 +1412,6 @@ void Button::handle_events(int ID)
 					//just chillin as far as menus go
 					if (!guiHit && menu == STATE_PLAY)
 					{
-						printf("CLICK AT (%i,%i)\n", (int)(x + camera_x), (int)(y + camera_y));
-						printf("Camera: (%i, %i)\n", camera_x, camera_y);
-						printf("Cameraf: (%.4f, %.4f)\n", camera_xf, camera_yf);
-						printf("Cameras: (%.4f, %.4f)\n\n", camera_xspeed, camera_yspeed);
 
 						//check for interaction with player
 						for (int i = 0; i < MAX_CLIENTS; i++)
@@ -4654,6 +4647,13 @@ void HandleUI()
 		{
 			//mouse clickies
 		case SDL_MOUSEBUTTONDOWN:
+			
+			if (menu == 4)
+			{
+				printf("CLICK AT (%i,%i)\n", (int)(x + camera_x), (int)(y + camera_y));
+				printf("TILE X/Y (%i,%i)\n", (int)(x + camera_x)/32*32, (int)(y + camera_y)/32*32);
+			}
+			
 			if (!lclick) {
 				//buttons!!
 				guiHit = false;
@@ -5336,7 +5336,7 @@ int main(int argc, char *argv[])
 	Item[ITEM_WINE] = SKO_Item(9, 31, 4, "Wine");
 	Item[ITEM_POTION] = SKO_Item(10, 16, 5, "Health Potion");
 	Item[ITEM_DIAMOND] = SKO_Item(15, 14, 100, "Diamond");
-	Item[ITEM_SWORD_TRAINING] = SKO_Item(11, 31, 5, "Training Sword", 0, 1, 0);
+	Item[ITEM_SWORD_TRAINING] = SKO_Item(11, 31, 10, "Training Sword", 0, 1, 0);
 	Item[ITEM_BLUE_PHAT] = SKO_Item(10, 13, 0, "Blue Party Hat");
 	Item[ITEM_SANTA_HAT] = SKO_Item(17, 10, 0, "Santa Hat");
 	Item[ITEM_NERD_GLASSES] = SKO_Item(21, 13, 0, "Nerd Glasses");
@@ -5347,18 +5347,22 @@ int main(int argc, char *argv[])
 	Item[ITEM_PUMPKIN] = SKO_Item(21, 23, 0, "Pumpkin");
 	Item[ITEM_ICECREAM] = SKO_Item(9, 16, 0, "Icecream Cone");
 	Item[ITEM_SUNGLASSES] = SKO_Item(21, 13, 0, "Sunglasses");
-	Item[ITEM_SWORD_RUSTED] = SKO_Item(11, 32, 15, "Rusty Sword", 0, 2, 1);
-	Item[ITEM_SWORD_STEEL] = SKO_Item(11, 32, 400, "Steel Sword", 0, 4, 2);
-	Item[ITEM_SWORD_GOLD] = SKO_Item(11, 32, 8600, "Golden Sword", 0, 11, 3);
-	Item[ITEM_SWORD_CRYSTAL] = SKO_Item(11, 32, 100300, "Crystal Sword", 0, 22, 5);
-	Item[ITEM_AXE_RUSTED] = SKO_Item(12, 31, 15, "Rusty Hatchet", 0, 3, 1);
-	Item[ITEM_AXE_STEEL] = SKO_Item(12, 31, 425, "Steel Hatchet", 0, 5, 1);
-	Item[ITEM_AXE_GOLD] = SKO_Item(21, 32, 9600, "Golden Axe", 0, 13, 2);
-	Item[ITEM_AXE_CRYSTAL] = SKO_Item(24, 32, 98525, "Crystal Axe", 0, 24, 3);
-	Item[ITEM_HAMMER_RUSTED] = SKO_Item(17, 32, 10, "Rusty Hammer", 0, 4, 0);
-	Item[ITEM_HAMMER_STEEL] = SKO_Item(17, 32, 90, "Steel Hammer", 0, 7, 0);
-	Item[ITEM_HAMMER_GOLD] = SKO_Item(17, 32, 6120, "Golden Hammer", 0, 16, 2);
-	Item[ITEM_HAMMER_CRYSTAL] = SKO_Item(29, 32, 99085, "Crystal Hammer", 0, 25, 3);
+
+	Item[ITEM_SWORD_RUSTED] = SKO_Item(11, 32, 250, "Rusty Sword", 0, 2, 2);
+	Item[ITEM_SWORD_STEEL] = SKO_Item(11, 32, 8000, "Steel Sword", 0, 4, 4);
+	Item[ITEM_SWORD_GOLD] = SKO_Item(11, 32, 40000, "Golden Sword", 0, 8, 8);
+	Item[ITEM_SWORD_CRYSTAL] = SKO_Item(11, 32, 120000, "Crystal Sword", 1, 16, 16);
+
+	Item[ITEM_AXE_RUSTED] = SKO_Item(12, 31, 250, "Rusty Hatchet", 0, 1, 3);
+	Item[ITEM_AXE_STEEL] = SKO_Item(12, 31, 8000, "Steel Hatchet", 0, 3, 5);
+	Item[ITEM_AXE_GOLD] = SKO_Item(21, 32, 40000, "Golden Axe", 0, 6, 10);
+	Item[ITEM_AXE_CRYSTAL] = SKO_Item(24, 32, 120000, "Crystal Axe", 1, 14, 18);
+
+	Item[ITEM_HAMMER_RUSTED] = SKO_Item(17, 32, 250, "Rusty Hammer", 0, 3, 1);
+	Item[ITEM_HAMMER_STEEL] = SKO_Item(17, 32, 8000, "Steel Hammer", 0, 5, 3);
+	Item[ITEM_HAMMER_GOLD] = SKO_Item(17, 32, 40000, "Golden Hammer", 0, 10, 6);
+	Item[ITEM_HAMMER_CRYSTAL] = SKO_Item(29, 32, 120000, "Crystal Hammer", 1, 18, 14);
+
 	Item[ITEM_SCYTHE] = SKO_Item(23, 25, 900, "Scythe", 0, 3, 3);
 	Item[ITEM_SCYTHE_REAPER] = SKO_Item(27, 32, 15, "Reaper's Scythe", 10, 10, 10);
 	Item[ITEM_HALLOWEEN_MASK] = SKO_Item(18, 21, 0, "Halloween Mask");
@@ -5367,7 +5371,7 @@ int main(int argc, char *argv[])
 	Item[ITEM_WHITE_PHAT] = SKO_Item(10, 13, 0, "White Party Hat");
 	Item[ITEM_CANDY_CANE] = SKO_Item(16, 31, 0, "Candy Cane", 3, 3, 3);
 	Item[ITEM_SKELETON_HELM] = SKO_Item(18, 21, 500, "Skeleton Helm", 1, 2, 1);
-	Item[ITEM_TRAINING_HELM] = SKO_Item(18, 21, 75, "Training Helm", 0, 0, 1);
+	Item[ITEM_TRAINING_HELM] = SKO_Item(18, 21, 10, "Training Helm", 0, 0, 1);
 	Item[ITEM_PURPLE_PHAT] = SKO_Item(10, 13, 0, "Purple Party Hat");
 	Item[ITEM_SNOW_BALL] = SKO_Item(12, 12, 0, "Snowball");
 

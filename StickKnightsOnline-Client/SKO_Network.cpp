@@ -388,7 +388,6 @@ void SKO_Network::receivePacket(bool connectErr)
 					ss << std::fixed << std::setprecision(1) << usPing / 1000.0;
 					ss << "ms";
 				}
-				printf("Real ping is: %llu microseconds\n", usPing);
 
 				Message[15].SetText(ss.str());
 
