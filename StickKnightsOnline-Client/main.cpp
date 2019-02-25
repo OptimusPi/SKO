@@ -6366,6 +6366,7 @@ void physics()
 	//end items
 
 	//Sign reading collision detection
+	// TODO - refactor into 
 	if (enableSIGN && (Player[MyID].x_speed != 0 || Player[MyID].y_speed != 1))
 	{
 		for (int i = 0; i < map[current_map]->num_signs; i++)
@@ -6404,7 +6405,7 @@ void physics()
 
 		if (!popup_sign)
 			return;
-			
+
 		// Close currently open sign 
 		float px1 = Player[MyID].x + 25;
 		float px2 = Player[MyID].x + 38;
