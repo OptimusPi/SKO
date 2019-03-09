@@ -4000,7 +4000,7 @@ bool boxesIntersect(float box1_x1, float box1_y1, float box1_x2, float box1_y2, 
 	return	(box1_x2 > box2_x1 && box1_x1 < box2_x2 && box1_y2 > box2_y1 && box1_y1 < box2_y2);
 }
 
-bool blocked(float box1_x1, float box1_y1, float box1_x2, float box1_y2)
+bool blocked(float box1_x1, float box1_y1, float box1_x2, float box1_y2, bool npc)
 {
 	unsigned char current_map = Player[MyID].current_map;
 	for (int r = 0; r < map[current_map]->number_of_rects; r++)
@@ -4017,7 +4017,11 @@ bool blocked(float box1_x1, float box1_y1, float box1_x2, float box1_y2)
 	for (int r = 0; r < map[current_map]->num_targets; r++)
 	{
 		if (!map[current_map]->Target[r].active)
-			continue;
+		{
+			if (!npc)
+				continue;
+		}
+
 		float box2_x1 = map[current_map]->Target[r].x;
 		float box2_y1 = map[current_map]->Target[r].y;
 		float box2_x2 = map[current_map]->Target[r].x + map[current_map]->Target[r].w;
@@ -4164,7 +4168,7 @@ int pressKey(int key)
 		case SDLK_UP:
 			if (chat_box == 4 && !Player[MyID].attacking)
 				//verical collision detection
-				if (blocked(Player[MyID].x + 25, Player[MyID].y + Player[MyID].y_speed + 0 + 0.15, Player[MyID].x + 38, Player[MyID].y + Player[MyID].y_speed + 64 + 0.15))
+				if (blocked(Player[MyID].x + 25, Player[MyID].y + Player[MyID].y_speed + 0 + 0.15, Player[MyID].x + 38, Player[MyID].y + Player[MyID].y_speed + 64 + 0.15, false))
 				{
 					//Send action to SKO network
 					Client.playerAction("jump", Player[MyID].x, Player[MyID].y);
@@ -5739,7 +5743,8 @@ void physics()
 
 			map[current_map]->Enemy[i].y +
 			map[current_map]->Enemy[i].y_speed +
-			EnemySprite[map[current_map]->Enemy[i].sprite].y2);
+			EnemySprite[map[current_map]->Enemy[i].sprite].y2,
+			true);
 
 		//vertical movement
 		if (!block_y)
@@ -5765,7 +5770,7 @@ void physics()
 					map[current_map]->Enemy[i].y +
 					map[current_map]->Enemy[i].y_speed +
 					EnemySprite[map[current_map]->Enemy[i].sprite].y1 +
-					EnemySprite[map[current_map]->Enemy[i].sprite].y2)); loopVar++)
+					EnemySprite[map[current_map]->Enemy[i].sprite].y2, true)); loopVar++)
 					map[current_map]->Enemy[i].y +=
 					map[current_map]->Enemy[i].y_speed;
 
@@ -5787,7 +5792,7 @@ void physics()
 					map[current_map]->Enemy[i].y +
 					map[current_map]->Enemy[i].y_speed +
 					EnemySprite[map[current_map]->Enemy[i].sprite].y1 +
-					EnemySprite[map[current_map]->Enemy[i].sprite].y2)); loopVar++)
+					EnemySprite[map[current_map]->Enemy[i].sprite].y2, true)); loopVar++)
 					map[current_map]->Enemy[i].y += map[current_map]->Enemy[i].y_speed;
 			}
 
@@ -5806,7 +5811,7 @@ void physics()
 			map[current_map]->Enemy[i].x_speed +
 			EnemySprite[map[current_map]->Enemy[i].sprite].x2,
 			map[current_map]->Enemy[i].y +
-			EnemySprite[map[current_map]->Enemy[i].sprite].y2);
+			EnemySprite[map[current_map]->Enemy[i].sprite].y2, true);
 
 		//horizontal movement
 		if (!block_x)
@@ -5874,7 +5879,7 @@ void physics()
 
 			map[current_map]->NPC[i].y +
 			map[current_map]->NPC[i].y_speed +
-			NpcSprite[map[current_map]->NPC[i].sprite].y2);
+			NpcSprite[map[current_map]->NPC[i].sprite].y2, true);
 
 		//vertical movement
 		if (!block_y)
@@ -5903,7 +5908,7 @@ void physics()
 					map[current_map]->NPC[i].y +
 					map[current_map]->NPC[i].y_speed +
 					NpcSprite[map[current_map]->NPC[i].sprite].y1 +
-					NpcSprite[map[current_map]->NPC[i].sprite].y2)); loopVar++)
+					NpcSprite[map[current_map]->NPC[i].sprite].y2, true)); loopVar++)
 					map[current_map]->NPC[i].y +=
 					map[current_map]->NPC[i].y_speed;
 
@@ -5925,7 +5930,7 @@ void physics()
 					map[current_map]->NPC[i].y +
 					map[current_map]->NPC[i].y_speed +
 					NpcSprite[map[current_map]->NPC[i].sprite].y1 +
-					NpcSprite[map[current_map]->NPC[i].sprite].y2)); loopVar++)
+					NpcSprite[map[current_map]->NPC[i].sprite].y2, true)); loopVar++)
 					map[current_map]->NPC[i].y += map[current_map]->NPC[i].y_speed;
 			}
 
@@ -5944,7 +5949,7 @@ void physics()
 			map[current_map]->NPC[i].x_speed +
 			NpcSprite[map[current_map]->NPC[i].sprite].x2,
 			map[current_map]->NPC[i].y +
-			NpcSprite[map[current_map]->NPC[i].sprite].y2);
+			NpcSprite[map[current_map]->NPC[i].sprite].y2, true);
 
 		//horizontal movement
 		if (!block_x)
@@ -5997,7 +6002,7 @@ void physics()
 			Player[i].ground = true;
 
 			//verical collision detection
-			bool block_y = blocked(Player[i].x + 25, Player[i].y + Player[i].y_speed + 13, Player[i].x + 38, Player[i].y + Player[i].y_speed + 64);
+			bool block_y = blocked(Player[i].x + 25, Player[i].y + Player[i].y_speed + 13, Player[i].x + 38, Player[i].y + Player[i].y_speed + 64, false);
 
 
 			//vertical movement
@@ -6017,7 +6022,7 @@ void physics()
 
 					//todo see if while or if is better
 					for (int loopVar = 0; loopVar < HIT_LOOPS &&
-						(!blocked(Player[i].x + 25, Player[i].y + Player[i].y_speed + 13, Player[i].x + 38, Player[i].y + Player[i].y_speed + 64))
+						(!blocked(Player[i].x + 25, Player[i].y + Player[i].y_speed + 13, Player[i].x + 38, Player[i].y + Player[i].y_speed + 64, false))
 						; loopVar++)
 						Player[i].y += Player[i].y_speed;
 
@@ -6031,7 +6036,7 @@ void physics()
 					//todo see if while or if is better
 					//trying out for 3 loops
 					for (int loopVar = 0; loopVar < HIT_LOOPS &&
-						(!blocked(Player[i].x + 25, Player[i].y + Player[i].y_speed + 13, Player[i].x + 38, Player[i].y + Player[i].y_speed + 64))
+						(!blocked(Player[i].x + 25, Player[i].y + Player[i].y_speed + 13, Player[i].x + 38, Player[i].y + Player[i].y_speed + 64, false))
 						; loopVar++)
 						Player[i].y += Player[i].y_speed;
 				}
@@ -6039,7 +6044,7 @@ void physics()
 			}
 
 			//horizontal collision detection
-			bool block_x = blocked(Player[i].x + Player[i].x_speed + 23, Player[i].y + 13, Player[i].x + Player[i].x_speed + 40, Player[i].y + 64);
+			bool block_x = blocked(Player[i].x + Player[i].x_speed + 23, Player[i].y + 13, Player[i].x + Player[i].x_speed + 40, Player[i].y + 64, false);
 
 			//horizontal movement
 			if (!block_x)
@@ -6330,7 +6335,7 @@ void physics()
 				map[current_map]->ItemObj[i].x + map[current_map]->ItemObj[i].x_speed,
 				map[current_map]->ItemObj[i].y,
 				map[current_map]->ItemObj[i].x + map[current_map]->ItemObj[i].x_speed + Item[(int)map[current_map]->ItemObj[i].itemID].w,
-				map[current_map]->ItemObj[i].y + Item[(int)map[current_map]->ItemObj[i].itemID].h);
+				map[current_map]->ItemObj[i].y + Item[(int)map[current_map]->ItemObj[i].itemID].h, false);
 
 			if (map[current_map]->ItemObj[i].y_speed < 10)
 				map[current_map]->ItemObj[i].y_speed += GRAVITY;
@@ -6340,7 +6345,7 @@ void physics()
 				map[current_map]->ItemObj[i].x + map[current_map]->ItemObj[i].x_speed,
 				map[current_map]->ItemObj[i].y + map[current_map]->ItemObj[i].y_speed,
 				map[current_map]->ItemObj[i].x + Item[(int)map[current_map]->ItemObj[i].itemID].w,
-				map[current_map]->ItemObj[i].y + map[current_map]->ItemObj[i].y_speed + Item[(int)map[current_map]->ItemObj[i].itemID].h);
+				map[current_map]->ItemObj[i].y + map[current_map]->ItemObj[i].y_speed + Item[(int)map[current_map]->ItemObj[i].itemID].h, false);
 
 
 			//vertical movement
