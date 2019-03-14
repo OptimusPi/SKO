@@ -4182,7 +4182,7 @@ int pressKey(int key)
 			if (menu == STATE_PLAY)
 			{
 				if (!openChat())
-					key = SDLK_RETURN;
+					key = SDLK_ESCAPE;
 			}
 			break;
 	}
