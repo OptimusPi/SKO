@@ -81,7 +81,7 @@
     <ClCompile Include="StickKnightsOnline-Client\SKO_Network.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="StickKnightsOnline-Client\Hasher.cpp">
+    <ClCompile Include="StickKnightsOnline-Client\OPI_Hasher.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -168,6 +168,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="StickKnightsOnline-Client\SKO_PacketFactory.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StickKnightsOnline-Client\OPI_Hasher.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StickKnightsOnline-Client\OPI_Sleep.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StickKnightsOnline-Client\OPI_Clock.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

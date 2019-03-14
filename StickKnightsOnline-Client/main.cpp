@@ -5468,7 +5468,7 @@ int main(int argc, char *argv[])
 	enemy_hp.setImage("IMG/MISC/enemy_hp.png");
 
 	// tiled background
-	back_img[0].setImage("IMG/MISC/sky_back_new.png");
+	back_img[0].setImage("IMG/MISC/sky_back.png");
 	back_img[1].setImage("IMG/MISC/far_back.png");
 	back_img[2].setImage("IMG/MISC/med_back.png");
 	back_img[3].setImage("IMG/MISC/close_back.png");

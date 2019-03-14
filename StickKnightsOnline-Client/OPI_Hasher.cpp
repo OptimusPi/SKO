@@ -67,8 +67,8 @@ std::string OPI_Hasher::generateHash(std::string _salt, std::string _secret)
 	size_t hashLength = this->hashLength;
 	size_t saltLength = _salt.length();
 	std::string hashResult = "";
-	uint8_t hashArray[hashLength];
-	uint8_t saltArray[_salt.length()];
+	uint8_t * hashArray = new uint8_t[hashLength];
+	uint8_t * saltArray = new uint8_t[saltLength];
 
 	// Copy salt to saltArray
 	for (size_t i = 0; i < saltLength; i++)
