@@ -1087,12 +1087,16 @@ void SKO_Network::receivePacket(bool connectErr)
 
 				int a = socket->Data[2];
 
+				//IF I was told to EXIT, leave the game without attempting to reconnect...
+				if (a == MyID)
+					Kill();
+
 				//display they logged off
 				std::string lMessage = "";
 				lMessage += Player[a].Nick;
 				lMessage += " has left the game.";
 
-				//scroll the stuff up
+				//scroll the stuff up - TODO refactor this / replace with real text rendering 
 				chat_line[0] = chat_line[1];
 				chat_line[1] = chat_line[2];
 				chat_line[2] = chat_line[3];
@@ -1115,7 +1119,6 @@ void SKO_Network::receivePacket(bool connectErr)
 
 				Player[a] = SKO_Player();
 				SetUsername(a);
-
 			}
 			else if (code == STAT_HP)
 			{

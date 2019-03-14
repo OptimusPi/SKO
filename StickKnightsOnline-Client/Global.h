@@ -77,3 +77,6 @@ extern OPI_Hasher *hasher;
 #define PLAYER_CAMERA_Y 300
 extern float camera_xspeed;
 extern float camera_yspeed;
+
+//Quit process
+extern void Kill();
