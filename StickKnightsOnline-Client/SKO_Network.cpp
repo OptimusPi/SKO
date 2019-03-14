@@ -309,7 +309,7 @@ void SKO_Network::checkPing()
 }
 
 //Receive as much data that is ready, and process a single packet
-void SKO_Network::receivePacket(bool connectErr)
+void SKO_Network::receivePacket()
 {
 	unsigned long long int usCurrentTime;
 	unsigned long long int usPing = 0;
@@ -1088,8 +1088,9 @@ void SKO_Network::receivePacket(bool connectErr)
 				int a = socket->Data[2];
 
 				//IF I was told to EXIT, leave the game without attempting to reconnect...
-				if (a == MyID)
-					Kill();
+				// TODO - implement and test this
+				//if (a == MyID)
+					//Kill();
 
 				//display they logged off
 				std::string lMessage = "";
@@ -1994,6 +1995,8 @@ void SKO_Network::receivePacket(bool connectErr)
 			{
 				Message[0].SetText("   You are connected to the server!");
 				Message[1].SetText("Login or create a new account to play.");
+				VersionCheckOK = true; 
+				printf("VersionCheckOK = true");
 			}
 			else if (code == VERSION_FAIL)
 			{

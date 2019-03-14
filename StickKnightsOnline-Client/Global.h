@@ -70,6 +70,7 @@ extern bool versionError;
 extern void TryToLogin();
 extern int chat_box;
 extern OPI_Hasher *hasher;
+extern bool VersionCheckOK;
 
 
 // Center of screen for player

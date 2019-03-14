@@ -81,6 +81,7 @@ bool DEBUG_FLAG = false;
 // Loaded yet?
 bool loaded = false;
 bool contentLoaded = false;
+bool VersionCheckOK = false;
 
 // Login and out
 OPI_Hasher *hasher;
@@ -4908,6 +4909,7 @@ void Network()
 		if (Client.TryReconnect(1000))
 		{
 			connectError = false;
+			//TODO refactor...?
 			Client.sendVersion(VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
 		}
 		else
@@ -4935,7 +4937,7 @@ void Network()
 			continue;
 		}
 
-		Client.receivePacket(connectError);
+		Client.receivePacket();
 		Client.checkPing();
 		OPI_Sleep::microseconds(100);
 	}
@@ -6442,13 +6444,23 @@ void Disconnect()
 	popup_menu = -1;
 	popup_gui_menu = -1;
 	menu = STATE_DISCONNECT;
+	VersionCheckOK = false;
+
 	Graphics();
 
 	//Try reconnecting for 10 seconds
 	if (Client.TryReconnect(10000))
 	{
-		if (loaded)
+		if (loaded) 
+		{
+			Client.sendVersion(VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+			while (!done && !VersionCheckOK)
+			{
+				Client.receivePacket();
+				OPI_Sleep::milliseconds(100);
+			}
 			TryToLogin();
+		}
 	}
 	else
 	{

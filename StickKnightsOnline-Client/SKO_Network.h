@@ -18,7 +18,7 @@ class SKO_Network
 		bool isConnected();
 		bool TryReconnect(unsigned long long int timeout);
 		
-		void receivePacket(bool);
+		void receivePacket();
 		void saveInventory(unsigned int [24][2]);
 		void allocateStatPoint(std::string desiredStat);
 
