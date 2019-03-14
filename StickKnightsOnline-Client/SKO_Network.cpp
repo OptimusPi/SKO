@@ -3,11 +3,14 @@
 #include <algorithm>
 #include <sstream>
 
+#include "OPI_Clock.h"
+#include "OPI_Sleep.h"
 #include "SKO_PacketTypes.h"
 #include "SKO_Network.h" 
 #include "KE_Socket.h"
-#include "hasher.h"
+#include "OPI_Hasher.h"
 #include "Global.h"
+#include <iomanip>
 
 SKO_Network::SKO_Network()
 {
@@ -57,13 +60,13 @@ bool SKO_Network::isConnected()
 	return socket->Connected;
 }
 
-bool SKO_Network::TryReconnect(unsigned int timeout)
+bool SKO_Network::TryReconnect(unsigned long long int timeout)
 {
-	unsigned long int startTime = SDL_GetTicks();
-	while (connect() != "success" && SDL_GetTicks() - startTime < timeout);
+	unsigned long long int startTime = OPI_Clock::milliseconds();
+	while (!done && connect() != "success" && OPI_Clock::milliseconds() - startTime < timeout)
 	{ 
-		SDL_Delay(100); 
-	} 
+		OPI_Sleep::milliseconds(500);
+	}
 
 	socket->Data = "";
 	return isConnected();
@@ -73,17 +76,16 @@ bool SKO_Network::TryReconnect(unsigned int timeout)
 // Returns a string indicating success or error type
 void SKO_Network::createAccount(std::string desiredUsername, std::string desiredPassword)
 {
-	send(REGISTER, desiredUsername, " ", getSaltedHash(desiredUsername, desiredPassword));
+	send(REGISTER, desiredUsername, " ", desiredPassword);
 	Message[0].SetText("Creating your user...");
 	Message[1].SetText("");
 }
 
 // Request to login
 // Returns a string indicating success or error type
-void SKO_Network::sendLoginRequest(std::string username, std::string password)
+void SKO_Network::sendLoginRequest(std::string username, std::string passwordHash)
 {
-	std::string returnVal = "";
-	send(LOGIN, username, " ", getSaltedHash(username, password));
+	send(LOGIN, username, " ", passwordHash);
 }
 
 // Send a clan creation request
@@ -209,7 +211,7 @@ void SKO_Network::setTradeItemOffer(unsigned char itemId, unsigned int amount)
 	send(TRADE, OFFER, itemId, amount);
 }
 
-void SKO_Network::openShop(unsigned char shopId)
+void SKO_Network::openStall(unsigned char shopId)
 {
 	send(SHOP, INVITE, shopId);
 }
@@ -288,33 +290,20 @@ void SKO_Network::send(First const& first, Rest const& ... rest)
 	socket->Send(packet);
 }
 
-
-
-//Standard way for create and login functions to get a salted hash of the username and password
-std::string SKO_Network::getSaltedHash(std::string username, std::string password)
-{
-	Hasher hasher = Hasher();
-
-	//We must use a lowercase username because a user may want to login sometimes as "pifreak" and sometimes as "PiFreak"
-	std::transform(username.begin(), username.end(), username.begin(), ::tolower);
-
-	return hasher.Hash(username + password);
-}
-
 //This will periodically check for the client ping to the server in milliseconds
 void SKO_Network::checkPing()
 {
 	//get the ping
-	if (menu == STATE_PLAY && (SDL_GetTicks() - pingRequestTicker) >= 950 && !pingWaiting)
+	if (menu == STATE_PLAY && (OPI_Clock::microseconds() - usPingRequestTicker) >= 1000000 && !pingWaiting)
 	{
-		unsigned int currentTime = SDL_GetTicks();
+		unsigned long long int usCurrentTime = OPI_Clock::microseconds();
 
 		if (socket->Connected) {
 			send(PING);
 			pingWaiting = true;
 
-			pingRequestTicker = currentTime;
-			pingRequestTime = currentTime;
+			usPingRequestTicker = usCurrentTime;
+			usPingRequestTime = usCurrentTime;
 		}
 	}
 }
@@ -322,11 +311,13 @@ void SKO_Network::checkPing()
 //Receive as much data that is ready, and process a single packet
 void SKO_Network::receivePacket(bool connectErr)
 {
-	unsigned int currentTime;
-	int code = 0;
+	unsigned long long int usCurrentTime;
+	unsigned long long int usPing = 0;
+
+	unsigned char code = 0;
 	int data_len = 0;
 	int pack_len = 0;
-	int ping = 0;
+
 
 	//get messages from the server
 	if (socket->Data.length() == 0 || socket->Data.length() < (unsigned int)socket->Data[0])
@@ -337,7 +328,7 @@ void SKO_Network::receivePacket(bool connectErr)
 	// If the data holds a complete data
 	data_len = socket->Data.length();
 	pack_len = 0;
-	currentTime = SDL_GetTicks();
+	usCurrentTime = OPI_Clock::microseconds();
 
 
 	if (data_len > 0)
@@ -365,51 +356,71 @@ void SKO_Network::receivePacket(bool connectErr)
 		//rip the command
 		code = socket->Data[1];
 
-
-		//respond to server's PING or die!
-		if (code == PING)
+		if (code == DISCONNECT)
 		{
+			printf("You were forcefully disconnected from the server. Goodbye!\n");
+			//Kill the client without grace because the server wants to kill this client's connection
+			exit(DISCONNECT);
+		}
+		else if (code == PING)
+		{
+			//respond to server's PING or die!
 			send(PONG);
 		}
-		else
-			if (code == PONG)
+		else if (code == PONG)
 			{
+				//tell the counters that the ping came back
+				pingWaiting = false;
 
 				//calculate the ping
-				ping = currentTime - pingRequestTime;
+				usPing = usCurrentTime - usPingRequestTime;
 
 				//show the ping
 				std::stringstream ss;
-				ss << "Ping:   ";
-				// ss << (float)(ping+ping_old)/2.0;
-				ss << ping;
+
+				if (usPing == 0)
+				{
+					ss << "Ping: 0 ms";
+				}
+				else
+				{
+					ss << "Ping:  ";
+					ss << std::fixed << std::setprecision(1) << usPing / 1000.0;
+					ss << "ms";
+				}
+
 				Message[15].SetText(ss.str());
 
-				if (ping < 50) {
+				if (usPing < 50000) {
 					Message[15].R = 150 / 255.0;
 					Message[15].G = 255 / 255.0;
 					Message[15].B = 150 / 255.0;
 				}
-				else
-					if (ping < 100) {
-						Message[15].R = 230 / 255.0;
-						Message[15].G = 255 / 255.0;
-						Message[15].B = 90 / 255.0;
-					}
-					else
-						if (ping < 250) {
-							Message[15].R = 255 / 255.0;
-							Message[15].G = 200 / 255.0;
-							Message[15].B = 150 / 255.0;
-						}
-						else {
-							Message[15].R = 255 / 255.0;
-							Message[15].G = 80 / 255.0;
-							Message[15].B = 80 / 255.0;
-						}
-
-						//tell the counters that the ping came back
-						pingWaiting = false;
+				else if (usPing < 75000) {
+					Message[15].R = 180 / 255.0;
+					Message[15].G = 255 / 255.0;
+					Message[15].B = 100 / 255.0;
+				}
+				else if (usPing < 100000) {
+					Message[15].R = 230 / 255.0;
+					Message[15].G = 255 / 255.0;
+					Message[15].B = 90 / 255.0;
+				}
+				else if (usPing < 200000) {
+					Message[15].R = 245 / 255.0;
+					Message[15].G = 240 / 255.0;
+					Message[15].B = 130 / 255.0;
+				}
+				else if (usPing < 250000) {
+					Message[15].R = 255 / 255.0;
+					Message[15].G = 200 / 255.0;
+					Message[15].B = 150 / 255.0;
+				}
+				else {
+					Message[15].R = 255 / 255.0;
+					Message[15].G = 80 / 255.0;
+					Message[15].B = 80 / 255.0;
+				}
 			}
 			else if (code == LOADED)
 			{
@@ -448,6 +459,9 @@ void SKO_Network::receivePacket(bool connectErr)
 				popup_gui_menu = 0;
 
 				loaded = true;
+				camera_xf = Player[MyID].x - PLAYER_CAMERA_X;
+				camera_yf = Player[MyID].y - PLAYER_CAMERA_Y; 
+				
 
 				//Play the music
 				if (!enableSND || !enableMUS)
@@ -480,8 +494,8 @@ void SKO_Network::receivePacket(bool connectErr)
 				Player[CurrSock].x_speed = 0;
 
 				//if they are in sight
-				float px = Player[CurrSock].x - camera_x;
-				float py = Player[CurrSock].y - camera_y;
+				float px = Player[CurrSock].x - camera_xf;
+				float py = Player[CurrSock].y - camera_yf;
 
 				if (px > -32 && px < 1024 && py > -32 && py < 600)
 				{
@@ -529,7 +543,7 @@ void SKO_Network::receivePacket(bool connectErr)
 				((char*)&npc_y)[2] = socket->Data[10];
 				((char*)&npc_y)[3] = socket->Data[11];
 
-				map[current_map]->Enemy[npc_id].x_speed = 2;
+				map[current_map]->Enemy[npc_id].x_speed = WALK_SPEED;
 				map[current_map]->Enemy[npc_id].x = npc_x;
 				map[current_map]->Enemy[npc_id].y = npc_y;
 				map[current_map]->Enemy[npc_id].facing_right = true;
@@ -549,7 +563,7 @@ void SKO_Network::receivePacket(bool connectErr)
 				((char*)&npc_y)[2] = socket->Data[10];
 				((char*)&npc_y)[3] = socket->Data[11];
 
-				map[current_map]->Enemy[npc_id].x_speed = -2;
+				map[current_map]->Enemy[npc_id].x_speed = -WALK_SPEED;
 				map[current_map]->Enemy[npc_id].x = npc_x;
 				map[current_map]->Enemy[npc_id].y = npc_y;
 				map[current_map]->Enemy[npc_id].facing_right = false;
@@ -624,7 +638,7 @@ void SKO_Network::receivePacket(bool connectErr)
 				((char*)&npc_y)[2] = socket->Data[10];
 				((char*)&npc_y)[3] = socket->Data[11];
 
-				map[current_map]->NPC[npc_id].x_speed = 2;
+				map[current_map]->NPC[npc_id].x_speed = WALK_SPEED;
 				map[current_map]->NPC[npc_id].x = npc_x;
 				map[current_map]->NPC[npc_id].y = npc_y;
 				map[current_map]->NPC[npc_id].facing_right = true;
@@ -644,7 +658,7 @@ void SKO_Network::receivePacket(bool connectErr)
 				((char*)&npc_y)[2] = socket->Data[10];
 				((char*)&npc_y)[3] = socket->Data[11];
 
-				map[current_map]->NPC[npc_id].x_speed = -2;
+				map[current_map]->NPC[npc_id].x_speed = -WALK_SPEED;
 				map[current_map]->NPC[npc_id].x = npc_x;
 				map[current_map]->NPC[npc_id].y = npc_y;
 				map[current_map]->NPC[npc_id].facing_right = false;
@@ -711,7 +725,7 @@ void SKO_Network::receivePacket(bool connectErr)
 				unsigned char a = Message[0];
 
 				//move the player
-				Player[a].x_speed = 2;
+				Player[a].x_speed = WALK_SPEED;
 				Player[a].x = numx;
 				Player[a].y = numy;
 				Player[a].facing_right = true;
@@ -761,7 +775,7 @@ void SKO_Network::receivePacket(bool connectErr)
 				unsigned char a = Message[0];
 
 				//move the player
-				Player[a].x_speed = -2;
+				Player[a].x_speed = -WALK_SPEED;
 				Player[a].x = numx;
 				Player[a].y = numy;
 				Player[a].facing_right = false;
@@ -868,27 +882,26 @@ void SKO_Network::receivePacket(bool connectErr)
 			}
 			else if (code == TARGET_HIT)
 			{
-
-
 				int type = socket->Data[2];
 				int id = socket->Data[3];
 				bool inSight = false;
 				if (type == 0) // enemy
 				{
+					unsigned char current_map = Player[MyID].current_map;
 					map[current_map]->Enemy[id].hit = true;
-					map[current_map]->Enemy[id].hit_ticker = SDL_GetTicks();
-					map[current_map]->Enemy[id].hp_ticker = SDL_GetTicks() + 1500;
-					float px = map[current_map]->Enemy[id].x - camera_x;
-					float py = map[current_map]->Enemy[id].y - camera_y;
+					map[current_map]->Enemy[id].hit_ticker = OPI_Clock::milliseconds();
+					map[current_map]->Enemy[id].hp_ticker = OPI_Clock::milliseconds() + 1500;
+					float px = map[current_map]->Enemy[id].x - camera_xf;
+					float py = map[current_map]->Enemy[id].y - camera_yf;
 					if (px > -32 && px < 1024 && py > -32 && py < 600)
 						inSight = true;
 				}
 				else if (type == 1) // player
 				{
 					Player[id].hit = true;
-					Player[id].hit_ticker = SDL_GetTicks();
-					float px = Player[id].x - camera_x;
-					float py = Player[id].y - camera_y;
+					Player[id].hit_ticker = OPI_Clock::milliseconds();
+					float px = Player[id].x - camera_xf;
+					float py = Player[id].y - camera_yf;
 					if (px > -32 && px < 1024 && py > -32 && py < 600)
 						inSight = true;
 				}
@@ -944,7 +957,6 @@ void SKO_Network::receivePacket(bool connectErr)
 				//hold the result...
 				float numx;
 
-
 				//build a float from 4 bytes
 				((char*)&numx)[0] = socket->Data[3];
 				((char*)&numx)[1] = socket->Data[4];
@@ -992,10 +1004,6 @@ void SKO_Network::receivePacket(bool connectErr)
 				//what map are they on?
 				Player[a].current_map = (int)socket->Data[20];
 
-				printf("player is on map: %i\n", Player[a].current_map);
-				if (a == MyID)
-					current_map = Player[MyID].current_map;
-
 				std::string Username = "";
 				std::string Message1 = socket->Data;
 
@@ -1041,7 +1049,6 @@ void SKO_Network::receivePacket(bool connectErr)
 				//only if you're not first entering
 				if (loaded)
 				{
-
 					//display they logged on
 					std::string jMessage = "";
 					jMessage += Player[a].Nick;
@@ -1080,12 +1087,16 @@ void SKO_Network::receivePacket(bool connectErr)
 
 				int a = socket->Data[2];
 
+				//IF I was told to EXIT, leave the game without attempting to reconnect...
+				if (a == MyID)
+					Kill();
+
 				//display they logged off
 				std::string lMessage = "";
 				lMessage += Player[a].Nick;
 				lMessage += " has left the game.";
 
-				//scroll the stuff up
+				//scroll the stuff up - TODO refactor this / replace with real text rendering 
 				chat_line[0] = chat_line[1];
 				chat_line[1] = chat_line[2];
 				chat_line[2] = chat_line[3];
@@ -1108,7 +1119,6 @@ void SKO_Network::receivePacket(bool connectErr)
 
 				Player[a] = SKO_Player();
 				SetUsername(a);
-
 			}
 			else if (code == STAT_HP)
 			{
@@ -1141,7 +1151,7 @@ void SKO_Network::receivePacket(bool connectErr)
 			}
 			else if (code == STAT_DEF)
 			{
-				Player[MyID].defence = socket->Data[2];
+				Player[MyID].defense = socket->Data[2];
 			}
 			else if (code == STAT_STR)
 			{
@@ -1928,17 +1938,18 @@ void SKO_Network::receivePacket(bool connectErr)
 				((char*)&numy)[2] = b7;
 				((char*)&numy)[3] = b8;
 
-				if (pl == MyID)
-					current_map = map;
+				float cameraOffsetX = Player[MyID].x - PLAYER_CAMERA_X -camera_xf;
+				float cameraOffsetY = Player[MyID].y - PLAYER_CAMERA_Y - camera_yf;
 
 				Player[pl].current_map = map;
 				Player[pl].x = numx;
 				Player[pl].y = numy;
 
-
-
-
-				printf("map is: %i\n", map);
+				if (pl == MyID) 
+				{
+					camera_xf = Player[MyID].x - PLAYER_CAMERA_X - cameraOffsetX; 
+					camera_yf = Player[MyID].y - PLAYER_CAMERA_Y - cameraOffsetY;
+				}
 			} // end WARP
 			else if (code == SPAWN_TARGET)
 			{
@@ -1989,7 +2000,7 @@ void SKO_Network::receivePacket(bool connectErr)
 				Message[0].SetText("Your game is out of date and needs to update. Please re-launch the game.");
 				Message[1].SetText("If that doesn't work, please visit StickKnightsOnline.com and reinstall.");
 			}
-			else if (socket->Data[1] == SERVER_FULL)
+			else if (code == SERVER_FULL)
 			{
 				Message[0].SetText("                The server is full!");
 				Message[1].SetText("Join chat for help. www.StickKnightsOnline.com/chat");
@@ -2009,12 +2020,13 @@ void SKO_Network::receivePacket(bool connectErr)
 				menu = STATE_LOADING;
 
 				MyID = socket->Data[2];
-				Player[MyID].Nick = username;
+				Player[MyID].Nick = hasher->getUsername(); 
 				SetUsername(MyID);
-				Player[MyID].animation_ticker = SDL_GetTicks();
+				Player[MyID].animation_ticker = OPI_Clock::milliseconds();
 				Player[MyID].Status = true;
 
 				chat_box = 4;//in-game chat (no chat status)
+				printf("MyId becomes: %i and Player[MyID] party is: %i\n", MyID, Player[MyID].party);
 			}
 			else if (code == LOGIN_FAIL_DOUBLE)
 			{

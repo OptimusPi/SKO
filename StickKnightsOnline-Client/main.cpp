@@ -17,29 +17,32 @@
 #include <sstream>
 #include <cmath>
 #include <cctype>
+#include <thread>
+#include <chrono>
+#include "OPI_Sleep.h"
+#include "OPI_Clock.h"
 
 #ifdef WINDOWS_OS
-	#include "SDL.h"
-	#include "SDL_image.h"
-	#include "SDL_opengl.h"
-	#include "SDL_mixer.h"
-	#include "SDL_main.h"
-	#include "SDL_opengl.h"
+#include "SDL.h"
+#include "SDL_image.h"
+#include "SDL_opengl.h"
+#include "SDL_mixer.h"
+#include "SDL_main.h"
+#include "SDL_opengl.h"
 #elif defined MAC_OS
-	#include <SDL/SDL.h>
-	#include <SDL/SDL_image.h>
-	#include <SDL/SDL_mixer.h>
-	#include <SDL/SDL_main.h>
-	#include <OpenGL/gl.h>
+#include <SDL/SDL.h>
+#include <SDL/SDL_image.h>
+#include <SDL/SDL_mixer.h>
+#include <SDL/SDL_main.h>
+#include <OpenGL/gl.h>
 #elif defined LINUX_OS
-	#include <SDL/SDL.h>
-	#include <SDL/SDL_image.h>
-	#include <SDL/SDL_mixer.h>
-	#include <SDL/SDL_main.h>
-	#include <GL/gl.h>
+#include <SDL/SDL.h>
+#include <SDL/SDL_image.h>
+#include <SDL/SDL_mixer.h>
+#include <SDL/SDL_main.h>
+#include <GL/gl.h>
 #endif
 
-#include "pthread.h"
 #include "OPI_Text.h"
 #include "SKO_Player.h"
 #include "SKO_Enemy.h"
@@ -57,7 +60,7 @@
 #include "INIReader.h"
 #include "OPI_Image.h"
 #include "md5.h"
-#include "hasher.h"
+#include "OPI_Hasher.h"
 #include "SKO_Network.h"
 
 // Define global variables to be used externally (in networking clasS)
@@ -66,9 +69,11 @@
 // Maximum number of clients allowed to connect
 // #define MAX_CLIENTS 16
 
-// HIT_LOOPS is how many times to loop the collision detection adjustment (formerly while)
-#define HIT_LOOPS 3
+// HIT_LOOPS is maximum times to gravitate toward the ground (snap to ground) when a falling collision happens
+#define HIT_LOOPS 100
 
+// Player walking speed
+const float WALK_SPEED = 2.5f;
 
 // Debug flag for cheating to find bugs
 bool DEBUG_FLAG = false;
@@ -77,60 +82,14 @@ bool DEBUG_FLAG = false;
 bool loaded = false;
 bool contentLoaded = false;
 
-// LEETODO Look at making these part of the hasher function, no need for password to be in global namespace
 // Login and out
-std::string username, password;
-Hasher hasher;
+OPI_Hasher *hasher;
 void TryToLogin();
-// moved to being defined in global.h
-// Packet Codes
-/*const char VERSION_CHECK = 255,
-           LOADED = 254,
-           SERVER_FULL = 253,
-           PONG = 252,
-           VERSION_MAJOR = 1,
-           VERSION_MINOR = 2,
-           VERSION_PATCH = 1,
-           VERSION_OS = MY_OS,
-           PING = 0,
-           CHAT = 1,
-
-           INVITE = 1,
-           CANCEL = 2,
-           BUSY = 3,
-           ACCEPT = 4,
-           CONFIRM = 5,
-           OFFER = 6,
-           READY = 7,
-
-           LOGIN = 2, REGISTER = 3,
-           LOGIN_SUCCESS = 4, LOGIN_FAIL_DOUBLE = 5, LOGIN_FAIL_NONE = 6,  LOGIN_FAIL_BANNED = 7,
-           REGISTER_SUCCESS = 8, REGISTER_FAIL_DOUBLE = 9,
-           MOVE_LEFT = 10, MOVE_RIGHT = 11, MOVE_JUMP = 12, MOVE_STOP = 13,
-           JOIN = 14, EXIT = 15,
-           VERSION_SUCCESS = 16, VERSION_FAIL = 17,
-           STAT_HP = 18, STAT_XP = 19, STAT_LEVEL = 20, STAT_STR = 21, STAT_DEF = 22,
-           STATMAX_HP = 23, STATMAX_XP = 24,
-           RESPAWN = 26,
-           SPAWN_ITEM = 27,
-			DESPAWN_ITEM = 28, POCKET_ITEM = 29, DEPOCKET_ITEM = 30, BANK_ITEM = 31, DEBANK_ITEM = 32,
-           STAT_POINTS = 33, ATTACK = 34,
-           ENEMY_ATTACK = 35, ENEMY_MOVE_LEFT = 36, ENEMY_MOVE_RIGHT = 37, ENEMY_MOVE_STOP = 38,
-           USE_ITEM = 39, EQUIP = 40, TARGET_HIT = 41, STAT_REGEN = 42,
-           DROP_ITEM = 43, TRADE = 44, PARTY = 45, CLAN = 46, BANK = 47, SHOP = 48, BUY = 49, SELL = 50,
-           ENEMY_HP = 51,
-           INVENTORY = 52,
-           BUDDY_XP = 53, BUDDY_HP = 54, BUDDY_LEVEL = 55,
-           WARP = 56,
-           SPAWN_TARGET = 57, DESPAWN_TARGET = 58,
-		   NPC_MOVE_LEFT = 59, NPC_MOVE_RIGHT = 60, NPC_MOVE_STOP = 61, NPC_TALK = 62,
-		   MAKE_CLAN = 63,
-		   CAST_SPELL = 64;*/
 
 // Maps and stuff ! :)
 const char NUM_MAPS = 6;
 SKO_Map *map[NUM_MAPS];
-int current_map = 2;
+
 
 // Sprites
 SKO_Sprite EnemySprite[7];
@@ -147,10 +106,6 @@ static int numDigits(int num);
 SDL_Surface *screen;
 SDL_Event event = SDL_Event();
 
-// Center of screen for player
-#define PLAYER_CAMERA_X 480
-#define PLAYER_CAMERA_Y 300
-
 // Networking
 SKO_Network Client;
 std::string  SERVER_IP;
@@ -161,8 +116,8 @@ int MyID = -1;
 bool done = false;
 bool lclick = false;
 bool rclick = false;
-long int cosmeticTicker;
-long int cosmeticTime = 100;
+unsigned long long int cosmeticTicker;
+unsigned long long int cosmeticTime = 100;
 bool connectError = false;
 bool versionError = false;
 bool fatalNetworkError = false;
@@ -189,6 +144,11 @@ unsigned char requestedPlayer = 0;
 int TILES_WIDE = 0, TILES_TALL = 0;
 double back_offsetx[4];
 double back_offsety[4];
+const float scrollBack = 0.02;
+const float scrollMid = 0.05;
+const float scrollFront = 0.10;
+
+
 unsigned int offerIncrement = 1;
 int bankScroll = 0;
 
@@ -267,14 +227,16 @@ int hoveredShopItemY = -1;
 //players
 SKO_Player Player[MAX_CLIENTS];
 
+
+
 //items
 SKO_Item Item[256];
 
 //controls
 bool LEFT = false;
 bool RIGHT = false;
-unsigned long int keyTicker = 0;
-unsigned long int keyRepeatTicker = 0;
+unsigned long long int keyTicker = 0;
+unsigned long long int keyRepeatTicker = 0;
 int keyRepeat = 0;
 bool actionKeyDown = false;
 
@@ -283,9 +245,9 @@ bool actionKeyDown = false;
 const float GRAVITY = 0.17;
 
 //coords
-float camera_x = 0, camera_y = 0;
-int sky_x = 0;
-
+int camera_x = 0, camera_y = 0; 
+float camera_xf = 0, camera_yf = 0; 
+float camera_xspeed = 0.0f, camera_yspeed = 0.0f;
 
 const int NUM_TEXT = 180;
 
@@ -300,7 +262,7 @@ std::string *chat_line[NUM_CHAT_LINES];
 //int animation_speed = 90;
 //went from 8 frames to 6 frames
 float animation_speed = 90;
-int attack_speed = 40;
+unsigned long long int attack_speed = 40;
 
 //music
 Mix_Music *music = NULL;
@@ -341,48 +303,69 @@ std::string toLower(std::string);
 void inventory();
 
 
-void setTitle()
-{
-	
-	//get current date
-	time_t t = time(0);   // get time now
-	struct tm * now = localtime(&t);
+#include <iostream>
+#include <string>
 
-	std::stringstream title;
-		title << "Stick Knights Online (Beta) v"
-			  << (int)VERSION_MAJOR << "."
-			  << (int)VERSION_MINOR << "."
-			  << (int)VERSION_PATCH << " "
-			  << __DATE__ << " "
-			  << SERVER_IP << ":" << SERVER_PORT
-			  ;//<< " {Dev Version: 1.1.2A}";
-
-		SDL_WM_SetCaption (title.str().c_str(), "SKO");
+void replace(std::string& str, const std::string& from, const std::string& to) {
+    size_t start_pos = str.find(from);
+    if(start_pos == std::string::npos)
+        return;
+    str.replace(start_pos, from.length(), to);
 }
 
-SDL_Surface *load_image_basic( std::string filename )
+std::string getBuildDate()
 {
-    //The image that's loaded
-    SDL_Surface* loadedImage = NULL;
+	// Compile-time date.
+	std::string date = __DATE__;
 
-    //The optimized image that will be used
-    SDL_Surface* optimizedImage = NULL;
+	// Format single-digit date such as: "Jan  8" to "Jan 8"
+	replace(date, "  ", " ");
 
-    //Load the image using SDL_image
-    loadedImage = IMG_Load( filename.c_str() );
+	// Insert comma
+	date.insert(date.find_last_of(" "), ",");
 
-    //If the image loaded
-    if( loadedImage != NULL )
-    {
-        //Create an optimized image
-        optimizedImage = SDL_DisplayFormat( loadedImage );
+	// Return formatted date
+	return date;
+}
 
-        //Free the old image
-        SDL_FreeSurface( loadedImage );
-    }
+void setTitle()
+{
 
-    //Return the optimized image
-    return optimizedImage;
+	std::stringstream title;
+	title << "Stick Knights Online "
+		<< (int)VERSION_MAJOR << "."
+		<< (int)VERSION_MINOR << "."
+		<< (int)VERSION_PATCH << " ("
+		<< getBuildDate() << ")     "
+		<< SERVER_IP << ":" << SERVER_PORT
+		;//<< " {Dev Version: 1.1.2A}";
+
+	SDL_WM_SetCaption(title.str().c_str(), "SKO");
+}
+
+SDL_Surface *load_image_basic(std::string filename)
+{
+	//The image that's loaded
+	SDL_Surface* loadedImage = NULL;
+
+	//The optimized image that will be used
+	SDL_Surface* optimizedImage = NULL;
+
+	//Load the image using SDL_image
+	loadedImage = IMG_Load(filename.c_str());
+
+	//If the image loaded
+	if (loadedImage != NULL)
+	{
+		//Create an optimized image
+		optimizedImage = SDL_DisplayFormat(loadedImage);
+
+		//Free the old image
+		SDL_FreeSurface(loadedImage);
+	}
+
+	//Return the optimized image
+	return optimizedImage;
 }
 
 #define ICON_SMALL          0
@@ -390,7 +373,7 @@ SDL_Surface *load_image_basic( std::string filename )
 
 
 #ifdef WINDOWS_OS
-	#include <windows.h>
+#include <windows.h>
 #endif
 
 void screenOptions()
@@ -398,85 +381,85 @@ void screenOptions()
 	//setTitle();
 	SDL_GL_SetAttribute(SDL_GL_SWAP_CONTROL, 1);
 
-    glEnable(GL_TEXTURE_2D);
-    glEnable(GL_BLEND);
+	glEnable(GL_TEXTURE_2D);
+	glEnable(GL_BLEND);
 
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 
-    glClearColor( 0.0f, 0.0f, 0.0f, 0.0f );
-    glViewport( 0, 0, 1024, 600 );
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	glViewport(0, 0, 1024, 600);
 
-    glClear( GL_COLOR_BUFFER_BIT );
+	glClear(GL_COLOR_BUFFER_BIT);
 
-    glMatrixMode( GL_PROJECTION );
-    glLoadIdentity();
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
 
-    glOrtho(0.0f, 1024, 600, 0.0f, -1.0f, 1.0f);
+	glOrtho(0.0f, 1024, 600, 0.0f, -1.0f, 1.0f);
 
-    glMatrixMode( GL_MODELVIEW );
-    glLoadIdentity();
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
 
-    SDL_WM_SetIcon(IMG_Load("sko.png"), NULL);
+	SDL_WM_SetIcon(IMG_Load("sko.png"), NULL);
 
-    //glDisable(GL_DEPTH_TEST);
+	//glDisable(GL_DEPTH_TEST);
 }
 
 
 void Text(int x, int y, std::string index, int R, int G, int B)
 {
-     //use the oldest message
-     //if there are no unplaced messages
-     int open_object = 0;
+	//use the oldest message
+	//if there are no unplaced messages
+	int open_object = 0;
 
-     //but check for an unplaced message first
-     for (int i = 0; i < NUM_TEXT; i++)
-     {
-         if (!Message[i].used)
-         {
-            open_object = i;
-            break;
-         }
-     }
+	//but check for an unplaced message first
+	for (int i = 0; i < NUM_TEXT; i++)
+	{
+		if (!Message[i].used)
+		{
+			open_object = i;
+			break;
+		}
+	}
 
-     //make the message regardless
-     Message[open_object].SetText(index);
-     Message[open_object].used = true;
-     Message[open_object].pos_x = x;
-     Message[open_object].pos_y = y;
-     Message[open_object].length = index.length();
-     Message[open_object].R = R/255.0f;
-     Message[open_object].G = G/255.0f;
-     Message[open_object].B = B/255.0f;
+	//make the message regardless
+	Message[open_object].SetText(index);
+	Message[open_object].used = true;
+	Message[open_object].pos_x = x;
+	Message[open_object].pos_y = y;
+	Message[open_object].length = index.length();
+	Message[open_object].R = R / 255.0f;
+	Message[open_object].G = G / 255.0f;
+	Message[open_object].B = B / 255.0f;
 }
 
 void SetUsername(int i)
 {
-	 Player[i].clantag = OPI_Text();
-	 Player[i].nametag = OPI_Text();
+	Player[i].clantag = OPI_Text();
+	Player[i].nametag = OPI_Text();
 
-	 Player[i].clantag.used = true;
-	 Player[i].nametag.used = true;
+	Player[i].clantag.used = true;
+	Player[i].nametag.used = true;
 
-	 printf("SetUsername(%i): %s %s\n", i, Player[i].Nick.c_str(), Player[i].str_clantag.c_str());
- 	 Player[i].clantag.SetText(Player[i].str_clantag);
-     Player[i].nametag.SetText(Player[i].Nick);
+	printf("SetUsername(%i): %s %s\n", i, Player[i].Nick.c_str(), Player[i].str_clantag.c_str());
+	Player[i].clantag.SetText(Player[i].str_clantag);
+	Player[i].nametag.SetText(Player[i].Nick);
 }
 
 void inventory()
 {
 	if (draw_gui && menu == STATE_PLAY && popup_menu != 4 && (popup_gui_menu == 0 || popup_gui_menu == 7))
 	{
-	   if (popup_menu == 1)
-	   {
-		   popup_menu = 0;
-		   Client.saveInventory(Player[MyID].inventory);
-	   }
-	   else
-	   {
-		  popup_menu = 1;
-		  Client.saveInventory(Player[MyID].inventory);
-	   }
+		if (popup_menu == 1)
+		{
+			popup_menu = 0;
+			Client.saveInventory(Player[MyID].inventory);
+		}
+		else
+		{
+			popup_menu = 1;
+			Client.saveInventory(Player[MyID].inventory);
+		}
 	}
 
 }
@@ -542,23 +525,23 @@ OPI_Image party_filler[2];
 
 
 void saveOptions()
-    {
-         //dump all the memory into a file
-        std::ofstream optionFile("DAT/options.dat", std::ios::out|std::ios::binary);
+{
+	//dump all the memory into a file
+	std::ofstream optionFile("DAT/options.dat", std::ios::out | std::ios::binary);
 
-        if (optionFile.is_open())
-        {
-           unsigned char a = (unsigned char)(int)enableSND;
-           unsigned char b = (unsigned char)(int)enableSFX;
-           unsigned char c = (unsigned char)(int)enableMUS;
-		   unsigned char d = (unsigned char)(int)enableSIGN;
+	if (optionFile.is_open())
+	{
+		unsigned char a = (unsigned char)(int)enableSND;
+		unsigned char b = (unsigned char)(int)enableSFX;
+		unsigned char c = (unsigned char)(int)enableMUS;
+		unsigned char d = (unsigned char)(int)enableSIGN;
 
-           //spit out each of the bytes
-		   optionFile << a << b << c << d;
-           printf("save SND[%i] SFX[%i] MUS[%i] SIGN[%i]\n", a, b, c, d);
-        }
-        optionFile.close();
-    }
+		//spit out each of the bytes
+		optionFile << a << b << c << d;
+		printf("save SND[%i] SFX[%i] MUS[%i] SIGN[%i]\n", a, b, c, d);
+	}
+	optionFile.close();
+}
 
 
 
@@ -571,56 +554,55 @@ float yadj = 2.0;
 
 void drawText(OPI_Text t)
 {
-
 	//only draw if it is used
-	 if (t.used)
-	 {
-		 glBindTexture(GL_TEXTURE_2D, font.texture);
+	if (t.used)
+	{
+		glBindTexture(GL_TEXTURE_2D, font.texture);
 
-		 //tint
-		 glColor3f(t.R, t.G, t.B);
+		//tint
+		glColor3f(t.R, t.G, t.B);
 
-		 //go through all the letters in each message
-		 for (int ii = 0; ii < t.length; ii++)
-		 {
+		//go through all the letters in each message
+		for (int ii = 0; ii < t.length; ii++)
+		{
 
-			float
-				  screen_x = t.pos_x + ii*letter_w + xadj,
-				  screen_y = t.pos_y + yadj,
-				  offset_x = t.letter_x[ii],
-				  offset_y = t.letter_y[ii],
-				  selection_width = letter_w,
-				  selection_height = letter_h,
-				  end_x = t.pos_x+letter_w + letter_w*ii + xadj,
-				  end_y = t.pos_y+letter_h + yadj;
+			int
+				screen_x = t.pos_x + ii*letter_w + xadj,
+				screen_y = t.pos_y + yadj,
+				offset_x = t.letter_x[ii],
+				offset_y = t.letter_y[ii],
+				selection_width = letter_w,
+				selection_height = letter_h,
+				end_x = t.pos_x + letter_w + letter_w*ii + xadj,
+				end_y = t.pos_y + letter_h + yadj;
 
 			float right = (offset_x + selection_width) / (float)font.w;
 			float bottom = (offset_y + selection_height) / (float)font.h;
 			float left = (offset_x) / (float)font.w;
 			float top = (offset_y) / (float)font.h;
 
-			glBegin( GL_QUADS );
-				//Top-left vertex (corner)
-				glTexCoord2f( left, top );
-				glVertex2f( screen_x, screen_y);
+			glBegin(GL_QUADS);
+			//Top-left vertex (corner)
+			glTexCoord2f(left, top);
+			glVertex2f(screen_x, screen_y);
 
-				//Bottom-left vertex (corner)
-				glTexCoord2f( left, bottom );
-				glVertex2f( screen_x, end_y);
+			//Bottom-left vertex (corner)
+			glTexCoord2f(left, bottom);
+			glVertex2f(screen_x, end_y);
 
-				//Bottom-right vertex (corner)
-				glTexCoord2f( right, bottom );
-				glVertex2f( end_x, end_y);
+			//Bottom-right vertex (corner)
+			glTexCoord2f(right, bottom);
+			glVertex2f(end_x, end_y);
 
-				//Top-right vertex (corner)
-				glTexCoord2f( right, top );
-				glVertex2f( end_x, screen_y);
+			//Top-right vertex (corner)
+			glTexCoord2f(right, top);
+			glVertex2f(end_x, screen_y);
 			glEnd();
 
-		  } //for
-		  glColor3f(1.0f, 1.0f, 1.0f);
+		} //for
+		glColor3f(1.0f, 1.0f, 1.0f);
 	}//if used
-	 glLoadIdentity();
+	glLoadIdentity();
 }
 
 
@@ -658,79 +640,79 @@ SDL_Rect getSpriteAttack(int frame)
 }
 
 
-void DrawFrameR(float screen_x, float screen_y, OPI_Image spriteSheet, SDL_Rect selection)
+void DrawFrameR(int screen_x, int screen_y, OPI_Image spriteSheet, SDL_Rect selection)
 {
-		 glBindTexture(GL_TEXTURE_2D, spriteSheet.texture);
+	glBindTexture(GL_TEXTURE_2D, spriteSheet.texture);
 
 
-			float
-				  offset_x = selection.x,
-				  offset_y = selection.y,
-				  end_x = screen_x + selection.w,
-				  end_y = screen_y + selection.h;
+	float
+		offset_x = selection.x,
+		offset_y = selection.y,
+		end_x = screen_x + selection.w,
+		end_y = screen_y + selection.h;
 
-			float right = (offset_x + selection.w) / (float)spriteSheet.w;
-			float bottom = (offset_y + selection.h) / (float)spriteSheet.h;
-			float left = (offset_x) / (float)spriteSheet.w;
-			float top = (offset_y) / (float)spriteSheet.h;
+	float right = (offset_x + selection.w) / (float)spriteSheet.w;
+	float bottom = (offset_y + selection.h) / (float)spriteSheet.h;
+	float left = (offset_x) / (float)spriteSheet.w;
+	float top = (offset_y) / (float)spriteSheet.h;
 
-			glBegin( GL_QUADS );
-				//Top-left vertex (corner)
-				glTexCoord2f( left, top );
-				glVertex2f( screen_x, screen_y);
+	glBegin(GL_QUADS);
+	//Top-left vertex (corner)
+	glTexCoord2f(left, top);
+	glVertex2f(screen_x, screen_y);
 
-				//Bottom-left vertex (corner)
-				glTexCoord2f( left, bottom );
-				glVertex2f( screen_x, end_y);
+	//Bottom-left vertex (corner)
+	glTexCoord2f(left, bottom);
+	glVertex2f(screen_x, end_y);
 
-				//Bottom-right vertex (corner)
-				glTexCoord2f( right, bottom );
-				glVertex2f( end_x, end_y);
+	//Bottom-right vertex (corner)
+	glTexCoord2f(right, bottom);
+	glVertex2f(end_x, end_y);
 
-				//Top-right vertex (corner)
-				glTexCoord2f( right, top );
-				glVertex2f( end_x, screen_y);
-			glEnd();
+	//Top-right vertex (corner)
+	glTexCoord2f(right, top);
+	glVertex2f(end_x, screen_y);
+	glEnd();
 
 
-			glLoadIdentity();
+	glLoadIdentity();
 }
-void DrawFrameL(float screen_x, float screen_y, OPI_Image spriteSheet, SDL_Rect selection)
+void DrawFrameL(int screen_x, int screen_y, OPI_Image spriteSheet, SDL_Rect selection)
 {
-		 glBindTexture(GL_TEXTURE_2D, spriteSheet.texture);
+	glBindTexture(GL_TEXTURE_2D, spriteSheet.texture);
 
 
-			float
-				  offset_x = selection.x,
-				  offset_y = selection.y,
-				  end_x = screen_x + selection.w,
-				  end_y = screen_y + selection.h;
+	float
+		offset_x = selection.x,
+		offset_y = selection.y,
+		end_x = screen_x + selection.w,
+		end_y = screen_y + selection.h;
 
-			float left = (offset_x + selection.w) / (float)spriteSheet.w;
-			float bottom = (offset_y + selection.h) / (float)spriteSheet.h;
-			float right = (offset_x) / (float)spriteSheet.w;
-			float top = (offset_y) / (float)spriteSheet.h;
+	float left = (offset_x + selection.w) / (float)spriteSheet.w;
+	float bottom = (offset_y + selection.h) / (float)spriteSheet.h;
+	float right = (offset_x) / (float)spriteSheet.w;
+	float top = (offset_y) / (float)spriteSheet.h;
 
-			glBegin( GL_QUADS );
-				//Top-left vertex (corner)
-				glTexCoord2f( left, top );
-				glVertex2f( screen_x, screen_y);
+	glBegin(GL_QUADS);
+	//Top-left vertex (corner)
+	glTexCoord2f(left, top);
+	glVertex2f(screen_x, screen_y);
 
-				//Bottom-left vertex (corner)
-				glTexCoord2f( left, bottom );
-				glVertex2f( screen_x, end_y);
+	//Bottom-left vertex (corner)
+	glTexCoord2f(left, bottom);
+	glVertex2f(screen_x, end_y);
 
-				//Bottom-right vertex (corner)
-				glTexCoord2f( right, bottom );
-				glVertex2f( end_x, end_y);
+	//Bottom-right vertex (corner)
+	glTexCoord2f(right, bottom);
+	glVertex2f(end_x, end_y);
 
-				//Top-right vertex (corner)
-				glTexCoord2f( right, top );
-				glVertex2f( end_x, screen_y);
-			glEnd();
+	//Top-right vertex (corner)
+	glTexCoord2f(right, top);
+	glVertex2f(end_x, screen_y);
+	glEnd();
 
 
-			glLoadIdentity();
+	glLoadIdentity();
 }
 
 
@@ -742,1588 +724,1563 @@ void drawText(int i)
 		drawText(Message[i]);
 }
 
-void DrawImageFuncL( float x, float y, OPI_Image img)
+void DrawImagefuncL(float x, float y, OPI_Image img)
 {
+	//bind rotated image
+	glBindTexture(GL_TEXTURE_2D, img.texture);
+	glTranslatef(x + img.w / 2, y + img.h / 2, 0);
+
+	//rotate the image
 	float rotation = 180.0;
-	 glTranslatef( x + img.w/2, y + img.h/2, 0);
+	glRotatef(rotation, 0.0, 1.0, 0.0);
 
-		 //rotate the image
-		 glRotatef( rotation, 0.0, 1.0, 0.0 );
-
-
-		 //bind rotated image
-	     glBindTexture( GL_TEXTURE_2D,  img.texture);
+	// Pixel perfect drawing
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); 
 
 
-	     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glBegin(GL_QUADS);
 
+	//Top-left vertex (corner)
+	glTexCoord2f(0, 0);
+	glVertex3f(-img.w / 2, -img.h / 2, 0);
 
-	      glBegin( GL_QUADS );
-	    	//Top-left vertex (corner)
-	    	glTexCoord2f( 0, 0 );
-	    	glVertex3f( -img.w/2, -img.h/2, 0 );
+	//Top-right vertex (corner)
+	glTexCoord2f(1, 0);
+	glVertex3f(img.w / 2, -img.h / 2, 0);
 
+	//Bottom-right vertex (corner)
+	glTexCoord2f(1, 1);
+	glVertex3f(img.w / 2, img.h / 2, 0);
 
-	    	//Top-right vertex (corner)
-	    	glTexCoord2f( 1, 0 );
-	    	glVertex3f( img.w/2, -img.h/2, 0 );
+	//Bottom-left vertex (corner)
+	glTexCoord2f(0, 1);
+	glVertex3f(-img.w / 2, img.h / 2, 0);
+	glEnd();
 
-
-	    	//Bottom-right vertex (corner)
-	    	glTexCoord2f( 1, 1 );
-	    	glVertex3f( img.w/2, img.h/2, 0 );
-
-
-	    	//Bottom-left vertex (corner)
-	    	glTexCoord2f( 0, 1 );
-	    	glVertex3f( -img.w/2, img.h/2, 0 );
-	    glEnd();
-
-	     glLoadIdentity();
+	glLoadIdentity();
 }
-void DrawImageFunc( float x, float y, OPI_Image img)
+void DrawImagefunc(float x, float y, OPI_Image img)
 {
+	//bind the texture for drawing
+	glBindTexture(GL_TEXTURE_2D, img.texture);
+
 	//pixel perfect drawing
-	     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); 
 
+	glBegin(GL_QUADS);
+	//Top-left vertex (corner)
+	glTexCoord2f(0, 0);
+	glVertex3f(x, y, 0);
 
-	      glBegin( GL_QUADS );
-	    	//Top-left vertex (corner)
-	    	glTexCoord2f( 0, 0 );
-	    	glVertex3f( x, y, 0 );
+	//Bottom-left vertex (corner)
+	glTexCoord2f(0, 1);
+	glVertex3f(x, y + img.h, 0);
 
-	    	//Bottom-left vertex (corner)
-	    	glTexCoord2f( 0, 1 );
-	    	glVertex3f( x, y+img.h, 0 );
+	//Bottom-right vertex (corner)
+	glTexCoord2f(1, 1);
+	glVertex3f(x + img.w, y + img.h, 0);
 
-	    	//Bottom-right vertex (corner)
-	    	glTexCoord2f( 1, 1 );
-	    	glVertex3f( x+img.w, y+img.h, 0 );
+	//Top-right vertex (corner)
+	glTexCoord2f(1, 0);
+	glVertex3f(x + img.w, y, 0);
+	glEnd();
 
-	    	//Top-right vertex (corner)
-	    	glTexCoord2f( 1, 0 );
-	    	glVertex3f( x+img.w, y, 0 );
-	    glEnd();
-	    //glLoadIdentity();
+	glLoadIdentity();
 }
 
-
-void DrawImagef( float x, float y, OPI_Image img)
+void DrawImagef(float x, float y, OPI_Image img)
 {
-
-     glBindTexture( GL_TEXTURE_2D,  img.texture);
-
-     DrawImageFunc( x, y, img);
-
+	DrawImagefunc(x, y, img);
 }
-void DrawImage( float x, float y, OPI_Image img)
+void DrawImage(int x, int y, OPI_Image img)
 {
-	DrawImagef((int)x, (int)y, img);
+	DrawImagef(x, y, img);
 }
-void DrawImageL(float x, float y, OPI_Image img)
+void DrawImageL(int x, int y, OPI_Image img)
 {
-	glBindTexture( GL_TEXTURE_2D,  img.texture);
-	DrawImageFuncL( x, y, img);
+	DrawImagefuncL(x, y, img);
 }
 
-
-void DrawImageRotatedL( float x, float y, OPI_Image img, float rotation)
+void authenticateUser()
 {
-	 glTranslatef( x + img.w/2, y + img.h/2, 0);
 
-	 //flip
-	 glRotatef( 180.0, 0.0, 1.0, 0.0 );
+	guiHit = true;
+	Message[0].SetText("Hashing password...");
+	Message[1].SetText("");
+	drawText(0);
+	drawText(1);
 
-	 //rotate the image
-	 glRotatef( rotation, 0.0, 0.0, 1.0 );
+	//store and send a salted hash of the password and username, instead of clear text password
+	//this salted hash of the username and password will also be 
+	hasher->storePassword(uMessage, pMessage);
+		
+	Message[0].SetText("Hashing password...");
+	Message[1].SetText("Authenticating...");
+	drawText(0);
+	drawText(1);
 
+	if (menu == STATE_CREATE) //creating account
+	{
+		Client.createAccount(hasher->getUsername(), hasher->getPasswordHash());
+	}
+	if (menu == STATE_LOGIN)//logging in
+	{
+		TryToLogin();
+	}
+}
+void DrawImagefRotatedL(int x, int y, OPI_Image img, float rotation)
+{
+		//bind rotated image
+	glBindTexture(GL_TEXTURE_2D, img.texture);
 
-	 //bind rotated image
-     glBindTexture( GL_TEXTURE_2D,  img.texture);
+	//flip
+	glTranslatef(x + img.w / 2, y + img.h / 2, 0);
+	glRotatef(180.0, 0.0, 1.0, 0.0);
 
+	//rotate the image
+	glRotatef(rotation, 0.0, 0.0, 1.0);
 
-     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); 
 
+	glBegin(GL_QUADS);
+	//Top-left vertex (corner)
+	glTexCoord2f(0, 0);
+	glVertex3f(-img.w / 2, -img.h / 2, 0);
 
-      glBegin( GL_QUADS );
-    	//Top-left vertex (corner)
-    	glTexCoord2f( 0, 0 );
-    	glVertex3f( -img.w/2, -img.h/2, 0 );
+	//Top-right vertex (corner)
+	glTexCoord2f(1, 0);
+	glVertex3f(img.w / 2, -img.h / 2, 0);
 
+	//Bottom-right vertex (corner)
+	glTexCoord2f(1, 1);
+	glVertex3f(img.w / 2, img.h / 2, 0);
 
-    	//Top-right vertex (corner)
-    	glTexCoord2f( 1, 0 );
-    	glVertex3f( img.w/2, -img.h/2, 0 );
+	//Bottom-left vertex (corner)
+	glTexCoord2f(0, 1);
+	glVertex3f(-img.w / 2, img.h / 2, 0);
+	glEnd();
 
-
-    	//Bottom-right vertex (corner)
-    	glTexCoord2f( 1, 1 );
-    	glVertex3f( img.w/2, img.h/2, 0 );
-
-
-    	//Bottom-left vertex (corner)
-    	glTexCoord2f( 0, 1 );
-    	glVertex3f( -img.w/2, img.h/2, 0 );
-    glEnd();
-
-     glLoadIdentity();
-
+	glLoadIdentity();
 }
 
-void DrawImageRotated( float x, float y, OPI_Image img, float rotation)
+void DrawImagefRotated(int x, int y, OPI_Image img, float rotation)
 {
+	//bind rotated image
+	glBindTexture(GL_TEXTURE_2D, img.texture);
 
-	 glTranslatef( x + img.w/2, y + img.h/2, 0);
+	//Prevent texture wrapping
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); 
 
-	 //rotate the image
-	 glRotatef( rotation, 0.0, 0.0, 1.0 );
+	//rotate the image
+	glTranslatef(x + img.w / 2, y + img.h / 2, 0);
+	glRotatef(rotation, 0.0f, 0.0f, 1.0f);
 
+	glBegin(GL_QUADS);
+	//Top-left vertex (corner)
+	glTexCoord2f(0, 0);
+	glVertex3f(-img.w / 2, -img.h / 2, 0);
 
-	 //bind rotated image
-     glBindTexture( GL_TEXTURE_2D,  img.texture);
+	//Top-right vertex (corner)
+	glTexCoord2f(1, 0);
+	glVertex3f(img.w / 2, -img.h / 2, 0);
 
+	//Bottom-right vertex (corner)
+	glTexCoord2f(1, 1);
+	glVertex3f(img.w / 2, img.h / 2, 0);
 
-     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	//Bottom-left vertex (corner)
+	glTexCoord2f(0, 1);
+	glVertex3f(-img.w / 2, img.h / 2, 0);
+	glEnd();
 
-
-      glBegin( GL_QUADS );
-    	//Top-left vertex (corner)
-    	glTexCoord2f( 0, 0 );
-    	glVertex3f( -img.w/2, -img.h/2, 0 );
-
-
-    	//Top-right vertex (corner)
-    	glTexCoord2f( 1, 0 );
-    	glVertex3f( img.w/2, -img.h/2, 0 );
-
-
-    	//Bottom-right vertex (corner)
-    	glTexCoord2f( 1, 1 );
-    	glVertex3f( img.w/2, img.h/2, 0 );
-
-
-    	//Bottom-left vertex (corner)
-    	glTexCoord2f( 0, 1 );
-    	glVertex3f( -img.w/2, img.h/2, 0 );
-    glEnd();
-
-     glLoadIdentity();
-
+	glLoadIdentity();
 }
 
 //The button
 class Button
 {
-    private:
-    //The attributes of the button
-    SDL_Rect box;
+private:
+	//The attributes of the button
+	SDL_Rect box;
 
-    public:
-    //Initialize the variables
-    Button();
-    Button( int x, int y, int w, int h );
+public:
+	//Initialize the variables
+	Button();
+	Button(int x, int y, int w, int h);
 
-    //Handles events and set the button's sprite region
-    void handle_events(int ID);
-    void setBounds(int x, int y, int w, int h );
+	//Handles events and set the button's sprite region
+	void handle_events(int ID);
+	void setBounds(int x, int y, int w, int h);
 
-    //Shows the button on the screen
-    void show();
+	//Shows the button on the screen
+	void show();
 };
 
 Button::Button()
 {
-    box.x = 0;
-    box.y = 0;
-    box.w = 0;
-    box.h = 0;
+	box.x = 0;
+	box.y = 0;
+	box.w = 0;
+	box.h = 0;
 }
 
-Button::Button( int x, int y, int w, int h )
+Button::Button(int x, int y, int w, int h)
 {
-    //Set the button's attributes
-    box.x = x;
-    box.y = y;
-    box.w = w;
-    box.h = h;
+	//Set the button's attributes
+	box.x = x;
+	box.y = y;
+	box.w = w;
+	box.h = h;
 }
 
-void Button::setBounds( int x, int y, int w, int h )
+void Button::setBounds(int x, int y, int w, int h)
 {
-    //Set the button's attributes
-    box.x = x;
-    box.y = y;
-    box.w = w;
-    box.h = h;
+	//Set the button's attributes
+	box.x = x;
+	box.y = y;
+	box.w = w;
+	box.h = h;
 
 }
 
-void scroll_sky()
-{
 
-		/* horizontal */
-		back_offsetx[1] -= 0.02;
-
-		if (back_offsetx[1] > back_img[1].w)
-		   back_offsetx[1] -= back_img[1].w;
-
-		if (back_offsetx[1] < -back_img[1].w)
-		   back_offsetx[1] += back_img[1].w;
-
-		back_offsetx[2] -= 0.05;
-
-		if (back_offsetx[2] > back_img[2].w)
-		   back_offsetx[2] -= back_img[2].w;
-
-		if (back_offsetx[2] < -back_img[2].w)
-		  back_offsetx[2] += back_img[2].w;
-
-		back_offsetx[3] -= 0.1;
-
-		if (back_offsetx[3] > back_img[3].w)
-		   back_offsetx[3] -= back_img[3].w;
-
-		if (back_offsetx[3] < -back_img[3].w)
-		   back_offsetx[3] += back_img[3].w;
-
-		/* vertical */
-		back_offsety[1] -= 0.01;
-		back_offsety[2] += 0.015;
-		back_offsety[3] -= 0.01;
-
-
-		if (back_offsety[1] < -back_img[1].h)
-		   back_offsety[1] += back_img[1].h;
-
-
-		if (back_offsety[2] > back_img[2].h)
-		   back_offsety[2] -= back_img[2].h;
-
-
-		if (back_offsety[3] < -back_img[3].h)
-		   back_offsety[3] += back_img[3].h;
-}
 
 void Button::handle_events(int ID)
 {
+	unsigned char current_map = Player[MyID].current_map;
 
 	//printf("handle_events(%i) guiHit: %i\n", ID, (int)guiHit);
 	if (guiHit) return;
 
-    //don't let people click buttons if user could not connect or is trying to connect
-    if ((connectError || tryingToConnect) && ID != 8)
-       return;
+	//don't let people click buttons if user could not connect or is trying to connect
+	if ((connectError || tryingToConnect) && ID != 8)
+		return;
 
-    //The mouse offsets
-    int x, y;
+	//The mouse offsets
+	int x, y;
 
-    //If a mouse button was pressed
-    if( event.type == SDL_MOUSEBUTTONDOWN )
-    {
-    	//Get the mouse offsets
-    	x = event.button.x;
-        y = event.button.y;
+	//If a mouse button was pressed
+	if (event.type == SDL_MOUSEBUTTONDOWN)
+	{
+		//Get the mouse offsets
+		x = event.button.x;
+		y = event.button.y;
 
-        if ((!lclick && event.button.button == SDL_BUTTON_LEFT) || (!rclick && event.button.button == SDL_BUTTON_RIGHT))
-        {
-            bool clickWasRight = false;
+		if ((!lclick && event.button.button == SDL_BUTTON_LEFT) || (!rclick && event.button.button == SDL_BUTTON_RIGHT))
+		{
+			bool clickWasRight = false;
 
-            //If the left mouse button was pressed
-            if (event.button.button == SDL_BUTTON_RIGHT)
-            {
-               clickWasRight = true;
-            }
+			//If the left mouse button was pressed
+			if (event.button.button == SDL_BUTTON_RIGHT)
+			{
+				clickWasRight = true;
+			}
 
-                //Get the mouse offsets
-                x = event.button.x;
-                y = event.button.y;
+			//Get the mouse offsets
+			x = event.button.x;
+			y = event.button.y;
 
-                //If the mouse is over the button
-                if( ( x > box.x ) && ( x < box.x + box.w ) && ( y > box.y ) && ( y < box.y + box.h ) )
-                {
-                	//printf("inside my button\n");
-
-
-                  //inventory items
-                  int itmx = x-11, itmy = y-253;
-                  //shop
-                  int btmx = x-779, btmy = y-275;
-                   switch(ID)
-                   {
-                           //[login]
-                           case 1:
-                                if (menu == STATE_TITLE)
-                                {guiHit = true;
-                                   menu = STATE_LOGIN;
-                                   chat_box = 1;
+			//If the mouse is over the button
+			if ((x > box.x) && (x < box.x + box.w) && (y > box.y) && (y < box.y + box.h))
+			{
+			  //inventory items
+				int itmx = x - 11, itmy = y - 253;
+				//shop
+				int btmx = x - 779, btmy = y - 275;
+				switch (ID)
+				{
+					//[login]
+				case 1:
+					if (menu == STATE_TITLE)
+					{
+						guiHit = true;
+						menu = STATE_LOGIN;
+						chat_box = 1;
 
 
-                                    //clear message in corner
-                                    Message[0].SetText("");
-                                    Message[1].SetText("");
-                                    drawText(0);
-                                    drawText(1);
-                                }
-                           break;
+						//clear message in corner
+						Message[0].SetText("");
+						Message[1].SetText("");
+						drawText(0);
+						drawText(1);
+					}
+					break;
 
 
 
-                           //[create]
-                           case 2:
-                                if (menu == STATE_TITLE)
-                                {guiHit = true;
-                                   menu = STATE_CREATE;
-                                   chat_box = 1;
-                                    //clear message in corner
-                                    Message[0].SetText("");
-                                    Message[1].SetText("");
-                                    drawText(0);
-                                    drawText(1);
-                                }
+					//[create]
+				case 2:
+					if (menu == STATE_TITLE)
+					{
+						guiHit = true;
+						menu = STATE_CREATE;
+						chat_box = 1;
+						//clear message in corner
+						Message[0].SetText("");
+						Message[1].SetText("");
+						drawText(0);
+						drawText(1);
+					}
 
-                           break;
+					break;
 
-                           // quit button
-                           case 8:
-                        	   if (menu == STATE_TITLE)
-							   {
-                        		   saveOptions();
-                        		   Kill();
-							   }
-                           break;
-
-
-
-                           //[back]
-                           case 3:
-                                if (menu != STATE_PLAY && menu != STATE_TITLE)
-                                {guiHit = true;
-                                   menu = STATE_TITLE;
-
-                                    //clear message in corner
-                                    Message[0].SetText("");
-                                    Message[1].SetText("");
-                                    drawText(0);
-                                    drawText(1);
-                                }
-                           break;
+					// quit button
+				case 8:
+					if (menu == STATE_TITLE)
+					{
+						saveOptions();
+						Kill();
+					}
+					break;
 
 
-                           //[ok]
-                           case 4:
 
-                                if (menu != STATE_PLAY)
-                                {
-                                  guiHit = true;
-                                  //clear message in corner
-                                   Message[0].SetText("");
-                                   Message[1].SetText("");
-                                   drawText(0);
-                                   drawText(1);
+					//[back]
+				case 3:
+					if (menu != STATE_PLAY && menu != STATE_TITLE)
+					{
+						guiHit = true;
+						menu = STATE_TITLE;
 
-									username = uMessage;
-									password = pMessage;
-                                }
-
-                                if (menu == STATE_CREATE) //creating account
-                                {
-									Client.createAccount(uMessage, pMessage);
-                                }
-                                if (menu == STATE_LOGIN)//logging in
-                                {
-									TryToLogin();
-                                }
-                           break;
+						//clear message in corner
+						Message[0].SetText("");
+						Message[1].SetText("");
+						drawText(0);
+						drawText(1);
+					}
+					break;
 
 
-                           //[username]
-                           case 5:
-                                if (menu == STATE_LOGIN || menu == STATE_CREATE)
-                                   chat_box = 1;
-                           break;
+					//[ok]
+				case 4:
+					authenticateUser();
+					break;
 
-                           //[password]
-                           case 6:
-                                if (menu == STATE_LOGIN || menu == STATE_CREATE)
-                                chat_box = 2;
-                           break;
+					//[username]
+				case 5:
+					if (menu == STATE_LOGIN || menu == STATE_CREATE)
+						chat_box = 1;
+					break;
 
-                           //chatting
-                           case 7:
-                                if (menu == STATE_PLAY && chat_box != 5)
-                                   chat_box = 3;
-                           break;
+					//[password]
+				case 6:
+					if (menu == STATE_LOGIN || menu == STATE_CREATE)
+						chat_box = 2;
+					break;
+
+					//chatting
+				case 7:
+					if (menu == STATE_PLAY && chat_box != 5)
+						chat_box = 3;
+					break;
 
 
-                           //inventory_button
-                           case 9:
-                                inventory();
-                           break;
+					//inventory_button
+				case 9:
+					inventory();
+					break;
 
-                           //stats_button
-                           case 10:
-                                if (draw_gui && menu == STATE_PLAY && popup_menu != 4 && popup_gui_menu == 0)
-                                {guiHit = true;
-                                   if (popup_menu == 2)
-                                       popup_menu = 0;
-                                   else
-                                      popup_menu = 2;
-                                }
-                           break;
+					//stats_button
+				case 10:
+					if (draw_gui && menu == STATE_PLAY && popup_menu != 4 && popup_gui_menu == 0)
+					{
+						guiHit = true;
+						if (popup_menu == 2)
+							popup_menu = 0;
+						else
+							popup_menu = 2;
+					}
+					break;
 
-                           case 11:
-                                if (draw_gui && menu == STATE_PLAY && popup_menu == 2)
-                                {
-									// Increase HP stat
-									guiHit = true;
-									Client.allocateStatPoint("health");
+				case 11:
+					if (draw_gui && menu == STATE_PLAY && popup_menu == 2)
+					{
+						// Increase HP stat
+						guiHit = true;
+						Client.allocateStatPoint("health");
 
-                                 }
-                           break;
-                           case 12:
-                                if (draw_gui && menu == STATE_PLAY && popup_menu == 2)
+					}
+					break;
+				case 12:
+					if (draw_gui && menu == STATE_PLAY && popup_menu == 2)
+					{
+						// Increase Strength stat
+						guiHit = true;
+						Client.allocateStatPoint("strength");
+					}
+					break;
+				case 13:
+					if (draw_gui && menu == STATE_PLAY && popup_menu == 2)
+					{
+						// Increase Defense stat
+						guiHit = true;
+						Client.allocateStatPoint("defense");
+					}
+					break;
+
+					//inventory items or bank items
+				case 14:
+
+					if (draw_gui && menu == STATE_PLAY && popup_menu == 1)
+					{
+						//if within the inventory box
+						if (x > 8 && x < 246 && y > 252 && y < 473)
+						{
+							guiHit = true;
+							//calculate which item
+							itmx = itmx / 39;
+							itmy = itmy / 56;
+							itmx += 6 * itmy;
+
+							if (!clickWasRight)
+							{
+								//select item
+								selectedInventoryItem = itmx;
+								hoveredInventoryItem = -1;
+							}
+
+							//trade items - OFFER MORE!!! :D
+							if (clickWasRight && popup_gui_menu == 4 && Player[MyID].inventory[itmx][1] > 0)
+							{
+								int item = Player[MyID].inventory[itmx][0];
+								unsigned int amount = 0;
+
+
+								//find if there's an item: om nom nom the amount
+								for (unsigned int i = 0; i < 24; i++)
+									if (Player[MyID].localTrade[i][0] == (unsigned int)item && Player[MyID].localTrade[i][1] > 0)
+										amount = Player[MyID].localTrade[i][1];
+								amount += offerIncrement;
+
+								Client.setTradeItemOffer(item, amount);
+							}
+							//bank items - OFFER MORE!!! :D
+							if (clickWasRight && popup_gui_menu == 5 && Player[MyID].inventory[itmx][1] > 0)
+							{
+								int item = Player[MyID].inventory[itmx][0];
+								unsigned int amount = 0;
+
+
+								//find if there's an item: om nom nom the amount
+								for (unsigned int i = 0; i < 24; i++)
+									if (Player[MyID].localTrade[i][0] == (unsigned int)item && Player[MyID].localTrade[i][1] > 0)
+										amount = Player[MyID].localTrade[i][1];
+
+
+								//offer this amount to the bank
+								amount = offerIncrement;
+
+								Client.depositBankItem(item, amount);
+							}
+						}
+
+
+						//local trade window (OFFFER ONE LESS BRO)
+						if (x > 224 + 264 && x < 224 + 502 && y > 252 && y < 473 && popup_gui_menu == 4)
+						{
+							guiHit = true;
+							//calculate which item
+							itmx = itmx - (224 + 256);//offset
+
+							itmx = itmx / 39;
+							itmy = itmy / 56;
+							itmx += 6 * itmy;
+
+							if (!clickWasRight)
+							{
+								selectedLocalItem = itmx;
+							}
+
+							//trade items
+							if (clickWasRight && Player[MyID].localTrade[itmx][1] > 0)
+							{
+								int item = Player[MyID].localTrade[itmx][0];
+								unsigned int amount = 0;
+
+
+								//find if there's an item: om nom nom the amount
+								for (unsigned int i = 0; i < 24; i++)
+									if (Player[MyID].localTrade[i][0] == (unsigned int)item && Player[MyID].localTrade[i][1] > 0)
+										amount = Player[MyID].localTrade[i][1];
+
+
+								//offer one less
+								if (amount - offerIncrement >= 0)
+									amount -= offerIncrement;
+
+								Client.setTradeItemOffer(item, amount);
+							}
+						}
+						//remote trade window
+						if (x > 776 && x < 1014 && y > 252 && y < 473 && popup_gui_menu == 4)
+						{
+							guiHit = true;
+							//calculate which item
+							itmx = itmx - 768;//offset
+
+							itmx = itmx / 39;
+							itmy = itmy / 56;
+							itmx += 6 * itmy;
+
+							if (!clickWasRight)
+							{
+								selectedRemoteItem = itmx;
+							}
+						}
+
+					} // you have invy. open
+					if (menu == STATE_PLAY && popup_gui_menu == 5)
+					{//you have bank open
+
+						//if within the bank box
+						if (x > 776 && x < 1014 && y > 274 && y < 439)
+						{
+							guiHit = true;
+
+							//calculate which item
+							btmx = btmx / 39;
+							btmy = btmy / 56;
+							btmx += 6 * btmy;
+
+							//bank scrolling
+							btmx += 6 * bankScroll;
+
+							//select item
+							selectedBankItem = btmx;
+
+							// TODO
+							//bank items withdrawl
+							if (clickWasRight && popup_gui_menu == 5 && Player[MyID].bank[btmx] > 0)
+							{
+								unsigned int amount = Player[MyID].bank[btmx];
+
+								if (amount >= offerIncrement)
+									amount = offerIncrement;
+
+								Client.withdrawalBankItem(btmx, amount);
+							}
+						}
+					} // you have bank open
+					if (menu == STATE_PLAY && popup_gui_menu == 6)
+					{//you have shop open
+						//if within the bank box
+						if (x > 776 && x < 1014 && y > 274 && y < 439)
+						{
+							guiHit = true;
+							//calculate which item
+							btmx = btmx / 39;
+							btmy = btmy / 42;
+							btmx += 6 * btmy;
+
+							//select item
+							selectedShopItem = btmx;
+						}
+					} // you have shop open
+
+					break;
+
+					//options button
+				case 15:
+					if (draw_gui && menu == STATE_PLAY && popup_gui_menu == 0)
+					{
+						guiHit = true;
+						if (popup_menu == 3)
+							popup_menu = 0;
+						else
+							popup_menu = 3;
+					}
+					break;
+
+					//enable music
+				case 16:
+					if (draw_gui && popup_menu == 3)
+					{
+						guiHit = true;
+						//only play if it's not playing
+						if (enableMUS == false) {
+							//Play the music
+							if (enableSND && Mix_PausedMusic() == 1) {
+								//Resume the music
+								Mix_ResumeMusic();
+							}
+							enableMUS = true;
+						}
+					}
+
+					break;
+
+					//disable music
+				case 17:
+					if (draw_gui && popup_menu == 3)
+					{
+						guiHit = true;
+						//only stop if it's not playing
+						if (enableMUS == true) {
+							//Pause the music
+							if (Mix_PausedMusic() != 1) {
+								//Resume the music
+								Mix_PauseMusic();
+							}
+							enableMUS = false;
+						}
+					}
+					break;
+
+				case 18: // drop button
+					if (draw_gui && menu == STATE_PLAY && popup_gui_menu == 0 && popup_menu == 1)
+					{
+						guiHit = true;
+						inputBox.outputText->SetText("Drop how many items?");
+						inputBox.okayText->SetText("Drop");
+						inputBox.cancelText->SetText("Cancel");
+						inputBox.inputText->SetText("");
+						popup_gui_menu = 1;
+						chat_box = 5;
+					}
+					break;
+
+
+				case 19: // use button
+					if (draw_gui && menu == STATE_PLAY && (popup_gui_menu == 0 || popup_gui_menu == 7) && popup_menu == 1)
+					{
+						guiHit = true;
+						Client.useItem(Player[MyID].inventory[selectedInventoryItem][0]);
+					}
+					break;
+
+					//drop items
+				case 20:
+					if (draw_gui)
+					{
+						//okay
+						if (x > 305 && x < 358 && y < 476 && y > 459)
+						{
+							unsigned int amount;
+							std::string clanTag;
+
+							switch (popup_gui_menu)
+							{
+								//drop items
+							case 1:
+								guiHit = true;
+
+								if (Player[MyID].inventory[selectedInventoryItem][1] > 0)
 								{
-									// Increase Strength stat
-									guiHit = true;
-									Client.allocateStatPoint("strength");
-                                 }
-                           break;
-                           case 13:
-                                if (draw_gui && menu == STATE_PLAY && popup_menu == 2)
-                                {
-									// Increase Defense stat
-									guiHit = true;
-									Client.allocateStatPoint("defense");
-                                }
-                           break;
-
-                           //inventory items or bank items
-                           case 14:
-
-                                if (draw_gui && menu == STATE_PLAY && popup_menu == 1)
-                                {
-                                    //if within the inventory box
-                                    if (x > 8 && x < 246 && y > 252 && y < 473)
-                                    {guiHit = true;
-                                        //calculate which item
-                                        itmx = itmx/39;
-                                        itmy = itmy/56;
-                                        itmx += 6*itmy;
-
-                                        if (!clickWasRight)
-                                        {
-                                           //select item
-                                           selectedInventoryItem = itmx;
-										   hoveredInventoryItem = -1;
-                                        }
-
-                                        //trade items - OFFER MORE!!! :D
-                                        if (clickWasRight && popup_gui_menu == 4 && Player[MyID].inventory[itmx][1] > 0)
-                                        {
-                                           int item = Player[MyID].inventory[itmx][0];
-                                           int amount = 0;
-
-
-                                           //find if there's an item: om nom nom the amount
-                                           for (unsigned int i = 0 ; i < 24; i++)
-                                               if (Player[MyID].localTrade[i][0] == (unsigned int)item && Player[MyID].localTrade[i][1] > 0)
-                                                  amount = Player[MyID].localTrade[i][1];
-										   amount += offerIncrement;
-										   
-										   Client.setTradeItemOffer(item, amount);
-                                        }
-                                        //bank items - OFFER MORE!!! :D
-                                        if (clickWasRight && popup_gui_menu == 5 && Player[MyID].inventory[itmx][1] > 0)
-                                        {
-                                           int item = Player[MyID].inventory[itmx][0];
-                                           int amount = 0;
-
-
-                                           //find if there's an item: om nom nom the amount
-                                           for (unsigned int i = 0 ; i < 24; i++)
-                                               if (Player[MyID].localTrade[i][0] == (unsigned int)item && Player[MyID].localTrade[i][1] > 0)
-                                                  amount = Player[MyID].localTrade[i][1];
-
-
-                                            //offer this amount to the bank
-                                            amount = offerIncrement;
-
-											Client.depositBankItem(item, amount);
-                                        }
-                                    }
-
-
-                                    //local trade window (OFFFER ONE LESS BRO)
-                                    if (x > 224+264 && x < 224+502 && y > 252 && y < 473 && popup_gui_menu == 4)
-                                    {guiHit = true;
-                                        //calculate which item
-                                        itmx = itmx-(224+256);//offset
-
-                                        itmx = itmx/39;
-                                        itmy = itmy/56;
-                                        itmx += 6*itmy;
-
-                                        if (!clickWasRight)
-                                        {
-                                           selectedLocalItem = itmx;
-                                        }
-
-                                        //trade items
-                                        if (clickWasRight && Player[MyID].localTrade[itmx][1] > 0)
-                                        {
-                                            int item = Player[MyID].localTrade[itmx][0];
-                                            int amount = 0;
-
-
-                                           //find if there's an item: om nom nom the amount
-                                           for (unsigned int i = 0 ; i < 24; i++)
-                                               if (Player[MyID].localTrade[i][0] == (unsigned int)item && Player[MyID].localTrade[i][1] > 0)
-                                                  amount = Player[MyID].localTrade[i][1];
-
-
-                                            //offer one less
-                                            if (amount-offerIncrement >= 0) 
-												amount -= offerIncrement;
-
-											Client.setTradeItemOffer(item, amount);
-                                        }
-                                    }
-                                    //remote trade window
-                                    if (x > 776 && x < 1014 && y > 252 && y < 473 && popup_gui_menu == 4)
-                                    {guiHit = true;
-                                        //calculate which item
-                                        itmx = itmx-768;//offset
-
-                                        itmx = itmx/39;
-                                        itmy = itmy/56;
-                                        itmx += 6*itmy;
-
-                                        if (!clickWasRight)
-                                        {
-                                           selectedRemoteItem = itmx;
-                                        }
-                                    }
-
-                                } // you have invy. open
-                                if (menu == STATE_PLAY && popup_gui_menu == 5)
-                                {//you have bank open
-
-                                    //if within the bank box
-                                    if (x > 776 && x < 1014 && y > 274 && y < 439)
-                                    {guiHit = true;
-
-                                        //calculate which item
-                                        btmx = btmx/39;
-                                        btmy = btmy/56;
-                                        btmx += 6*btmy;
-
-                                        //bank scrolling
-                                        btmx += 6*bankScroll;
-
-                                        //select item
-                                        selectedBankItem = btmx;
-
-                                        // TODO
-                                        //bank items withdrawl
-                                        if (clickWasRight && popup_gui_menu == 5 && Player[MyID].bank[btmx] > 0)
-                                        {
-                                           int amount = Player[MyID].bank[btmx];
-
-                                           	if (amount >= offerIncrement)
-                                           		amount = offerIncrement;
-
-											Client.withdrawalBankItem(btmx, amount);
-                                        }
-                                    }
-                                } // you have bank open
-                                if (menu == STATE_PLAY && popup_gui_menu == 6)
-                                {//you have shop open
-                                    //if within the bank box
-                                    if (x > 776 && x < 1014 && y > 274 && y < 439)
-                                    {guiHit = true;
-                                        //calculate which item
-                                        btmx = btmx/39;
-                                        btmy = btmy/42;
-                                        btmx += 6*btmy;
-
-                                        //select item
-                                        selectedShopItem = btmx;
-                                    }
-                                } // you have shop open
-
-                           break;
-
-                           //options button
-                           case 15:
-                                if (draw_gui && menu == STATE_PLAY && popup_gui_menu == 0)
-                                {guiHit = true;
-                                   if (popup_menu == 3)
-                                       popup_menu = 0;
-                                   else
-                                      popup_menu = 3;
-                                }
-                           break;
-
-                           //enable music
-                           case 16:
-                                if (draw_gui && popup_menu == 3)
-                                { guiHit = true;
-                                    //only play if it's not playing
-                                    if (enableMUS == false){
-                                       //Play the music
-                                       if( enableSND && Mix_PausedMusic() == 1 ) {
-                                           //Resume the music
-                                           Mix_ResumeMusic();
-                                       }
-                                       enableMUS = true;
-                                    }
-                                }
-
-                           break;
-
-                           //disable music
-                           case 17:
-                                if (draw_gui && popup_menu == 3)
-                                { guiHit = true;
-                                    //only stop if it's not playing
-                                    if (enableMUS == true){
-                                       //Pause the music
-                                       if( Mix_PausedMusic() != 1 ) {
-                                           //Resume the music
-                                           Mix_PauseMusic();
-                                       }
-                                       enableMUS = false;
-                                    }
-                                    }
-                           break;
-
-                           case 18: // drop button
-                                if (draw_gui && menu == STATE_PLAY && popup_gui_menu == 0 && popup_menu == 1)
-                                {guiHit = true;
-                                   inputBox.outputText->SetText("Drop how many items?");
-                                   inputBox.okayText->SetText("Drop");
-                                   inputBox.cancelText->SetText("Cancel");
-                                   inputBox.inputText->SetText("");
-                                   popup_gui_menu = 1;
-                                   chat_box = 5;
-                                }
-                           break;
-
-
-                           case 19: // use button
-                                if (draw_gui && menu == STATE_PLAY && (popup_gui_menu == 0 || popup_gui_menu == 7) && popup_menu == 1)
-                                {
-									guiHit = true;
-									Client.useItem(Player[MyID].inventory[selectedInventoryItem][0]);
-                                }
-                           break;
-
-                           //drop items
-                           case 20:
-                                if (draw_gui)
-                                {
-                                   //okay
-                                   if (x > 305 && x < 358 &&  y < 476 && y > 459)
-                                   {
-                                	   unsigned int amount;
-							           std::string clanTag;
-
-                                      switch (popup_gui_menu)
-                                      {
-                                          //drop items
-                                      	  case 1:
-                                      		guiHit = true;
-
-											if (Player[MyID].inventory[selectedInventoryItem][1] > 0)
-											{
-												unsigned char itemId = Player[MyID].inventory[selectedInventoryItem][0];
-												//parse the amount the user typed into the GUI textbox
-												amount = atoi(iMessage);
-												
-												Client.dropItem(itemId, amount);
-											}
-                                    	  break;
-
-
-                                    	  //clan buy
-                                      	  case 10:
-                                      		guiHit = true;
-											  // Create a clan
-											  clanTag = (std::string)iMessage;
-											  Client.createClan((std::string)iMessage);
-											  //create clan attempt packet
-                                      	  break;
-                                      }
-                                   }
-
-                                   //cancel
-                                   if (x > 409 && x < 462 &&  y < 476  && y > 459)
-                                   {guiHit = true;
-                                      popup_gui_menu = 0;
-                                      chat_box = 4;
-
-                                      for (int i = 0; i < 20; i++)
-                                      {
-                                        iMessage[i] = 0;
-                                        iSeek = 0;
-                                      }
-                                   }
-                                }
-                           break;
-
-
-                           //world interactions
-                           case 21:
-                                //just chillin as far as menus go
-                                if (!guiHit && menu == STATE_PLAY)
-                                {
-                                    printf("CLICK AT (%i,%i)\n", (int)(x+camera_x), (int)(y+camera_y));
-
-                                    //check for interaction with player
-                                    for (int i = 0; i < MAX_CLIENTS; i++)
-                                    {
-                                        if (Player[i].Status && i != MyID && current_map == Player[i].current_map)
-                                        {
-                                            float x1 = Player[i].x + 25 - camera_x;
-                                            float x2 = Player[i].x + 38 - camera_x;
-                                            float y1 = Player[i].y + 13 - camera_y;
-                                            float y2 = Player[i].y + 64 - camera_y;
-
-                                            //check if you clicked on a player
-                                            if (x > x1 && x < x2 && y > y1 && y < y2)
-                                            {
-                                               std::stringstream ss;
-                                               ss << "Invite ";
-                                               ss << Player[i].Nick;
-                                               ss << " to...";
-                                               Message[89].SetText(ss.str());
-                                               requestedPlayer = i;
-                                               //position it
-                                               int xOffset = (Player[i].Nick.length() * 9)/2;
-                                               Message[89].pos_x = 325 - xOffset;
-
-
-                                               popup_gui_menu = 2;
-                                               return;
-                                            }
-
-                                        }
-                                    }
-                                    //check for interaction with NPC
-								   for (int i = 0; i < map[current_map]->num_npcs; i++)
-								   {
-										   float x1 = map[current_map]->NPC[i].x + 25 - camera_x;
-										   float x2 = map[current_map]->NPC[i].x + 38 - camera_x;
-										   float y1 = map[current_map]->NPC[i].y + 13 - camera_y;
-										   float y2 = map[current_map]->NPC[i].y + 64 - camera_y;
-
-										   //check if you clicked on an NPC
-										   if (x > x1 && x < x2 && y > y1 && y < y2)
-										   {
-											   printf("npc!\n");
-											   popup_menu = 0;
-											   popup_npc = true;
-											   current_npc = map[current_map]->NPC[i];
-											   current_page = 0;
-											   return;
-										   }
-								   }
-                                    //check for interaction with a stall
-                                    for (int i = 0; i < map[current_map]->num_stalls; i++)
-                                    {
-                                        float x1 = map[current_map]->Stall[i].x  - camera_x;
-                                        float x2 = map[current_map]->Stall[i].x + map[current_map]->Stall[i].w - camera_x;
-                                        float y1 = map[current_map]->Stall[i].y - camera_y;
-                                        float y2 = map[current_map]->Stall[i].y + map[current_map]->Stall[i].h - camera_y;
-
-                                        //check if you clicked on a stall
-                                        if (popup_gui_menu != 5 && x > x1 && x < x2 && y > y1 && y < y2)
-                                        {
-                                           printf("shop\n");
-										   Client.openShop(i);
-                                           return;
-                                        }
-                                    }
-                                    //check for interaction with a sign
-
-                                    for (int i = 0; i < map[current_map]->num_signs; i++)
-									{
-										float x1 = map[current_map]->Sign[i].x  - camera_x;
-										float x2 = map[current_map]->Sign[i].x + map[current_map]->Sign[i].w - camera_x;
-										float y1 = map[current_map]->Sign[i].y - camera_y;
-										float y2 = map[current_map]->Sign[i].y + map[current_map]->Sign[i].h - camera_y;
-
-										//check if you clicked on a sign
-										if (popup_gui_menu != 5 && x > x1 && x < x2 && y > y1 && y < y2)
-										{
-											printf("sign!\n");
-											popup_menu = 0;
-											popup_sign = true;
-											popup_npc = false;
-											current_sign = map[current_map]->Sign[i];
-											return;
-										}
-
-
-
-
-
-
-									}
-
-
-                                }
-
-                           break;
-
-                           //player request gui / confirm boxes
-                           case 22:
-                                //trade, clan, or party?
-                                if (draw_gui && popup_gui_menu == 2)
-                                { guiHit = true;
-                                   
-                                   //trade
-                                   if (x > 322 && x < 449 && y > 401 && y < 416)
-                                   {
-                                      //initiate trade
-									   Client.sendTradeInvite(requestedPlayer);
-
-									   //close menus and wait for response.
-									   popup_gui_menu = 0;
-									   chat_box = 4;
-                                   } else
-                                   //party
-                                   if (x > 322 && x < 449 && y > 425 && y < 440)
-                                   {
-                                      //initiate party
-									   Client.sendPartyInvite(requestedPlayer);
-
-                                      //close menus and wait for response...
-                                      popup_gui_menu = 0;
-                                      chat_box = 4;
-                                   } else
-                                   //clan
-                                   if (x > 322 && x < 449 && y > 449 && y < 464)
-                                   {
-									   Client.sendClanInvite(requestedPlayer);
-
-                                      //close menus and wait for response...
-                                      popup_gui_menu = 0;
-                                      chat_box = 4;
-                                   } else
-                                   //cancel
-                                   if (x > 322 && x < 449 && y > 473 && y < 488)
-                                   {
-                                       //close menus...
-                                      popup_gui_menu = 0;
-                                      chat_box = 4;
-                                   }
-                                }
-                                // trade with this person?
-                                if (popup_gui_menu == 3)
-                                {
-                                   //okay
-                                   if (x > 305 && x < 358 &&  y < 476 && y > 459)
-                                   {
-									   Client.acceptTradeInvite();
-                                      //I want to trade. Close menus and ...
-                                      popup_gui_menu = 0;
-                                      chat_box = 4;
-                                   }
-
-
-                                   //cancel
-                                   if (x > 409 && x < 462 &&  y < 476  && y > 459)
-                                   {
-                                      Client.cancelTrade();
-									  
-									  //don't want to trade. Close menus and ...
-                                      popup_gui_menu = 0;
-                                      chat_box = 4;
-                                   }
-                                }
-                                // party with this person?
-                                if (popup_gui_menu == 8)
-                                {
-                                   //okay
-                                   if (x > 305 && x < 358 &&  y < 476 && y > 459)
-                                   {
-                                      //I want to party. Close menus and ...
-                                      popup_gui_menu = 0;
-                                      chat_box = 4;
-
-                                      //send accept packet
-									  Client.acceptPartyInvite();
-                                   }
-
-
-                                   //cancel
-                                   if (x > 409 && x < 462 &&  y < 476  && y > 459)
-                                   {
-                                      //don't want to trade. Close menus and ...
-                                      popup_gui_menu = 0;
-                                      chat_box = 4;
-
-                                      //send deny packet
-									  Client.cancelParty();
-                                   }
-
-                                }
-								// clan with this person?
-								if (popup_gui_menu == 11)
+									unsigned char itemId = Player[MyID].inventory[selectedInventoryItem][0];
+									//parse the amount the user typed into the GUI textbox
+									amount = atoi(iMessage);
+
+									Client.dropItem(itemId, amount);
+								}
+								break;
+
+
+								//clan buy
+							case 10:
+								guiHit = true;
+								// Create a clan
+								clanTag = (std::string)iMessage;
+								Client.createClan((std::string)iMessage);
+								//create clan attempt packet
+								break;
+							}
+						}
+
+						//cancel
+						if (x > 409 && x < 462 && y < 476 && y > 459)
+						{
+							guiHit = true;
+							popup_gui_menu = 0;
+							chat_box = 4;
+
+							for (int i = 0; i < 20; i++)
+							{
+								iMessage[i] = 0;
+								iSeek = 0;
+							}
+						}
+					}
+					break;
+
+
+					//world interactions
+				case 21:
+					//just chillin as far as menus go
+					if (!guiHit && menu == STATE_PLAY)
+					{
+
+						//check for interaction with player
+						for (int i = 0; i < MAX_CLIENTS; i++)
+						{
+							if (Player[i].Status && i != MyID && current_map == Player[i].current_map)
+							{
+								float x1 = Player[i].x + 25 - camera_x;
+								float x2 = Player[i].x + 38 - camera_x;
+								float y1 = Player[i].y + 13 - camera_y;
+								float y2 = Player[i].y + 64 - camera_y;
+
+								//check if you clicked on a player
+								if (x > x1 && x < x2 && y > y1 && y < y2)
 								{
-									//okay
-									if (x > 305 && x < 358 &&  y < 476 && y > 459)
-									{
-									Client.acceptClanInvite();
+									std::stringstream ss;
+									ss << "Invite ";
+									ss << Player[i].Nick;
+									ss << " to...";
+									Message[89].SetText(ss.str());
+									requestedPlayer = i;
+									//position it
+									int xOffset = (Player[i].Nick.length() * 9) / 2;
+									Message[89].pos_x = 325 - xOffset;
 
-									//I want to party. Close menus and ...
+
+									popup_gui_menu = 2;
+									return;
+								}
+
+							}
+						}
+						//check for interaction with NPC
+						for (int i = 0; i < map[current_map]->num_npcs; i++)
+						{
+							float x1 = map[current_map]->NPC[i].x + 25 - camera_x;
+							float x2 = map[current_map]->NPC[i].x + 38 - camera_x;
+							float y1 = map[current_map]->NPC[i].y + 13 - camera_y;
+							float y2 = map[current_map]->NPC[i].y + 64 - camera_y;
+
+							//check if you clicked on an NPC
+							if (x > x1 && x < x2 && y > y1 && y < y2)
+							{
+								printf("npc!\n");
+								popup_menu = 0;
+								popup_npc = true;
+								current_npc = map[current_map]->NPC[i];
+								current_page = 0;
+								return;
+							}
+						}
+						//check for interaction with a stall
+						for (int i = 0; i < map[current_map]->num_stalls; i++)
+						{
+							float x1 = map[current_map]->Stall[i].x - camera_x;
+							float x2 = map[current_map]->Stall[i].x + map[current_map]->Stall[i].w - camera_x;
+							float y1 = map[current_map]->Stall[i].y - camera_y;
+							float y2 = map[current_map]->Stall[i].y + map[current_map]->Stall[i].h - camera_y;
+
+							//check if you clicked on a stall
+							if (popup_gui_menu != 5 && x > x1 && x < x2 && y > y1 && y < y2)
+							{
+								printf("shop\n");
+								Client.openStall(i);
+								return;
+							}
+						}
+						//check for interaction with a sign
+
+						for (int i = 0; i < map[current_map]->num_signs; i++)
+						{
+							float x1 = map[current_map]->Sign[i].x - camera_x;
+							float x2 = map[current_map]->Sign[i].x + map[current_map]->Sign[i].w - camera_x;
+							float y1 = map[current_map]->Sign[i].y - camera_y;
+							float y2 = map[current_map]->Sign[i].y + map[current_map]->Sign[i].h - camera_y;
+
+							//check if you clicked on a sign
+							if (popup_gui_menu != 5 && x > x1 && x < x2 && y > y1 && y < y2)
+							{
+								printf("sign!\n");
+								popup_menu = 0;
+								popup_sign = true;
+								popup_npc = false;
+								current_sign = map[current_map]->Sign[i];
+								return;
+							}
+						}
+
+
+					}
+
+					break;
+
+					//player request gui / confirm boxes
+				case 22:
+					//trade, clan, or party?
+					if (draw_gui && popup_gui_menu == 2)
+					{
+						guiHit = true;
+
+						//trade
+						if (x > 322 && x < 449 && y > 401 && y < 416)
+						{
+							//initiate trade
+							Client.sendTradeInvite(requestedPlayer);
+
+							//close menus and wait for response.
+							popup_gui_menu = 0;
+							chat_box = 4;
+						}
+						else
+							//party
+							if (x > 322 && x < 449 && y > 425 && y < 440)
+							{
+								//initiate party
+								Client.sendPartyInvite(requestedPlayer);
+
+								//close menus and wait for response...
+								popup_gui_menu = 0;
+								chat_box = 4;
+							}
+							else
+								//clan
+								if (x > 322 && x < 449 && y > 449 && y < 464)
+								{
+									Client.sendClanInvite(requestedPlayer);
+
+									//close menus and wait for response...
 									popup_gui_menu = 0;
 									chat_box = 4;
-									}
-
+								}
+								else
 									//cancel
-									if (x > 409 && x < 462 &&  y < 476  && y > 459)
+									if (x > 322 && x < 449 && y > 473 && y < 488)
 									{
-										Client.acceptClanInvite();
-
-										//don't want to trade. Close menus and ...
+										//close menus...
 										popup_gui_menu = 0;
 										chat_box = 4;
 									}
-							    }
-
-                                //exit the game?
-                                if (popup_gui_menu == 9){
-                                	//okay
-								   if (x > 305 && x < 358 &&  y < 476 && y > 459)
-								   {
-										//disconnect
-										saveOptions(); 
-										Kill();
-								   }
-
-
-								   //cancel
-								   if (x > 409 && x < 462 &&  y < 476  && y > 459)
-								   {
-									  //don't want to trade. Close menus and ...
-									  popup_gui_menu = 0;
-									  chat_box = 4;
-
-								   }
+					}
+					// trade with this person?
+					if (popup_gui_menu == 3)
+					{
+						//okay
+						if (x > 305 && x < 358 && y < 476 && y > 459)
+						{
+							Client.acceptTradeInvite();
+							//I want to trade. Close menus and ...
+							popup_gui_menu = 0;
+							chat_box = 4;
+						}
 
 
-                                }
-                           break;
+						//cancel
+						if (x > 409 && x < 462 && y < 476 && y > 459)
+						{
+							Client.cancelTrade();
 
-                           //submit trade
-                           case 23:
-                                if (popup_gui_menu == 4)
-                                { guiHit = true;
-									Client.confirmTrade();
-                                }
-                           break;
+							//don't want to trade. Close menus and ...
+							popup_gui_menu = 0;
+							chat_box = 4;
+						}
+					}
+					// party with this person?
+					if (popup_gui_menu == 8)
+					{
+						//okay
+						if (x > 305 && x < 358 && y < 476 && y > 459)
+						{
+							//I want to party. Close menus and ...
+							popup_gui_menu = 0;
+							chat_box = 4;
 
-                           //call off trade
-                           case 24:
-                                if (popup_gui_menu == 4)
-                                { guiHit = true;
-									Client.cancelTrade();
-                                }
-                           break;
-
-                           //mass trading
-                           case 25:
-                                if (popup_gui_menu == 4)
-                                {guiHit = true;
-                                   if (x < 224+457 )
-                                      offerIncrement = 1;
-                                   else if (x < 224+485)
-                                      offerIncrement = 10;
-                                   else if (x < 224+513)
-                                      offerIncrement = 100;
-                                   else if (x < 224+541)
-                                      offerIncrement = 1000;
-                                   else if (x < 224+569)
-                                      offerIncrement = 10000;
-                                   else if (x < 224+597)
-                                      offerIncrement = 100000;
-                                   else if (x < 224+625)
-                                      offerIncrement = 1000000;
-                                }
-                           break;
-
-                           //mass banking
-                           case 26:
-                                if (popup_gui_menu == 5)
-                                {guiHit = true;
-                                   if (x < 224+599 )
-                                      offerIncrement = 1;
-                                   else if (x < 224+627)
-                                      offerIncrement = 10;
-                                   else if (x < 224+655)
-                                      offerIncrement = 100;
-                                   else if (x < 224+683)
-                                      offerIncrement = 1000;
-                                   else if (x < 224+711)
-                                      offerIncrement = 10000;
-                                   else if (x < 224+739)
-                                      offerIncrement = 100000;
-                                   else if (x < 224+767)
-                                      offerIncrement = 1000000;
-                                }
-                           break;
-
-                           //bank take all
-                           case 27:
-
-                               //if in bank and you have that item
-                               if (popup_gui_menu == 5)
-                               {guiHit = true;
-                                   int item = selectedBankItem;
-                                   int amount = Player[MyID].bank[selectedBankItem];
-
-                                   if (amount > 0)
-                                   {
-									   Client.withdrawalBankItem(item, amount);
-                                   }
-                               }
-                           break;
-
-                           //bank cancel
-                           case 28:
-                               if (popup_gui_menu == 5)
-                               {guiHit = true;
-                                  popup_gui_menu = 0;
-                                  {
-									  Client.closeBank();
-                                  }
-                               }
-                           break;
-
-                           //bank scroll
-                           case 29:
-                                if (popup_gui_menu == 5)//if bank is open
-                                {guiHit = true;
-                                   if (x < 224+673)
-                                   {//go up
-                                         if (bankScroll > 0)
-                                            bankScroll --;
-                                   }
-                                   else
-                                   {//go down
-                                         if (bankScroll < 36)
-                                            bankScroll ++;
-                                   }
-
-                                   //re-make the text
-                                   int i = bankScroll*6;
-                                   int t = 0;
-                                   for (int y = 0; y < 3; y++)
-                                   {
-                                       for (int x = 0; x < 6; x++)
-                                       {
-                                           //re-draw the text
-                                           if (i < NUM_ITEMS)
-                                           {
-                                                 std::stringstream amt;
-                                                 amt << Player[MyID].bank[i];
-
-                                                 if (Player[MyID].bank[i] > 0)
-                                                     Message[144+t].SetText(amt.str());
-                                                 else
-                                                     Message[144+t].SetText("none");
-
-                                           }
-                                           else
-                                           {
-                                                 Message[144+t].SetText("");
-                                           }
-
-                                           i++; t++;
-                                       }
-                                   }//done redraw text
-
-                                }//done bank scroll
-                           break;
-
-                           case 30:
-                                //mass shopping
-                                if (popup_gui_menu == 6)
-                                {guiHit = true;
-                                   if (x < 224+599 )
-                                      offerIncrement = 1;
-                                   else if (x < 224+627)
-                                      offerIncrement = 10;
-                                   else if (x < 224+655)
-                                      offerIncrement = 100;
-                                   else if (x < 224+683)
-                                      offerIncrement = 1000;
-                                   else if (x < 224+711)
-                                      offerIncrement = 10000;
-                                   else if (x < 224+739)
-                                      offerIncrement = 100000;
-                                   else if (x < 224+767)
-                                      offerIncrement = 1000000;
-                                }
-                           break;
+							//send accept packet
+							Client.acceptPartyInvite();
+						}
 
 
-                           //shop cancel
-                           case 31:
-                               if (popup_gui_menu == 6)
-                               {guiHit = true;
-                                  popup_gui_menu = 0;
-                                  {
-									  Client.closeShop();
-                                  }
-                               }
-                           break;
+						//cancel
+						if (x > 409 && x < 462 && y < 476 && y > 459)
+						{
+							//don't want to trade. Close menus and ...
+							popup_gui_menu = 0;
+							chat_box = 4;
 
-                           case 32:
-                                if (popup_gui_menu == 6)
-                                {guiHit = true;
-                                   shopBuyMode = !shopBuyMode;
-                                }
-                           break;
+							//send deny packet
+							Client.cancelParty();
+						}
 
-                           case 33:
-                                //accept shop transaction!! BUY/SELL
-                                if (popup_gui_menu == 6)
-                                {guiHit = true;
-                                   
-									unsigned char item = 0;
-									unsigned int amount = 0;
+					}
+					// clan with this person?
+					if (popup_gui_menu == 11)
+					{
+						//okay
+						if (x > 305 && x < 358 && y < 476 && y > 459)
+						{
+							Client.acceptClanInvite();
 
-                                   //find item position
-                                   //buy items!
-                                   if (shopBuyMode)
-                                   {
-                                       //find the item & amount
-                                       item = selectedShopItem;
-                                   }
-                                   else // SELL ! :D
-                                   {
-                                        //request sell mode
-                                        int i = 0;
-                                        for (int y = 0; y < 4; y ++)
-                                        {
-                                            for (int x = 0; x < 6; x ++)
-                                            {
-                                                if (i == selectedInventoryItem)
-                                                   break;
-                                                else
-                                                    i++;
-                                            }
-                                        }
+							//I want to party. Close menus and ...
+							popup_gui_menu = 0;
+							chat_box = 4;
+						}
 
-                                        //find the item
-                                        item = Player[MyID].inventory[i][0];
-                                   }
-                                   amount = offerIncrement;
+						//cancel
+						if (x > 409 && x < 462 && y < 476 && y > 459)
+						{
+							Client.acceptClanInvite();
 
-                                   //Send to SKO Network
-								   if (shopBuyMode)
-									   Client.buyItem(item, amount);
-								   else
-									   Client.sellItem(item, amount);
-                                }
-                           break;
+							//don't want to trade. Close menus and ...
+							popup_gui_menu = 0;
+							chat_box = 4;
+						}
+					}
 
-                           case 34: //logout
-                                if (draw_gui && menu == STATE_PLAY)
-                                {guiHit = true;
+					//exit the game?
+					if (popup_gui_menu == 9) {
+						//okay
+						if (x > 305 && x < 358 && y < 476 && y > 459)
+						{
+							//disconnect
+							saveOptions();
+							Kill();
+						}
 
 
-								//confirm you want to trade pop up
-								inputBox.outputText->SetText("Quit Stick Knights Online?");
-								inputBox.okayText->SetText("Quit");
-								inputBox.cancelText->SetText("Cancel");
-								//position it
-								Message[85].pos_x = 290;
+						//cancel
+						if (x > 409 && x < 462 && y < 476 && y > 459)
+						{
+							//don't want to trade. Close menus and ...
+							popup_gui_menu = 0;
+							chat_box = 4;
 
-								popup_gui_menu = 9;
-								Message[138].pos_x = 10;
-								Message[139].pos_x = 140;
-								Message[138].pos_y = 452;
-								Message[139].pos_y = 452;
+						}
 
 
+					}
+					break;
 
-                                }
-                           break;
+					//submit trade
+				case 23:
+					if (popup_gui_menu == 4)
+					{
+						guiHit = true;
+						Client.confirmTrade();
+					}
+					break;
 
-                           case 35:
-                                if (draw_gui)
-                                {
-                                guiHit = true;
-                                    //sound toggle button
-                                    if (enableSND) //sound is ON =====> turn it OFF
-                                    {
-                                       //Pause the music
-                                       if( Mix_PausedMusic() != 1 ) {
-                                           //Resume the music
-                                           Mix_PauseMusic();
-                                       }
-                                    }
-                                    else //sound is OFF =====> turn it ON
-                                    {
-                                        //turn it on!
-                                        if( enableMUS && Mix_PausedMusic() == 1 ) {
-                                           //Resume the music
-                                           Mix_ResumeMusic();
-                                       }
-                                    }
+					//call off trade
+				case 24:
+					if (popup_gui_menu == 4)
+					{
+						guiHit = true;
+						Client.cancelTrade();
+					}
+					break;
 
-                                    //flip the boolean.
-                                    enableSND = !enableSND;
-                                }
-                           break;
+					//mass trading
+				case 25:
+					if (popup_gui_menu == 4)
+					{
+						guiHit = true;
+						if (x < 224 + 457)
+							offerIncrement = 1;
+						else if (x < 224 + 485)
+							offerIncrement = 10;
+						else if (x < 224 + 513)
+							offerIncrement = 100;
+						else if (x < 224 + 541)
+							offerIncrement = 1000;
+						else if (x < 224 + 569)
+							offerIncrement = 10000;
+						else if (x < 224 + 597)
+							offerIncrement = 100000;
+						else if (x < 224 + 625)
+							offerIncrement = 1000000;
+					}
+					break;
+
+					//mass banking
+				case 26:
+					if (popup_gui_menu == 5)
+					{
+						guiHit = true;
+						if (x < 224 + 599)
+							offerIncrement = 1;
+						else if (x < 224 + 627)
+							offerIncrement = 10;
+						else if (x < 224 + 655)
+							offerIncrement = 100;
+						else if (x < 224 + 683)
+							offerIncrement = 1000;
+						else if (x < 224 + 711)
+							offerIncrement = 10000;
+						else if (x < 224 + 739)
+							offerIncrement = 100000;
+						else if (x < 224 + 767)
+							offerIncrement = 1000000;
+					}
+					break;
+
+					//bank take all
+				case 27:
+
+					//if in bank and you have that item
+					if (popup_gui_menu == 5)
+					{
+						guiHit = true;
+						int item = selectedBankItem;
+						unsigned int amount = Player[MyID].bank[selectedBankItem];
+
+						if (amount > 0)
+						{
+							Client.withdrawalBankItem(item, amount);
+						}
+					}
+					break;
+
+					//bank cancel
+				case 28:
+					if (popup_gui_menu == 5)
+					{
+						guiHit = true;
+						popup_gui_menu = 0;
+						{
+							Client.closeBank();
+						}
+					}
+					break;
+
+					//bank scroll
+				case 29:
+					if (popup_gui_menu == 5)//if bank is open
+					{
+						guiHit = true;
+						if (x < 224 + 673)
+						{//go up
+							if (bankScroll > 0)
+								bankScroll--;
+						}
+						else
+						{//go down
+							if (bankScroll < 36)
+								bankScroll++;
+						}
+
+						//re-make the text
+						int i = bankScroll * 6;
+						int t = 0;
+						for (int y = 0; y < 3; y++)
+						{
+							for (int x = 0; x < 6; x++)
+							{
+								//re-draw the text
+								if (i < NUM_ITEMS)
+								{
+									std::stringstream amt;
+									amt << Player[MyID].bank[i];
+
+									if (Player[MyID].bank[i] > 0)
+										Message[144 + t].SetText(amt.str());
+									else
+										Message[144 + t].SetText("none");
+
+								}
+								else
+								{
+									Message[144 + t].SetText("");
+								}
+
+								i++; t++;
+							}
+						}//done redraw text
+
+					}//done bank scroll
+					break;
+
+				case 30:
+					//mass shopping
+					if (popup_gui_menu == 6)
+					{
+						guiHit = true;
+						if (x < 224 + 599)
+							offerIncrement = 1;
+						else if (x < 224 + 627)
+							offerIncrement = 10;
+						else if (x < 224 + 655)
+							offerIncrement = 100;
+						else if (x < 224 + 683)
+							offerIncrement = 1000;
+						else if (x < 224 + 711)
+							offerIncrement = 10000;
+						else if (x < 224 + 739)
+							offerIncrement = 100000;
+						else if (x < 224 + 767)
+							offerIncrement = 1000000;
+					}
+					break;
 
 
-                           //master sound
-                           //enable
-                           case 36:
-                                if (popup_menu == 3)
-                                {guiHit = true;
-                                    enableSND = true;
+					//shop cancel
+				case 31:
+					if (popup_gui_menu == 6)
+					{
+						guiHit = true;
+						popup_gui_menu = 0;
+						{
+							Client.closeShop();
+						}
+					}
+					break;
 
-                                    //only play if it's not playing
-                                    if (enableMUS && enableSND && Mix_PausedMusic() == 1 )
-                                    {
-                                           //Resume the music
-                                           Mix_ResumeMusic();
-                                    }
-                                }
-                           break;
-                           //disable
-                           case 37:
-                                if (popup_menu == 3)
-                                {guiHit = true;
-                                    enableSND = false;
+				case 32:
+					if (popup_gui_menu == 6)
+					{
+						guiHit = true;
+						shopBuyMode = !shopBuyMode;
+					}
+					break;
 
-                                    //only stop if it's playing
-                                    if (enableMUS && Mix_PausedMusic() != 1 )
-                                    {
-                                           //Pause the music
-                                           Mix_PauseMusic();
-                                    }
-                                }
-                           break;
+				case 33:
+					//accept shop transaction!! BUY/SELL
+					if (popup_gui_menu == 6)
+					{
+						guiHit = true;
 
-                           //sound effects
-                           //enable
-                           case 38:
-                                if (popup_menu == 3)
-                                {guiHit = true;
-                                        enableSFX = true;
-                                }
-                           break;
-                           //disable
-                           case 39:
-                                if (popup_menu == 3)
-                                {guiHit = true;
-                                        enableSFX = false;
-                                }
-                           break;
+						unsigned char item = 0;
+						unsigned int amount = 0;
+
+						//find item position
+						//buy items!
+						if (shopBuyMode)
+						{
+							//find the item & amount
+							item = selectedShopItem;
+						}
+						else // SELL ! :D
+						{
+							//request sell mode
+							int i = 0;
+							for (int y = 0; y < 4; y++)
+							{
+								for (int x = 0; x < 6; x++)
+								{
+									if (i == selectedInventoryItem)
+										break;
+									else
+										i++;
+								}
+							}
+
+							//find the item
+							item = Player[MyID].inventory[i][0];
+						}
+						amount = offerIncrement;
+
+						//Send to SKO Network
+						if (shopBuyMode)
+							Client.buyItem(item, amount);
+						else
+							Client.sellItem(item, amount);
+					}
+					break;
+
+				case 34: //logout
+					if (draw_gui && menu == STATE_PLAY)
+					{
+						guiHit = true;
+
+
+						//confirm you want to trade pop up
+						inputBox.outputText->SetText("Quit Stick Knights Online?");
+						inputBox.okayText->SetText("Quit");
+						inputBox.cancelText->SetText("Cancel");
+						//position it
+						Message[85].pos_x = 290;
+
+						popup_gui_menu = 9;
+						Message[138].pos_x = 10;
+						Message[139].pos_x = 140;
+						Message[138].pos_y = 452;
+						Message[139].pos_y = 452;
 
 
 
-                           //equipment toggle
-                           case 40:
-                                //if inventory is open
-                                if (popup_menu == 1)
-                                {  guiHit = true;
-                                   //handle different ways for hiding and showing
-                                   if (popup_gui_menu == 0)
-                                   {
-                                       popup_gui_menu = 7;
-                                   }
-                                   else if (popup_gui_menu == 7)
-                                   {
-                                       popup_gui_menu = 0;
-                                   }
-                                }
-                           break;
+					}
+					break;
 
-                           //equipment window
-                           case 41:
-                        	    printf("popup_menu = %i popup_gui_menu = %i\n",
-                        	    		popup_menu, popup_gui_menu);
-                                if (popup_menu == 1 && popup_gui_menu == 7)
-                                {
+				case 35:
+					if (draw_gui)
+					{
+						guiHit = true;
+						//sound toggle button
+						if (enableSND) //sound is ON =====> turn it OFF
+						{
+							//Pause the music
+							if (Mix_PausedMusic() != 1) {
+								//Resume the music
+								Mix_PauseMusic();
+							}
+						}
+						else //sound is OFF =====> turn it ON
+						{
+							//turn it on!
+							if (enableMUS && Mix_PausedMusic() == 1) {
+								//Resume the music
+								Mix_ResumeMusic();
+							}
+						}
 
-                                   //select hat
-                                   if (x > 459 && x < 496 && y > 273 && y < 306)
-                                   {guiHit = true;
-                                         equipmentSlot = 1;
-                                   }
-                                   else //select sword
-                                   if (x > 459 && x < 496 && y > 347 && y < 380)
-                                   {guiHit = true;
-                                         equipmentSlot = 0;
-                                   }
-                                   else //select trophy 327, 317
-								   if (x > 327 && x < 359 && y > 317 && y < 349)
-								   {guiHit = true;
-										equipmentSlot = 2;
-								   }
-                                   else
-                                   if (x > 429 && x < 501 && y > 480 && y < 495)
-                                   {guiHit = true;
+						//flip the boolean.
+						enableSND = !enableSND;
+					}
+					break;
+
+
+					//master sound
+					//enable
+				case 36:
+					if (popup_menu == 3)
+					{
+						guiHit = true;
+						enableSND = true;
+
+						//only play if it's not playing
+						if (enableMUS && enableSND && Mix_PausedMusic() == 1)
+						{
+							//Resume the music
+							Mix_ResumeMusic();
+						}
+					}
+					break;
+					//disable
+				case 37:
+					if (popup_menu == 3)
+					{
+						guiHit = true;
+						enableSND = false;
+
+						//only stop if it's playing
+						if (enableMUS && Mix_PausedMusic() != 1)
+						{
+							//Pause the music
+							Mix_PauseMusic();
+						}
+					}
+					break;
+
+					//sound effects
+					//enable
+				case 38:
+					if (popup_menu == 3)
+					{
+						guiHit = true;
+						enableSFX = true;
+					}
+					break;
+					//disable
+				case 39:
+					if (popup_menu == 3)
+					{
+						guiHit = true;
+						enableSFX = false;
+					}
+					break;
+
+
+
+					//equipment toggle
+				case 40:
+					//if inventory is open
+					if (popup_menu == 1)
+					{
+						guiHit = true;
+						//handle different ways for hiding and showing
+						if (popup_gui_menu == 0)
+						{
+							popup_gui_menu = 7;
+						}
+						else if (popup_gui_menu == 7)
+						{
+							popup_gui_menu = 0;
+						}
+					}
+					break;
+
+					//equipment window
+				case 41:
+					printf("popup_menu = %i popup_gui_menu = %i\n",
+						popup_menu, popup_gui_menu);
+					if (popup_menu == 1 && popup_gui_menu == 7)
+					{
+
+						//select hat
+						if (x > 459 && x < 496 && y > 273 && y < 306)
+						{
+							guiHit = true;
+							equipmentSlot = 1;
+						}
+						else //select sword
+							if (x > 459 && x < 496 && y > 347 && y < 380)
+							{
+								guiHit = true;
+								equipmentSlot = 0;
+							}
+							else //select trophy 327, 317
+								if (x > 327 && x < 359 && y > 317 && y < 349)
+								{
+									guiHit = true;
+									equipmentSlot = 2;
+								}
+								else
+									if (x > 429 && x < 501 && y > 480 && y < 495)
+									{
+										guiHit = true;
 										Client.unequipItem(equipmentSlot);
-                                   }
-                                }
-                           break;
+									}
+					}
+					break;
 
-                           case 42:
-                                   if (Player[MyID].party >= 0)
-                                   {
-									   Client.cancelParty();
-                                   }
-                           break;
+				case 42:
+					if (Player[MyID].party >= 0)
+					{
+						Client.cancelParty();
+					}
+					break;
 
-                           case 43:
-							   if (popup_sign) {
-								   popup_sign = false;
-								   current_sign.hasBeenClosed = true;
-							   }
-                        	   	if (popup_npc)
-                        	   		popup_npc = false;
-								current_sign.triggered = true;
-                           break;
+				case 43:
+					if (popup_sign) {
+						popup_sign = false;
+						current_sign.hasBeenClosed = true;
+					}
+					if (popup_npc)
+						popup_npc = false;
+					current_sign.triggered = true;
+					break;
 
-                           case 44:
+				case 44:
 
-                        	   if (popup_npc)
-                        	   {guiHit = true;
-                        		   current_page++;
-                        		   if (current_page >= current_npc.num_pages)
-                        		   {
-                        			   current_page = FINAL_PAGE;
-                        			   std::string npcLine = current_npc.final;
+					if (popup_npc)
+					{
+						guiHit = true;
+						current_page++;
+						if (current_page >= current_npc.num_pages)
+						{
+							current_page = FINAL_PAGE;
+							std::string npcLine = current_npc.final;
 
-                        			   switch (current_npc.quest)
-                        			   {
-                        			   	   //Clan
-                        			   	   case 0:
-                        			   		 inputBox.outputText->SetText("Enter Desired Clan Name");
-										     inputBox.okayText->SetText("Buy");
-										     inputBox.cancelText->SetText("Cancel");
-										     inputBox.inputText->SetText("");
-										     popup_gui_menu = 10;
-										     chat_box = 5;
-										     inputBox.numeric = false;
-										   break;
-
-
-                        			   	   break;
-
-                        				   //Stat Rest
-                        			   	   case 1:
-                        			   	   break;
-
-                        				   //this NPC is done talking
-                        			   	   default:
-                        			   	   break;
-                        			   }
-
-                        			   //note: it never resets back to the beginning of the dialogue unless you reset it elsewhere
-                        			   //what I mean is that if you have talked to a dialogue only-npc then you cant talk to it again..
-                        			   //aswell as the fact that you cant reset your stats ever again if you forget to reset this variable
-									   current_npc_action = current_npc.quest;//TODO make this more than 1 int so there can be multiple paths for the _handler s
-									   return;
-                        		   }
-                        	   }
-
-                           break;
-
-                           case 45:
-                        	   //drop items
-							   if (draw_gui)
-							   {guiHit = true;
-								  //okay
-								  if (x > 305 && x < 358 &&  y < 476 && y > 459)
-								  {
-								   unsigned int amount = 0;
-								   unsigned char itemId = 0;
-
-									 switch (popup_gui_menu)
-									 {
-										 //drop items
-										  case 1:
-											  //parse the amount the user typed into the GUI textbox
-											  amount = atoi(iMessage);
-											  itemId = Player[MyID].inventory[selectedInventoryItem][0];
-
-											  Client.dropItem(itemId, amount);
-									      break;
-
-									  //clan buy
-										  case 10:
-											  	  printf("Clan make [%s]\n", "test123");
-										  break;
-									 }
-
-								  }
-
-								  //cancel
-								  if (x > 409 && x < 462 &&  y < 476  && y > 459)
-								  {
-									 popup_gui_menu = 0;
-									 chat_box = 4;
-
-									 for (int i = 0; i < 31; i++)
-									 {
-									   iMessage[i] = 0;
-									   iSeek = 0;
-									 }
-								  }
-							   }
+							switch (current_npc.quest)
+							{
+								//Clan
+							case 0:
+								inputBox.outputText->SetText("Enter Desired Clan Name");
+								inputBox.okayText->SetText("Buy");
+								inputBox.cancelText->SetText("Cancel");
+								inputBox.inputText->SetText("");
+								popup_gui_menu = 10;
+								chat_box = 5;
+								inputBox.numeric = false;
+								break;
 
 
-                           break;
+								break;
 
-						   //enable or disable auto sign reading
-						   case 46:
-							   (enableSIGN) = (!enableSIGN);
+								//Stat Rest
+							case 1:
+								break;
 
-							   break;
+								//this NPC is done talking
+							default:
+								break;
+							}
 
-                           //something unknown, but this shouldn't happen
-                           default:
-                           break;
-                    } // switch
+							//note: it never resets back to the beginning of the dialogue unless you reset it elsewhere
+							//what I mean is that if you have talked to a dialogue only-npc then you cant talk to it again..
+							//aswell as the fact that you cant reset your stats ever again if you forget to reset this variable
+							current_npc_action = current_npc.quest;//TODO make this more than 1 int so there can be multiple paths for the _handler s
+							return;
+						}
+					}
 
-                   printf("button id: %i guiHit %i\n", ID, (int)guiHit);
+					break;
 
-                } //over box
-            } //!click
-    }//button down
-    if (event.type == SDL_MOUSEBUTTONUP )
-    {
-        if (event.button.button == SDL_BUTTON_LEFT)
-        {
-                //Get the mouse offsets
-                x = event.button.x;
-                y = event.button.y;
+				case 45:
+					//drop items
+					if (draw_gui)
+					{
+						guiHit = true;
+						//okay
+						if (x > 305 && x < 358 && y < 476 && y > 459)
+						{
+							unsigned int amount = 0;
+							unsigned char itemId = 0;
 
-                //If the mouse is over the button
-                if ( ( x > box.x ) && ( x < box.x + box.w ) && ( y > box.y ) && ( y < box.y + box.h ) )
-                {
-                   int itmx = x-11, itmy = y-253;
-                   switch (ID)
-                   {
-                          case 14:
+							switch (popup_gui_menu)
+							{
+								//drop items
+							case 1:
+								//parse the amount the user typed into the GUI textbox
+								amount = atoi(iMessage);
+								itemId = Player[MyID].inventory[selectedInventoryItem][0];
 
-                            //if within the inventory box
-                            if (x > 8 && x < 246 && y > 252 && y < 473)
-                            {
-                                //calculate which item
-                                itmx = itmx/39;
-                                itmy = itmy/56;
-                                itmx += 6*itmy;
+								Client.dropItem(itemId, amount);
+								break;
 
-                                if (menu == 4 && popup_menu)
-                                {
+								//clan buy
+							case 10:
+								printf("Clan make [%s]\n", "test123");
+								break;
+							}
 
-                                   //swap items
-                                   int tempA = Player[MyID].inventory[itmx][0];
-                                   int tempB = Player[MyID].inventory[itmx][1];
-                                   Player[MyID].inventory[itmx][0] = Player[MyID].inventory[selectedInventoryItem][0];
-                                   Player[MyID].inventory[itmx][1] = Player[MyID].inventory[selectedInventoryItem][1];
-                                   Player[MyID].inventory[selectedInventoryItem][0] = tempA;
-                                   Player[MyID].inventory[selectedInventoryItem][1] = tempB;
+						}
 
-                                   /*update text*/
-                                  //selected
-                                  {
-                                      int amount = Player[MyID].inventory[selectedInventoryItem][1];
-                                      std::stringstream ss_am;
-                                      std::string s_am;
-                                      int tamount = amount;
-                                      //10K
-                                      if (tamount >= 10000000)
-                                      {
-                                         tamount = tamount/1000000;
-                                         ss_am << tamount;
-                                         s_am = ""+ss_am.str()+"M";
-                                      }
-                                      else if (tamount >= 1000000)
-                                      {
-                                         tamount = tamount/1000000;
-                                         ss_am << tamount << "."<< ((tamount)-(amount/1000000));
-                                         s_am = ""+ss_am.str()+"M";
-                                      }
-                                      else if (tamount >= 10000)
-                                      {
-                                         tamount = tamount/1000;
-                                         ss_am << tamount;
-                                         s_am = ""+ss_am.str()+"K";
-                                      }
-                                      else if (tamount > 0)
-                                      {
-                                         ss_am << tamount;
-                                         s_am = ""+ss_am.str();
-                                      } else {
-                                        s_am = "";
-                                      }
+						//cancel
+						if (x > 409 && x < 462 && y < 476 && y > 459)
+						{
+							popup_gui_menu = 0;
+							chat_box = 4;
 
-                                      Message[55+selectedInventoryItem].SetText(s_am);
-                                  }
-                                  //hovered
-                                  {
-                                      int amount = Player[MyID].inventory[itmx][1];
-                                      std::stringstream ss_am;
-                                      std::string s_am;
-                                      int tamount = amount;
-
-                                    //10K
-                                      if (tamount >= 10000000)
-                                      {
-                                         tamount = tamount/1000000;
-                                         ss_am << tamount;
-                                         s_am = ""+ss_am.str()+"M";
-                                      }
-                                      else if (tamount >= 1000000)
-                                      {
-                                         tamount = tamount/1000000;
-                                         ss_am << tamount << "."<< ((tamount)-(amount/1000000));
-                                         s_am = ""+ss_am.str()+"M";
-                                      }
-                                      else if (tamount >= 10000)
-                                      {
-                                         tamount = tamount/1000;
-                                         ss_am << tamount;
-                                         s_am = ""+ss_am.str()+"K";
-                                      }
-                                      else if (tamount > 0)
-                                      {
-                                         ss_am << tamount;
-                                         s_am = ""+ss_am.str();
-                                      } else {
-                                        s_am = "";
-                                      }
-
-                                      Message[55+itmx].SetText(s_am);
-                                  }
+							for (int i = 0; i < 20; i++)
+							{
+								iMessage[i] = 0;
+								iSeek = 0;
+							}
+						}
+					}
 
 
-                                   //show swapped item box over new one
-                                   selectedInventoryItem = itmx;
-                               } // end pop up menu
-                           }//end inside inventory click
-                          break;
+					break;
+
+					//enable or disable auto sign reading
+				case 46:
+					(enableSIGN) = (!enableSIGN);
+
+					break;
+
+					//something unknown, but this shouldn't happen
+				default:
+					break;
+				} // switch
+
+				printf("button id: %i guiHit %i\n", ID, (int)guiHit);
+
+			} //over box
+		} //!click
+	}//button down
+	if (event.type == SDL_MOUSEBUTTONUP)
+	{
+		if (event.button.button == SDL_BUTTON_LEFT)
+		{
+			//Get the mouse offsets
+			x = event.button.x;
+			y = event.button.y;
+
+			//If the mouse is over the button
+			if ((x > box.x) && (x < box.x + box.w) && (y > box.y) && (y < box.y + box.h))
+			{
+				int itmx = x - 11, itmy = y - 253;
+				switch (ID)
+				{
+				case 14:
+
+					//if within the inventory box
+					if (x > 8 && x < 246 && y > 252 && y < 473)
+					{
+						//calculate which item
+						itmx = itmx / 39;
+						itmy = itmy / 56;
+						itmx += 6 * itmy;
+
+						if (menu == 4 && popup_menu)
+						{
+
+							//swap items
+							int tempA = Player[MyID].inventory[itmx][0];
+							int tempB = Player[MyID].inventory[itmx][1];
+							Player[MyID].inventory[itmx][0] = Player[MyID].inventory[selectedInventoryItem][0];
+							Player[MyID].inventory[itmx][1] = Player[MyID].inventory[selectedInventoryItem][1];
+							Player[MyID].inventory[selectedInventoryItem][0] = tempA;
+							Player[MyID].inventory[selectedInventoryItem][1] = tempB;
+
+							/*update text*/
+						   //selected
+							{
+								unsigned int amount = Player[MyID].inventory[selectedInventoryItem][1];
+								std::stringstream ss_am;
+								std::string s_am;
+								int tamount = amount;
+								//10K
+								if (tamount >= 10000000)
+								{
+									tamount = tamount / 1000000;
+									ss_am << tamount;
+									s_am = "" + ss_am.str() + "M";
+								}
+								else if (tamount >= 1000000)
+								{
+									tamount = tamount / 1000000;
+									ss_am << tamount << "." << ((tamount)-(amount / 1000000));
+									s_am = "" + ss_am.str() + "M";
+								}
+								else if (tamount >= 10000)
+								{
+									tamount = tamount / 1000;
+									ss_am << tamount;
+									s_am = "" + ss_am.str() + "K";
+								}
+								else if (tamount > 0)
+								{
+									ss_am << tamount;
+									s_am = "" + ss_am.str();
+								}
+								else {
+									s_am = "";
+								}
+
+								Message[55 + selectedInventoryItem].SetText(s_am);
+							}
+							//hovered
+							{
+								unsigned int amount = Player[MyID].inventory[itmx][1];
+								std::stringstream ss_am;
+								std::string s_am;
+								int tamount = amount;
+
+								//10K
+								if (tamount >= 10000000)
+								{
+									tamount = tamount / 1000000;
+									ss_am << tamount;
+									s_am = "" + ss_am.str() + "M";
+								}
+								else if (tamount >= 1000000)
+								{
+									tamount = tamount / 1000000;
+									ss_am << tamount << "." << ((tamount)-(amount / 1000000));
+									s_am = "" + ss_am.str() + "M";
+								}
+								else if (tamount >= 10000)
+								{
+									tamount = tamount / 1000;
+									ss_am << tamount;
+									s_am = "" + ss_am.str() + "K";
+								}
+								else if (tamount > 0)
+								{
+									ss_am << tamount;
+									s_am = "" + ss_am.str();
+								}
+								else {
+									s_am = "";
+								}
+
+								Message[55 + itmx].SetText(s_am);
+							}
 
 
-                          default:
-                          break;
+							//show swapped item box over new one
+							selectedInventoryItem = itmx;
+						} // end pop up menu
+					}//end inside inventory click
+					break;
 
-                   } // switch
-                }// inside box
-        } //left button
-    }//mouse button up
+
+				default:
+					break;
+
+				} // switch
+			}// inside box
+		} //left button
+	}//mouse button up
 
 } // method
 
@@ -2361,24 +2318,24 @@ Button nextPageButton;
 
 void DrawRect(SDL_Rect rect)
 {
-     glBegin(GL_LINE_LOOP);
-     glVertex2f(rect.x, rect.y);
-     glVertex2f(rect.x+rect.w, rect.y);
-     glVertex2f(rect.x+rect.w, rect.y+rect.h);
-     glVertex2f(rect.x, rect.y+rect.h);
-     glEnd();
+	glBegin(GL_LINE_LOOP);
+	glVertex2f(rect.x, rect.y);
+	glVertex2f(rect.x + rect.w, rect.y);
+	glVertex2f(rect.x + rect.w, rect.y + rect.h);
+	glVertex2f(rect.x, rect.y + rect.h);
+	glEnd();
 }
 
 
-float getWeaponAttackRotate(int frame){
+float getWeaponAttackRotate(int frame) {
 	switch (frame)
 	{
-		case 0: return 350.0f; break;
-		case 1: return 355.0f; break;
-		case 2: return 0.0f; break;
-		case 3: return 70.0f; break;
-		case 4: return 110.0f; break;
-		case 5: return 12.0f; break;
+	case 0: return 350.0f; break;
+	case 1: return 355.0f; break;
+	case 2: return 0.0f; break;
+	case 3: return 70.0f; break;
+	case 4: return 110.0f; break;
+	case 5: return 12.0f; break;
 	}
 	return 0.0f;
 }
@@ -2386,12 +2343,12 @@ float getWeaponAttackRotate(int frame){
 float getWeaponAttackOffsetX(int frame) {
 	switch (frame)
 	{
-		case 0: return 5.0f; break;
-		case 1: return 13.0f; break;
-		case 2: return 16.0f; break;
-		case 3: return 42.0f; break;
-		case 4: return 42.0f; break;
-		case 5: return 22.5f; break;
+	case 0: return 5.0f; break;
+	case 1: return 13.0f; break;
+	case 2: return 16.0f; break;
+	case 3: return 42.0f; break;
+	case 4: return 42.0f; break;
+	case 5: return 22.5f; break;
 	}
 	return 0.0f;
 }
@@ -2399,27 +2356,27 @@ float getWeaponAttackOffsetX(int frame) {
 float getWeaponAttackOffsetY(int frame) {
 	switch (frame)
 	{
-		case 0: return -21.0f; break;
-		case 1: return -25.0f; break;
-		case 2: return -34.0f; break;
-		case 3: return -11.0f; break;
-		case 4: return 16.0f; break;
-		case 5: return -21.0f; break;
+	case 0: return -21.0f; break;
+	case 1: return -25.0f; break;
+	case 2: return -34.0f; break;
+	case 3: return -11.0f; break;
+	case 4: return 16.0f; break;
+	case 5: return -21.0f; break;
 
 	}
 	return 0.0f;
 }
 
-float getWeaponWalkRotate(int frame){
+float getWeaponWalkRotate(int frame) {
 	switch (frame)
 	{
-		case 0: return 310.0f; break;
-		case 1: return 310.0f; break;
-		case 2: return 310.0f; break;
-		case 3: return 310.0f; break;
-		case 4: return 310.0f; break;
-		case 5: return 310.0f; break;
-		case 6: return   5.0f; break;
+	case 0: return 310.0f; break;
+	case 1: return 310.0f; break;
+	case 2: return 310.0f; break;
+	case 3: return 310.0f; break;
+	case 4: return 310.0f; break;
+	case 5: return 310.0f; break;
+	case 6: return   5.0f; break;
 	}
 	return 0.0f;
 }
@@ -2427,13 +2384,13 @@ float getWeaponWalkRotate(int frame){
 float getWeaponWalkOffsetX(int frame) {
 	switch (frame)
 	{
-		case 0: return -9.0f; break;
-		case 1: return -9.0f; break;
-		case 2: return -9.0f; break;
-		case 3: return -9.0f; break;
-		case 4: return -9.0f; break;
-		case 5: return -9.0f; break;
-		case 6: return  14.0f; break;
+	case 0: return -9.0f; break;
+	case 1: return -9.0f; break;
+	case 2: return -9.0f; break;
+	case 3: return -9.0f; break;
+	case 4: return -9.0f; break;
+	case 5: return -9.0f; break;
+	case 6: return  14.0f; break;
 	}
 	return 0.0f;
 }
@@ -2441,13 +2398,13 @@ float getWeaponWalkOffsetX(int frame) {
 float getWeaponWalkOffsetY(int frame) {
 	switch (frame)
 	{
-		case 0: return -11.0f; break;
-		case 1: return -11.0f; break;
-		case 2: return -11.0f; break;
-		case 3: return -11.0f; break;
-		case 4: return -11.0f; break;
-		case 5: return -11.0f; break;
-		case 6: return -43.0f; break;
+	case 0: return -11.0f; break;
+	case 1: return -11.0f; break;
+	case 2: return -11.0f; break;
+	case 3: return -11.0f; break;
+	case 4: return -11.0f; break;
+	case 5: return -11.0f; break;
+	case 6: return -43.0f; break;
 
 	}
 	return 0.0f;
@@ -2457,13 +2414,13 @@ int getHatWalkOffsetY(int frame)
 {
 	switch (frame)
 	{
-		case 0:	return -11; break;
-		case 1:	return -12; break;
-		case 2:	return -11; break;
-		case 3:	return -10; break;
-		case 4:	return -11; break;
-		case 5:	return -12; break;
-		case 6:	return -12; break;
+	case 0:	return -11; break;
+	case 1:	return -12; break;
+	case 2:	return -11; break;
+	case 3:	return -10; break;
+	case 4:	return -11; break;
+	case 5:	return -12; break;
+	case 6:	return -12; break;
 	}
 	return 0;
 }
@@ -2487,13 +2444,13 @@ int getHatAttackOffsetX(int frame)
 {
 	switch (frame)
 	{
-		case 0:	return  -1; break;
-		case 1:	return  -1; break;
-		case 2:	return  -1; break;
-		case 3:	return  1; break;
-		case 4:	return  3; break;
-		case 5:	return  1; break;
-		case 6:	return  1; break;
+	case 0:	return  -1; break;
+	case 1:	return  -1; break;
+	case 2:	return  -1; break;
+	case 3:	return  1; break;
+	case 4:	return  3; break;
+	case 5:	return  1; break;
+	case 6:	return  1; break;
 	}
 	return 0;
 }
@@ -2503,13 +2460,13 @@ int getHatUnarmedAttackOffsetX(int frame)
 
 	switch (frame)
 	{
-		case 0:	return -1; break;
-		case 1:	return -1; break;
-		case 2:	return -3; break;
-		case 3:	return -1; break;
-		case 4:	return  2; break;
-		case 5:	return  0; break;
-		case 6:	return  0; break;
+	case 0:	return -1; break;
+	case 1:	return -1; break;
+	case 2:	return -3; break;
+	case 3:	return -1; break;
+	case 4:	return  2; break;
+	case 5:	return  0; break;
+	case 6:	return  0; break;
 	}
 	return 60;
 }
@@ -2519,13 +2476,13 @@ int getTrophyAttackOffsetY(int frame)
 {
 	switch (frame)
 	{
-		case 0:	return  48; break;
-		case 1:	return  48; break;
-		case 2:	return  48; break;
-		case 3:	return  48; break;
-		case 4:	return  49; break;
-		case 5:	return  49; break;
-		case 6:	return  49; break;
+	case 0:	return  48; break;
+	case 1:	return  48; break;
+	case 2:	return  48; break;
+	case 3:	return  48; break;
+	case 4:	return  49; break;
+	case 5:	return  49; break;
+	case 6:	return  49; break;
 	}
 	return 0;
 }
@@ -2534,13 +2491,13 @@ int getTrophyUnarmedAttackOffsetY(int frame)
 {
 	switch (frame)
 	{
-		case 0:	return  42; break;
-		case 1:	return  35; break;
-		case 2:	return  31; break;
-		case 3:	return  31; break;
-		case 4:	return  31; break;
-		case 5:	return  45; break;
-		case 6:	return  49; break;
+	case 0:	return  42; break;
+	case 1:	return  35; break;
+	case 2:	return  31; break;
+	case 3:	return  31; break;
+	case 4:	return  31; break;
+	case 5:	return  45; break;
+	case 6:	return  49; break;
 	}
 	return 0;
 }
@@ -2549,13 +2506,13 @@ int getTrophyAttackOffsetX(int frame)
 {
 	switch (frame)
 	{
-		case 0:	return  4; break;
-		case 1:	return  4; break;
-		case 2:	return  4; break;
-		case 3:	return  7; break;
-		case 4:	return  6; break;
-		case 5:	return  5; break;
-		case 6:	return  6; break;
+	case 0:	return  4; break;
+	case 1:	return  4; break;
+	case 2:	return  4; break;
+	case 3:	return  7; break;
+	case 4:	return  6; break;
+	case 5:	return  5; break;
+	case 6:	return  6; break;
 	}
 	return 0;
 }
@@ -2564,13 +2521,13 @@ int getTrophyUnarmedAttackOffsetX(int frame)
 {
 	switch (frame)
 	{
-		case 0:	return   1; break;
-		case 1:	return   0; break;
-		case 2:	return  -1; break;
-		case 3:	return  -9; break;
-		case 4:	return -17; break;
-		case 5:	return -15; break;
-		case 6:	return  -3; break;
+	case 0:	return   1; break;
+	case 1:	return   0; break;
+	case 2:	return  -1; break;
+	case 3:	return  -9; break;
+	case 4:	return -17; break;
+	case 5:	return -15; break;
+	case 6:	return  -3; break;
 	}
 	return 0;
 }
@@ -2579,13 +2536,13 @@ int getTrophyWalkOffsetX(int frame)
 {
 	switch (frame)
 	{
-		case 0:	return   4; break;
-		case 1:	return   7; break;
-		case 2:	return   4; break;
-		case 3:	return  -2; break;
-		case 4:	return  -7; break;
-		case 5:	return   2; break;
-		case 6:	return   0; break;
+	case 0:	return   4; break;
+	case 1:	return   7; break;
+	case 2:	return   4; break;
+	case 3:	return  -2; break;
+	case 4:	return  -7; break;
+	case 5:	return   2; break;
+	case 6:	return   0; break;
 	}
 	return 0;
 }
@@ -2594,13 +2551,13 @@ int getTrophyWalkOffsetY(int frame)
 {
 	switch (frame)
 	{
-		case 0:	return  48; break;
-		case 1:	return  48; break;
-		case 2:	return  48; break;
-		case 3:	return  48; break;
-		case 4:	return  48; break;
-		case 5:	return  48; break;
-		case 6:	return  15; break;
+	case 0:	return  48; break;
+	case 1:	return  48; break;
+	case 2:	return  48; break;
+	case 3:	return  48; break;
+	case 4:	return  48; break;
+	case 5:	return  48; break;
+	case 6:	return  15; break;
 	}
 	return 0;
 }
@@ -2608,14 +2565,129 @@ int getTrophyWalkOffsetY(int frame)
 #define PLAYER_TEST false
 #define ENEMY_TEST false
 
+//  TODO - GUI Refactor
+bool openChat()
+{
+	bool wasAlreadyOpen = true;
+
+	if (chat_box == 4)
+	{
+		chat_box = 3;
+		wasAlreadyOpen = false;
+	}
+
+	return wasAlreadyOpen;
+}
+
+void sendChat()
+{
+	//If you just typed a message
+	if (chat_box == 3)
+	{
+		if (tMessage[0] == '&')
+			DEBUG_FLAG = true;
+		else if (tMessage[0] > 0)
+			Client.sendChat(tMessage);
+
+		//clear chat bar
+		//TODO: this was here, but leaves a dirty character:  
+		//      for (int i = 0; i < MAX_T_MESSAGE - 2; i++)
+		// TODO should this be - 0?
+		for (int i = 0; i < MAX_T_MESSAGE-1; i++)
+		tMessage[i] = 0;
+
+		tSeek = 0;
+		chat_box = 4;
+	}
+}
+
+
+void loopCloudTiles()
+{
+	if (back_offsety[1] > back_img[1].h)
+		back_offsety[1] -= back_img[1].h;
+
+	if (back_offsety[1] < -back_img[1].h)
+		back_offsety[1] += back_img[1].h;
+
+	if (back_offsety[2] > back_img[2].h)
+		back_offsety[2] -= back_img[2].h;
+
+	if (back_offsety[2] < -back_img[2].h)
+		back_offsety[2] += back_img[2].h;
+
+	if (back_offsety[3] > back_img[3].h)
+		back_offsety[3] -= back_img[3].h;
+
+	if (back_offsety[3] < -back_img[3].h)
+		back_offsety[3] += back_img[3].h;
+
+	if (back_offsetx[1] > back_img[1].w)
+		back_offsetx[1] -= back_img[1].w;
+
+	if (back_offsetx[1] < -back_img[1].w)
+		back_offsetx[1] += back_img[1].w;
+
+	if (back_offsetx[2] > back_img[2].w)
+		back_offsetx[2] -= back_img[2].w;
+
+	if (back_offsetx[2] < -back_img[2].w)
+		back_offsetx[2] += back_img[2].w;
+
+	if (back_offsetx[3] > back_img[3].w)
+		back_offsetx[3] -= back_img[3].w;
+
+	if (back_offsetx[3] < -back_img[3].w)
+		back_offsetx[3] += back_img[3].w;
+}
+
+void scroll_sky()
+{
+	/* horizontal */
+	back_offsetx[1] -= 0.01;
+	back_offsetx[2] -= 0.02;
+	back_offsetx[3] -= 0.05;
+	loopCloudTiles();
+}
+
+void setCamera()
+{
+	const float snapLimit = 0.25f;
+	 
+	//Smooth camera movement
+	camera_xspeed = (Player[MyID].x - PLAYER_CAMERA_X - camera_xf) * 0.08;
+	camera_yspeed = (Player[MyID].y - PLAYER_CAMERA_Y - camera_yf) * 0.05;
+
+	//snap to player when it's very close
+	if ((camera_xspeed < snapLimit && camera_xspeed > 0) || (camera_xspeed > -snapLimit && camera_xspeed < 0))
+	{
+		camera_xspeed = 0;
+	}
+	if ((camera_yspeed < snapLimit && camera_yspeed > 0) || (camera_yspeed > -snapLimit && camera_yspeed < 0))
+	{
+		camera_yspeed = 0;
+	}
+
+	camera_xf += camera_xspeed;
+	camera_yf += camera_yspeed;
+
+	// pixel perfect camera
+	camera_x = round(camera_xf);
+	camera_y = round(camera_yf);
+	
+	if (camera_x < 0)
+		camera_x = 0;
+	if (camera_y < 0)
+		camera_y = 0;
+}
+
 void
 construct_frame()
 {
 	if (!contentLoaded)
 		return;
 
-	if (MyID > -1)
-		current_map = Player[MyID].current_map;
+	unsigned char current_map = 2;
 
 	//printf("camera_x : %i\n", (int)camera_x);
 	//printf("camera_y : %i\n", (int)camera_y);
@@ -2623,304 +2695,295 @@ construct_frame()
 	glClearColor(0.00f, 0.00f, 0.00f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    if (loaded)
-    {
-    	//printf("debug opportunity here.");
-		;
-    }
-    else
-    {
-    	camera_x = 0;
-    	camera_y = 50;
-    }
+	if (loaded)
+	{
+		current_map = Player[MyID].current_map;
+		setCamera();
+	}
+	else
+	{
+		camera_x = 0;
+		camera_y = 50;
+	}
 
-
-    int tcam_x = (int)(camera_x + 0.5);
-    int tcam_y = (int)(camera_y + 0.5);
-
-
-    // SKY
-	for (int i = 0; i < 32; i++)
-	   DrawImagef(i*32, 0, back_img[0]);
-
-
+	// SKY
+	DrawImage(0, 0, back_img[0]);
 
 	// FAR CLOUDS
 	for (int x = -1; x <= TILES_WIDE; x++)
-	for (int y = -1; y <= TILES_TALL; y++)
-	DrawImagef ((x*back_img[1].w + back_offsetx[1]), (y*back_img[1].h + back_offsety[1]), back_img[1]);
+		for (int y = -1; y <= TILES_TALL; y++)
+			DrawImagef((x*back_img[1].w + back_offsetx[1]), (y*back_img[1].h + back_offsety[1]), back_img[1]);
 
 	// MED CLOUDS
 	for (int x = -1; x <= TILES_WIDE; x++)
-	for (int y = -1; y <= TILES_TALL; y++)
-		DrawImagef ((x*back_img[2].w + back_offsetx[2]), (y*back_img[2].h + back_offsety[2]), back_img[2]);
+		for (int y = -1; y <= TILES_TALL; y++)
+			DrawImagef((x*back_img[2].w + back_offsetx[2]), (y*back_img[2].h + back_offsety[2]), back_img[2]);
 
 	// CLOSE CLOUDS
 	for (int x = -1; x <= TILES_WIDE; x++)
-	for (int y = -1; y <= TILES_TALL; y++)
-	DrawImagef ((x*back_img[3].w + back_offsetx[3]), (y*back_img[3].h + back_offsety[3]), back_img[3]);
+		for (int y = -1; y <= TILES_TALL; y++)
+			DrawImagef((x*back_img[3].w + back_offsetx[3]), (y*back_img[3].h + back_offsety[3]), back_img[3]);
 
 	//draw map
 	//draw tiles, only on screen
 	for (int i = 0; i < map[current_map]->number_of_tiles; i++)
 	{
 
-	   int draw_x = (int)(map[current_map]->tile_x[i] - tcam_x);
-	   int draw_y = (int)(map[current_map]->tile_y[i] - tcam_y);
+		int draw_x = map[current_map]->tile_x[i] - camera_x;
+		int draw_y = map[current_map]->tile_y[i] - camera_y;
 
-	   if (draw_x >= 0-tile_img[map[current_map]->tile[i]].w &&
-		  draw_x < 1024 &&
-		  draw_y < 600 &&
-		  draw_y >= 0-tile_img[map[current_map]->tile[i]].h)
-	   DrawImage(draw_x, draw_y, tile_img[map[current_map]->tile[i]]);
-
-	   //printf("\nDraw_x=%i draw_y=%i tile[i]=%i i=%i\n", draw_x, draw_y, map[current_map]->tile[i], i);
-
+		if (draw_x >= 0 - tile_img[map[current_map]->tile[i]].w &&
+			  draw_y >= 0 - tile_img[map[current_map]->tile[i]].h &&
+				draw_x < 1024 && draw_y < 600)
+		{
+			DrawImage(draw_x, draw_y, tile_img[map[current_map]->tile[i]]);
+		}
 	}
 
-    //menu gui
-    if (draw_gui && menu < 4 && menu != STATE_DISCONNECT)
-    {
-    	//draw logo banner
-    	DrawImage(168, 100, banner_img);
+	//menu gui
+	if (draw_gui && menu < 4 && menu != STATE_DISCONNECT)
+	{
+		//draw logo banner
+		DrawImagef(168, 100, banner_img);
 
-    	if (menu == STATE_TITLE)
-    	{
-    			DrawImage(428, 220, blank_button_img);
-				DrawImage(428, 220, login_button_img);
+		if (menu == STATE_TITLE)
+		{
+			DrawImagef(428, 220, blank_button_img);
+			DrawImagef(428, 220, login_button_img);
 
-				DrawImage(428, 310, blank_button_img);
-				DrawImage(428, 310, create_button_img);
+			DrawImagef(428, 310, blank_button_img);
+			DrawImagef(428, 310, create_button_img);
 
-				DrawImage(428, 400, blank_button_img);
-				DrawImage(428, 400, quit_button_img);
-    	}
+			DrawImagef(428, 400, blank_button_img);
+			DrawImagef(428, 400, quit_button_img);
+		}
 
 		if (draw_gui && (menu == STATE_LOGIN || menu == STATE_CREATE))
 		{
+			//draw credentials bars
+			DrawImagef(364, 223, cred_bar);
+			DrawImagef(364, 277, cred_bar);
 
-		   //draw credentials bars
-		   DrawImage(364, 223, cred_bar);
-		   DrawImage(364, 277, cred_bar);
+			if (chat_box == 1)
+			{
+				DrawImagef(uSeek * 8 + 366, 224, chatcursor);
+			}
+			if (chat_box == 2)
+			{
+				DrawImagef(pSeek * 8 + 366, 278, chatcursor);
+			}
 
-		   if (chat_box == 1)
-		   {
-			  DrawImage(uSeek*8+366, 224, chatcursor);
-		   }
-		   if (chat_box == 2)
-		   {
-			  DrawImage(pSeek*8+366, 278, chatcursor);
-		   }
+			//[PLAY]
+			DrawImagef(428, 310, blank_button_img);
+			DrawImagef(428, 310, play_button_img);
 
-		   //[PLAY]
-		   DrawImage(428, 310, blank_button_img);
-		   DrawImage(428, 310, play_button_img);
-
-		   //[BACK]
-		   DrawImage(428, 400, blank_button_img);
-		   DrawImage(428, 400, back_button_img);
+			//[BACK]
+			DrawImagef(428, 400, blank_button_img);
+			DrawImagef(428, 400, back_button_img);
 
 		}
 
 		//draw vignette shadow
-		DrawImage(0, 0, shadow);
+		DrawImagef(0, 0, shadow);
 
-    }
-    else if (menu == STATE_PLAY)
-    {
+	}
+	else if (menu == STATE_PLAY)
+	{
 
+		//Items
+		for (int i = 0; i < 256; i++)
+		{
+			if (map[current_map]->ItemObj[i].status)
+			{
+				DrawImage(map[current_map]->ItemObj[i].x - camera_x,
+					map[current_map]->ItemObj[i].y - camera_y,
+					Item_img[(int)map[current_map]->ItemObj[i].itemID]);
+			}
+		}
 
-       //Items
-       for (int i = 0; i < 256; i++)
-       {
-         if (map[current_map]->ItemObj[i].status)
-         {
-            DrawImage(map[current_map]->ItemObj[i].x - camera_x,
-            		  map[current_map]->ItemObj[i].y - camera_y,
-            		  Item_img[(int)map[current_map]->ItemObj[i].itemID]);
-         }
-       }
+		//Targets
+		for (int i = 0; i < map[current_map]->num_targets; i++)
+		{
+			SKO_Target target = map[current_map]->Target[i];
 
-       	//Targets
-       	for (int i = 0; i < map[current_map]->num_targets; i++)
-       	{
-       		SKO_Target target = map[current_map]->Target[i];
+			if (target.active)
+				DrawImage(target.x - camera_x, target.y - camera_y, target_img[target.pic]);
+		}
 
-       		if (target.active)
-       			DrawImage(target.x - camera_x, target.y - camera_y, target_img[target.pic]);
-       	}
+		//Enemies
+		for (int i = 0; i < map[current_map]->num_enemies; i++)
+		{
+			//Enemy
+			SKO_Enemy  enemy = map[current_map]->Enemy[i];
+			SKO_Sprite sprite = EnemySprite[enemy.sprite];
 
-        //Enemies
-        for (int i = 0; i < map[current_map]->num_enemies; i++)
-        {
-        	//Enemy
-        	SKO_Enemy  enemy = map[current_map]->Enemy[i];
-        	SKO_Sprite sprite = EnemySprite[enemy.sprite];
+			if (enemy.hit)
+				glColor4f(1.0f, 0.5f, 0.5f, 0.5f);
+			else
+				glColor3f(1.0f, 1.0f, 1.0f);
 
+			if (!enemy.ground)
+				enemy.current_frame = 6;
 
-            if (enemy.hit)
-               glColor3f(1.0f, 0.1f, 0.1f);
-            else
-               glColor3f(1.0f, 1.0f, 1.0f);
-
-            if (!enemy.ground)
-                  enemy.current_frame = 6;
-
-            if (enemy.attacking)
-            {
-            	//where to place the hat?
+			if (enemy.attacking)
+			{
+				//where to place the hat?
 			   //hint: your head movesin the animation now
-			   int hat_offset_x = getHatAttackOffsetX(enemy.current_frame);
-			   int hat_offset_y = getHatAttackOffsetY(enemy.current_frame);
+				int hat_offset_x = getHatAttackOffsetX(enemy.current_frame);
+				int hat_offset_y = getHatAttackOffsetY(enemy.current_frame);
 
-               if (enemy.facing_right)
-               {
-            	   //draw enemy weapon
-            	   if (sprite.weapon >= 0) {
-					   DrawImageRotated(enemy.x - camera_x +
-										getWeaponAttackOffsetX(enemy.current_frame),
-										enemy.y - camera_y +
-										getWeaponAttackOffsetY(enemy.current_frame),
-										weapon_img[sprite.weapon],
-												   getWeaponAttackRotate(enemy.current_frame));
-					   //draw enemy sprite
-					   DrawFrameR(enemy.x - camera_x,
-								  enemy.y - camera_y,
-								  sprite.spriteSheet,
-								  getSpriteAttackArmed(enemy.current_frame));
-            	   } else {
-            		   //draw enemy sprite
-					   DrawFrameR(enemy.x - camera_x,
-								  enemy.y - camera_y,
-								  sprite.spriteSheet,
-								  getSpriteAttack(enemy.current_frame));
-            	   }
+				if (enemy.facing_right)
+				{
+					//draw enemy weapon
+					if (sprite.weapon >= 0) {
+						DrawImagefRotated(enemy.x - camera_x +
+							getWeaponAttackOffsetX(enemy.current_frame),
+							enemy.y - camera_y +
+							getWeaponAttackOffsetY(enemy.current_frame),
+							weapon_img[sprite.weapon],
+							getWeaponAttackRotate(enemy.current_frame));
+						//draw enemy sprite
+						DrawFrameR(enemy.x - camera_x,
+							enemy.y - camera_y,
+							sprite.spriteSheet,
+							getSpriteAttackArmed(enemy.current_frame));
+					}
+					else {
+						//draw enemy sprite
+						DrawFrameR(enemy.x - camera_x,
+							enemy.y - camera_y,
+							sprite.spriteSheet,
+							getSpriteAttack(enemy.current_frame));
+					}
 
-            	   //draw hat
-            	   if (sprite.hat >= 0)
-            	   DrawImage(enemy.x - camera_x + hat_offset_x,
-            	   			 enemy.y - camera_y + hat_offset_y,
-            	   			 hat_img[sprite.hat]);
-               }
-               else
-               {
-            	   //draw enemy weapon
-            	   if (sprite.weapon >= 0) {
-					   DrawImageRotatedL(enemy.x - camera_x +
-										-getWeaponAttackOffsetX(enemy.current_frame),
-										enemy.y - camera_y +
-										getWeaponAttackOffsetY(enemy.current_frame),
-										weapon_img[sprite.weapon],
-												   getWeaponAttackRotate(enemy.current_frame));
-					   //draw enemy sprite
-					   DrawFrameL(enemy.x - camera_x,
-								  enemy.y - camera_y,
-								  sprite.spriteSheet,
-								  getSpriteAttackArmed(enemy.current_frame));
-            	   } else {
-            		   //draw enemy sprite
-					   DrawFrameL(enemy.x - camera_x,
-								  enemy.y - camera_y,
-								  sprite.spriteSheet,
-								  getSpriteAttackArmed(enemy.current_frame));
-            	   }
-				   //draw hat
-				   if (sprite.hat >= 0)
-				   DrawImageL(enemy.x - camera_x + -hat_offset_x,
-							 enemy.y - camera_y + hat_offset_y,
-							 hat_img[sprite.hat]);
-               }
-            }
-            else // not attacking
-            {
-            	//where to place the hat?
+					//draw hat
+					if (sprite.hat >= 0)
+						DrawImage(enemy.x - camera_x + hat_offset_x,
+							enemy.y - camera_y + hat_offset_y,
+							hat_img[sprite.hat]);
+				}
+				else
+				{
+					//draw enemy weapon
+					if (sprite.weapon >= 0) {
+						DrawImagefRotatedL(enemy.x - camera_x +
+							-getWeaponAttackOffsetX(enemy.current_frame),
+							enemy.y - camera_y +
+							getWeaponAttackOffsetY(enemy.current_frame),
+							weapon_img[sprite.weapon],
+							getWeaponAttackRotate(enemy.current_frame));
+						//draw enemy sprite
+						DrawFrameL(enemy.x - camera_x,
+							enemy.y - camera_y,
+							sprite.spriteSheet,
+							getSpriteAttackArmed(enemy.current_frame));
+					}
+					else {
+						//draw enemy sprite
+						DrawFrameL(enemy.x - camera_x,
+							enemy.y - camera_y,
+							sprite.spriteSheet,
+							getSpriteAttackArmed(enemy.current_frame));
+					}
+					//draw hat
+					if (sprite.hat >= 0)
+						DrawImageL(enemy.x - camera_x + -hat_offset_x,
+							enemy.y - camera_y + hat_offset_y,
+							hat_img[sprite.hat]);
+				}
+			}
+			else // not attacking
+			{
+				//where to place the hat?
 			   //hint: your head movesin the animation now
-			   int hat_offset_x = getHatWalkOffsetX(enemy.current_frame);
-			   int hat_offset_y = getHatWalkOffsetY(enemy.current_frame);
+				int hat_offset_x = getHatWalkOffsetX(enemy.current_frame);
+				int hat_offset_y = getHatWalkOffsetY(enemy.current_frame);
 
-               if (enemy.facing_right)
-			   {
+				if (enemy.facing_right)
+				{
 
-				   //draw enemy weapon
-            	   if (sprite.weapon >= 0) {
-					   DrawImageRotated(enemy.x - camera_x +
-										getWeaponWalkOffsetX(enemy.current_frame),
-										enemy.y - camera_y +
-										getWeaponWalkOffsetY(enemy.current_frame),
-										weapon_img[sprite.weapon],
-										getWeaponWalkRotate(enemy.current_frame));
+					//draw enemy weapon
+					if (sprite.weapon >= 0) {
+						DrawImagefRotated(enemy.x - camera_x +
+							getWeaponWalkOffsetX(enemy.current_frame),
+							enemy.y - camera_y +
+							getWeaponWalkOffsetY(enemy.current_frame),
+							weapon_img[sprite.weapon],
+							getWeaponWalkRotate(enemy.current_frame));
 
-					   //draw enemy sprite
-					   DrawFrameR(enemy.x - camera_x,
-								  enemy.y - camera_y,
-								  sprite.spriteSheet,
-								  getSpriteWalkArmed(enemy.current_frame));
-            	   } else {
-            		   //draw enemy sprite
-					   DrawFrameR(enemy.x - camera_x,
-								  enemy.y - camera_y,
-								  sprite.spriteSheet,
-								  getSpriteWalk(enemy.current_frame));
-            	   }
+						//draw enemy sprite
+						DrawFrameR(enemy.x - camera_x,
+							enemy.y - camera_y,
+							sprite.spriteSheet,
+							getSpriteWalkArmed(enemy.current_frame));
+					}
+					else {
+						//draw enemy sprite
+						DrawFrameR(enemy.x - camera_x,
+							enemy.y - camera_y,
+							sprite.spriteSheet,
+							getSpriteWalk(enemy.current_frame));
+					}
 
-				   //draw hat
-            	   if (sprite.hat >= 0)
-				   DrawImage(enemy.x - camera_x + hat_offset_x,
-							 enemy.y - camera_y + hat_offset_y,
-							 hat_img[sprite.hat]);
-			   }
-			   else
-			   {
-				   //draw enemy weapon
-				   if (sprite.weapon >= 0){
-					   DrawImageRotatedL(enemy.x - camera_x +
-										-getWeaponWalkOffsetX(enemy.current_frame),
-										enemy.y - camera_y +
-										getWeaponWalkOffsetY(enemy.current_frame),
-										weapon_img[sprite.weapon],
-												   getWeaponWalkRotate(enemy.current_frame));
-					   //draw enemy sprite
-					   DrawFrameL(enemy.x - camera_x,
-								  enemy.y - camera_y,
-								  sprite.spriteSheet,
-								  getSpriteWalkArmed(enemy.current_frame));
-				   } else {
-					   //draw enemy sprite
-					   DrawFrameL(enemy.x - camera_x,
-								  enemy.y - camera_y,
-								  sprite.spriteSheet,
-								  getSpriteWalk(enemy.current_frame));
-				   }
-				   //draw hat
-				   if (sprite.hat >= 0)
-				   DrawImageL(enemy.x - camera_x + -hat_offset_x,
-							 enemy.y - camera_y + hat_offset_y,
-							 hat_img[sprite.hat]);
-			  }
-            }
+					//draw hat
+					if (sprite.hat >= 0)
+						DrawImagef(enemy.x - camera_x + hat_offset_x,
+							enemy.y - camera_y + hat_offset_y,
+							hat_img[sprite.hat]);
+				}
+				else
+				{
+					//draw enemy weapon
+					if (sprite.weapon >= 0) {
+						DrawImagefRotatedL(enemy.x - camera_x +
+							-getWeaponWalkOffsetX(enemy.current_frame),
+							enemy.y - camera_y +
+							getWeaponWalkOffsetY(enemy.current_frame),
+							weapon_img[sprite.weapon],
+							getWeaponWalkRotate(enemy.current_frame));
+						//draw enemy sprite
+						DrawFrameL(enemy.x - camera_x,
+							enemy.y - camera_y,
+							sprite.spriteSheet,
+							getSpriteWalkArmed(enemy.current_frame));
+					}
+					else {
+						//draw enemy sprite
+						DrawFrameL(enemy.x - camera_x,
+							enemy.y - camera_y,
+							sprite.spriteSheet,
+							getSpriteWalk(enemy.current_frame));
+					}
+					//draw hat
+					if (sprite.hat >= 0)
+						DrawImageL(enemy.x - camera_x + -hat_offset_x,
+							enemy.y - camera_y + hat_offset_y,
+							hat_img[sprite.hat]);
+				}
+			}
 
-            if ((Uint32)enemy.hp_ticker > SDL_GetTicks())
-            {
-                //draw hp above their heads, centered
-                float barX = enemy.x +
-                			(sprite.x2 -
-                			sprite.x1) -
-                			enemy.hp_draw/2;
-                float barY = enemy.y - 14;
-
-
-                //printf("enemy.x:%i enemy.y:%i barX:%i barY:%i\n", (int)enemy.x, (int)enemy.y, (int)barX, (int)barY);
-                glColor3f(1.0f, 1.0f, 1.0f);
-
-                //iterate health bar
-                for (int a = 0; a < enemy.hp_draw; a++)
-                    DrawImage(barX + a - camera_x, barY - camera_y, enemy_hp);
-            }
-
-        }//end enemy loop
+			if (enemy.hp_ticker > OPI_Clock::milliseconds())
+			{
+				//draw hp above their heads, centered
+				float barX = enemy.x +
+					(sprite.x2 -
+						sprite.x1) -
+					enemy.hp_draw / 2;
+				float barY = enemy.y - 14;
 
 
-        //NPC's
+				//printf("enemy.x:%i enemy.y:%i barX:%i barY:%i\n", (int)enemy.x, (int)enemy.y, (int)barX, (int)barY);
+				glColor3f(1.0f, 1.0f, 1.0f);
+
+				//iterate health bar
+				for (int a = 0; a < enemy.hp_draw; a++)
+					DrawImagef(barX + a - camera_x, barY - camera_y, enemy_hp);
+			}
+
+		}//end enemy loop
+
+
+		//NPC's
 		for (int i = 0; i < map[current_map]->num_npcs; i++)
 		{
 			//NPC
@@ -2929,1458 +2992,1423 @@ construct_frame()
 
 
 			if (!npc.ground)
-				  npc.current_frame = 6;
+				npc.current_frame = 6;
 			{
 				//where to place the hat?
 			   //hint: your head movesin the animation now
-			   int hat_offset_x = getHatWalkOffsetX(npc.current_frame);
-			   int hat_offset_y = getHatWalkOffsetY(npc.current_frame);
+				int hat_offset_x = getHatWalkOffsetX(npc.current_frame);
+				int hat_offset_y = getHatWalkOffsetY(npc.current_frame);
 
-			   if (npc.facing_right)
-			   {
+				if (npc.facing_right)
+				{
 
-				   //draw npc weapon
-				   if (sprite.weapon >= 0) {
-					   DrawImageRotated(npc.x - camera_x +
-										getWeaponWalkOffsetX(npc.current_frame),
-										npc.y - camera_y +
-										getWeaponWalkOffsetY(npc.current_frame),
-										weapon_img[sprite.weapon],
-										getWeaponWalkRotate(npc.current_frame));
+					//draw npc weapon
+					if (sprite.weapon >= 0) {
+						DrawImagefRotated(npc.x - camera_x +
+							getWeaponWalkOffsetX(npc.current_frame),
+							npc.y - camera_y +
+							getWeaponWalkOffsetY(npc.current_frame),
+							weapon_img[sprite.weapon],
+							getWeaponWalkRotate(npc.current_frame));
 
-					   //draw npc sprite
-					   DrawFrameR(npc.x - camera_x,
-								  npc.y - camera_y,
-								  sprite.spriteSheet,
-								  getSpriteWalkArmed(npc.current_frame));
-				   } else {
-					   //draw npc sprite
-					   DrawFrameR(npc.x - camera_x,
-								  npc.y - camera_y,
-								  sprite.spriteSheet,
-								  getSpriteWalk(npc.current_frame));
-				   }
+						//draw npc sprite
+						DrawFrameR(npc.x - camera_x,
+							npc.y - camera_y,
+							sprite.spriteSheet,
+							getSpriteWalkArmed(npc.current_frame));
+					}
+					else {
+						//draw npc sprite
+						DrawFrameR(npc.x - camera_x,
+							npc.y - camera_y,
+							sprite.spriteSheet,
+							getSpriteWalk(npc.current_frame));
+					}
 
-				   //draw hat
-				   if (sprite.hat >= 0)
-				   DrawImage(npc.x - camera_x + hat_offset_x,
-							 npc.y - camera_y + hat_offset_y,
-							 hat_img[sprite.hat]);
-			   }
-			   else
-			   {
-				   //draw npc weapon
-				   if (sprite.weapon >= 0){
-					   DrawImageRotatedL(npc.x - camera_x +
-										-getWeaponWalkOffsetX(npc.current_frame),
-										npc.y - camera_y +
-										getWeaponWalkOffsetY(npc.current_frame),
-										weapon_img[sprite.weapon],
-												   getWeaponWalkRotate(npc.current_frame));
-					   //draw npc sprite
-					   DrawFrameL(npc.x - camera_x,
-								  npc.y - camera_y,
-								  sprite.spriteSheet,
-								  getSpriteWalkArmed(npc.current_frame));
-				   } else {
-					   //draw npc sprite
-					   DrawFrameL(npc.x - camera_x,
-								  npc.y - camera_y,
-								  sprite.spriteSheet,
-								  getSpriteWalk(npc.current_frame));
-				   }
-				   //draw hat
-				   if (sprite.hat >= 0)
-				   DrawImageL(npc.x - camera_x + -hat_offset_x,
-							 npc.y - camera_y + hat_offset_y,
-							 hat_img[sprite.hat]);
-			  }
+					//draw hat
+					if (sprite.hat >= 0)
+						DrawImagef(npc.x - camera_x + hat_offset_x,
+							npc.y - camera_y + hat_offset_y,
+							hat_img[sprite.hat]);
+				}
+				else
+				{
+					//draw npc weapon
+					if (sprite.weapon >= 0) {
+						DrawImagefRotatedL(npc.x - camera_x +
+							-getWeaponWalkOffsetX(npc.current_frame),
+							npc.y - camera_y +
+							getWeaponWalkOffsetY(npc.current_frame),
+							weapon_img[sprite.weapon],
+							getWeaponWalkRotate(npc.current_frame));
+						//draw npc sprite
+						DrawFrameL(npc.x - camera_x,
+							npc.y - camera_y,
+							sprite.spriteSheet,
+							getSpriteWalkArmed(npc.current_frame));
+					}
+					else {
+						//draw npc sprite
+						DrawFrameL(npc.x - camera_x,
+							npc.y - camera_y,
+							sprite.spriteSheet,
+							getSpriteWalk(npc.current_frame));
+					}
+					//draw hat
+					if (sprite.hat >= 0)
+						DrawImageL(npc.x - camera_x + -hat_offset_x,
+							npc.y - camera_y + hat_offset_y,
+							hat_img[sprite.hat]);
+				}
 			}
 		}//end npc loop
 
-        //draw players
-        for (int i = 0; i < MAX_CLIENTS; i++)
-        {
-            //if this player is online
-            if (Player[i].Status && Player[i].current_map == current_map)
-            {
-               camera_x = Player[MyID].x - PLAYER_CAMERA_X;
-               camera_y = Player[MyID].y - PLAYER_CAMERA_Y;
+		//draw players
+		for (int i = 0; i < MAX_CLIENTS; i++)
+		{
+			// Only draw if they are logged in
+			if (!Player[i].Status)
+				continue;
+			
+			// Only draw players on your map
+			if (Player[i].current_map != current_map)
+				continue;
 
-               //don't show edge of map
-               if (camera_x < 0)
-            	   camera_x = 0;
-               if (camera_y < 0)
-            	   camera_y = 0;
+			int p_x = (int)(Player[i].x - camera_x);
+			int p_y = (int)(Player[i].y - camera_y);
 
-               int p_x = (int)Player[i].x - (int)camera_x;
-               int p_y = (int)Player[i].y - (int)camera_y;
+			//username
+			Player[i].nametag.pos_x = p_x - (Player[i].Nick.length()*4.5) + 32;
+			Player[i].nametag.pos_y = p_y - 25;
 
-               //username
-               Player[i].nametag.pos_x = p_x - (Player[i].Nick.length()*4.5) + 32;
-               Player[i].nametag.pos_y = p_y - 25;
-
-
-
-               //clan
-               Player[i].clantag.pos_x = p_x - (Player[i].clantag.length*4.5) + 32;
-               Player[i].clantag.pos_y = p_y - 36;
+			//clan
+			Player[i].clantag.pos_x = p_x - (Player[i].clantag.length*4.5) + 32;
+			Player[i].clantag.pos_y = p_y - 36;
 
 
-               //getting hit flash
-               if (Player[i].hit)
-                  glColor3f(1.0f, 0.1f, 0.1f);
-               else
-                 glColor3f(1.0f, 1.0f, 1.0f);
+			//getting hit flash
+			if (Player[i].hit)
+				glColor4f(1.0f, 0.5f, 0.5f, 0.5f);
+			else
+				glColor3f(1.0f, 1.0f, 1.0f);
 
 
-               if (!Player[i].ground)
-                  Player[i].current_frame = 6;
+			if (!Player[i].ground)
+				Player[i].current_frame = 6;
 
-			   //where yto place the trophy?
-			   //hint: your hand moves in the animation..
-			   int trophy_offset_y = 0;
-			   int trophy_offset_x = 0;
+			//where to place the trophy?
+			//hint: your hand moves in the animation..
+			int trophy_offset_y = 0;
+			int trophy_offset_x = 0;
 
-                  //attacking
-               if (Player[i].attacking)
-               {
+			//attacking
+			if (Player[i].attacking)
+			{
+				if (Player[i].equip[0] != 0)
+				{
+					//with weapon
+					trophy_offset_x = getTrophyAttackOffsetX(Player[i].current_frame);
+					trophy_offset_y = getTrophyAttackOffsetY(Player[i].current_frame);
+				}
+				else 
+				{
+					//without weapon
+					trophy_offset_x = getTrophyUnarmedAttackOffsetX(Player[i].current_frame);
+					trophy_offset_y = getTrophyUnarmedAttackOffsetY(Player[i].current_frame);
+				}
 
-
-
-				   if (Player[i].equip[0] != 0)
-				   {
-					   //with weapon
-					   trophy_offset_x = getTrophyAttackOffsetX(Player[i].current_frame);
-					   trophy_offset_y = getTrophyAttackOffsetY(Player[i].current_frame);
-				   }
-				   else {
-					   //without weapon
-					   trophy_offset_x = getTrophyUnarmedAttackOffsetX(Player[i].current_frame);
-					   trophy_offset_y = getTrophyUnarmedAttackOffsetY(Player[i].current_frame);
-				   }
-
-
-
-
-					  //always draw trophies! :D
-					if (Player[i].equip[2] != 0)
+				//always draw trophies! :D
+				if (Player[i].equip[2] != 0)
+				{
+					//draw walk
+					if (Player[i].facing_right)
 					{
-						   //draw walk
-						   if (Player[i].facing_right)
-						   {
-							   DrawImage(p_x + 32 - trophy_offset_x - Item[Player[i].equipI[2]].w/2,
-										  p_y + trophy_offset_y - Item[Player[i].equipI[2]].h/4,
-										  trophy_img[Player[i].equip[2]-1]);
-						   }
-						   else
-						   {
-							  DrawImage(p_x + 32 + trophy_offset_x - Item[Player[i].equipI[2]].w/2,
-										 p_y + trophy_offset_y - Item[Player[i].equipI[2]].h/4,
-										 trophy_img[Player[i].equip[2]-1]);
-						   }
+						DrawImagef(p_x + 32 - trophy_offset_x - Item[Player[i].equipI[2]].w / 2,
+							p_y + trophy_offset_y - Item[Player[i].equipI[2]].h / 4,
+							trophy_img[Player[i].equip[2] - 1]);
+					}
+					else
+					{
+						DrawImagef(p_x + 32 + trophy_offset_x - Item[Player[i].equipI[2]].w / 2,
+							p_y + trophy_offset_y - Item[Player[i].equipI[2]].h / 4,
+							trophy_img[Player[i].equip[2] - 1]);
+					}
+				}
+
+				if (Player[i].equip[0] == 0) //no weapon
+				{
+
+					if (Player[i].facing_right)
+					{
+						DrawFrameR(p_x, p_y,
+							stickman_sprite_img,
+							getSpriteAttack(Player[i].current_frame));
+					}
+					else
+					{
+						DrawFrameL(p_x, p_y,
+							stickman_sprite_img,
+							getSpriteAttack(Player[i].current_frame));
+					}
+				}
+				else // yes weapon
+				{
+					if (Player[i].facing_right)
+					{
+						DrawImagefRotated(p_x + getWeaponAttackOffsetX(Player[i].current_frame),
+							p_y + getWeaponAttackOffsetY(Player[i].current_frame),
+							weapon_img[Player[i].equip[0] - 1],
+							getWeaponAttackRotate(Player[i].current_frame));
+						DrawFrameR(p_x, p_y,
+							stickman_sprite_img,
+							getSpriteAttackArmed(Player[i].current_frame));
+					}
+					else
+					{
+						DrawImagefRotatedL(p_x + -getWeaponAttackOffsetX(Player[i].current_frame),
+							p_y + getWeaponAttackOffsetY(Player[i].current_frame),
+							weapon_img[Player[i].equip[0] - 1],
+							getWeaponAttackRotate(Player[i].current_frame));
+						DrawFrameL(p_x, p_y,
+							stickman_sprite_img,
+							getSpriteAttackArmed(Player[i].current_frame));
+					}
+				}
+
+			}
+			else //walking
+			{
+				trophy_offset_x = getTrophyWalkOffsetX(Player[i].current_frame);
+				trophy_offset_y = getTrophyWalkOffsetY(Player[i].current_frame);
+
+				//always draw trophies! :D
+				if (Player[i].equip[2] != 0)
+				{
+					//draw walk
+					if (Player[i].facing_right)
+					{
+						DrawImagef(p_x + 32 - trophy_offset_x - Item[Player[i].equipI[2]].w / 2,
+							p_y + trophy_offset_y - Item[Player[i].equipI[2]].h / 4,
+							trophy_img[Player[i].equip[2] - 1]);
+					}
+					else
+					{
+						DrawImagef(p_x + 32 + trophy_offset_x - Item[Player[i].equipI[2]].w / 2,
+							p_y + trophy_offset_y - Item[Player[i].equipI[2]].h / 4,
+							trophy_img[Player[i].equip[2] - 1]);
+					}
+				}
+
+				if (Player[i].equip[0] == 0)
+				{
+					//draw walk
+					if (Player[i].facing_right)
+					{
+						DrawFrameR(p_x, p_y,
+							stickman_sprite_img,
+							getSpriteWalk(Player[i].current_frame));
+					}
+					else
+					{
+						DrawFrameL(p_x, p_y,
+							stickman_sprite_img,
+							getSpriteWalk(Player[i].current_frame));
+					}
+				}
+				else //some weapon is held
+				{
+					//draw walk
+					if (Player[i].facing_right)
+					{
+						DrawImagefRotated(p_x + getWeaponWalkOffsetX(Player[i].current_frame),
+							p_y + getWeaponWalkOffsetY(Player[i].current_frame),
+							weapon_img[Player[i].equip[0] - 1],
+							getWeaponWalkRotate(Player[i].current_frame));
+						DrawFrameR(p_x, p_y,
+							stickman_sprite_img,
+							getSpriteWalkArmed(Player[i].current_frame));
+
+					}
+					else
+					{
+						DrawImagefRotatedL(p_x + -getWeaponWalkOffsetX(Player[i].current_frame),
+							p_y + getWeaponWalkOffsetY(Player[i].current_frame),
+							weapon_img[Player[i].equip[0] - 1],
+							getWeaponWalkRotate(Player[i].current_frame));
+						DrawFrameL(p_x, p_y,
+							stickman_sprite_img,
+							getSpriteWalkArmed(Player[i].current_frame));
 					}
 
-                  if (Player[i].equip[0] == 0) //no weapon
-                  {
-
-                       if (Player[i].facing_right)
-                       {
-                          DrawFrameR(p_x, p_y,
-                        		  stickman_sprite_img,
-                        		  getSpriteAttack(Player[i].current_frame));
-                       }
-                       else
-                       {
-                    	   DrawFrameL(p_x, p_y,
-                    			   stickman_sprite_img,
-                    			   getSpriteAttack(Player[i].current_frame));
-                       }
-                  }
-                  else // yes weapon
-                  {
-                      if (Player[i].facing_right)
-                      {
-                          DrawImageRotated(p_x + getWeaponAttackOffsetX(Player[i].current_frame),
-                        		  	  	   p_y + getWeaponAttackOffsetY(Player[i].current_frame),
-                        		  	  	   weapon_img[Player[i].equip[0]-1],
-                        		  	  	   getWeaponAttackRotate(Player[i].current_frame));
-                          DrawFrameR(p_x, p_y,
-                        		  stickman_sprite_img,
-                        		  getSpriteAttackArmed(Player[i].current_frame));
-                      }
-                      else
-                      {
-                          DrawImageRotatedL(p_x + -getWeaponAttackOffsetX(Player[i].current_frame),
-                        		  	  	   p_y + getWeaponAttackOffsetY(Player[i].current_frame),
-                        		  	  	   weapon_img[Player[i].equip[0]-1],
-                        		  	  	   getWeaponAttackRotate(Player[i].current_frame));
-                          DrawFrameL(p_x, p_y,
-                        		  stickman_sprite_img,
-                        		  getSpriteAttackArmed(Player[i].current_frame));
-                      }
-                  }
-
-               }
-               else //walking
-               {
-            	   trophy_offset_x = getTrophyWalkOffsetX(Player[i].current_frame);
-            	  						   trophy_offset_y = getTrophyWalkOffsetY(Player[i].current_frame);
-
-            	  							  //always draw trophies! :D
-            	  							if (Player[i].equip[2] != 0)
-            	  							{
-            	  								   //draw walk
-            	  								   if (Player[i].facing_right)
-            	  								   {
-            	  									   DrawImage(p_x + 32 - trophy_offset_x - Item[Player[i].equipI[2]].w/2,
-            	  												  p_y + trophy_offset_y - Item[Player[i].equipI[2]].h/4,
-            	  												  trophy_img[Player[i].equip[2]-1]);
-            	  								   }
-            	  								   else
-            	  								   {
-            	  									  DrawImage(p_x + 32 + trophy_offset_x - Item[Player[i].equipI[2]].w/2,
-            	  												 p_y + trophy_offset_y - Item[Player[i].equipI[2]].h/4,
-            	  												 trophy_img[Player[i].equip[2]-1]);
-            	  								   }
-            	  							}
-
-                   if (Player[i].equip[0] == 0)
-                   {
-                       //draw walk
-                       if (Player[i].facing_right)
-                       {
-                    	   DrawFrameR(p_x, p_y,
-                    			   stickman_sprite_img,
-                    			   getSpriteWalk(Player[i].current_frame));
-                       }
-                       else
-                       {
-                    	   DrawFrameL(p_x, p_y,
-                    			   stickman_sprite_img,
-                    			   getSpriteWalk(Player[i].current_frame));
-                       }
-                   }
-                   else //some weapon is held
-                   {
-                       //draw walk
-                       if (Player[i].facing_right)
-                       {
-                          DrawImageRotated(p_x + getWeaponWalkOffsetX(Player[i].current_frame),
-                            		   p_y + getWeaponWalkOffsetY(Player[i].current_frame),
-                            		   weapon_img[Player[i].equip[0]-1],
-                            		   getWeaponWalkRotate(Player[i].current_frame));
-                          DrawFrameR(p_x, p_y,
-                        		  stickman_sprite_img,
-                        		  getSpriteWalkArmed(Player[i].current_frame));
-
-                       }
-                       else
-                       {
-                          DrawImageRotatedL(p_x + -getWeaponWalkOffsetX(Player[i].current_frame),
-                            		   p_y + getWeaponWalkOffsetY(Player[i].current_frame),
-                            		   weapon_img[Player[i].equip[0]-1],
-                            		   getWeaponWalkRotate(Player[i].current_frame));
-                          DrawFrameL(p_x, p_y,
-                                  stickman_sprite_img,
-                                  getSpriteWalkArmed(Player[i].current_frame));
-                       }
-
-                   }
-               }//end walking
-
-
-               //always draw hats! :D
-               if (Player[i].equip[1] != 0)
-               {
-            	   //where yto place the hat?
-            	   //hint: your head movesin the animation now
-            	   int hat_offset_y = 0;
-            	   int hat_offset_x = 0;
-
-            	   if (Player[i].attacking)
-            	   {
-					   //Armed attack
-					   if (Player[i].equip[0] != 0)
-					   {
-						   hat_offset_x = getHatAttackOffsetX(Player[i].current_frame);
-						   hat_offset_y = getHatAttackOffsetY(Player[i].current_frame);
-					   }
-					   ///Unarmed Attack
-					   else
-					   {
-						   hat_offset_x = getHatUnarmedAttackOffsetX(Player[i].current_frame);
-						   hat_offset_y = getHatUnarmedAttackOffsetY(Player[i].current_frame);
-					   }
-            	   }
-            	   else
-            	   {
-            		   hat_offset_x = getHatWalkOffsetX(Player[i].current_frame);
-            		   hat_offset_y = getHatWalkOffsetY(Player[i].current_frame);
-            	   }
-
-                   //draw walk
-                   if (Player[i].facing_right)
-                   {
-                      DrawImage(p_x + hat_offset_x,
-                    		    p_y + hat_offset_y,
-                    		    hat_img[Player[i].equip[1]-1]);
-                   }
-                   else
-                   {
-                      DrawImageL(p_x - hat_offset_x,
-                    		    p_y + hat_offset_y,
-                    		    hat_img[Player[i].equip[1]-1]);
-                   }
-               }
-
-               	   //go back to white (turn off hit effect [red flash])
-               	   glColor3f(1.0f, 1.0f, 1.0f);
-
-        		   //draw grey box for it
-                   for (int nameSlot = 0; (std::size_t)nameSlot < Player[i].Nick.length(); nameSlot++)
-                       DrawImage(Player[i].nametag.pos_x + nameSlot*8 + 1, Player[i].nametag.pos_y + 1, chatcursor);
-
-                   for (unsigned int nameSlot = 0; (std::size_t)nameSlot < (std::size_t)Player[i].clantag.length; nameSlot++)
-                       DrawImage(Player[i].clantag.pos_x + nameSlot*8 + 1, Player[i].clantag.pos_y + 1, chatcursor);
-
-
-            }//if player.status and map
-            else
-            {
-            	 Player[i].nametag.pos_x = Player[i].clantag.pos_x = 1024;
-
-            }
-            drawText(Player[i].nametag);
-            drawText(Player[i].clantag);
-        }//for all clients
-
-
-
-       camera_x = Player[MyID].x - PLAYER_CAMERA_X;
-       camera_y = Player[MyID].y - PLAYER_CAMERA_Y;
-
-       if (camera_x < 0)
-    	   camera_x = 0;
-       if (camera_y < 0)
-    	   camera_y = 0;
-
-       //draw fringe tiles
-       for (int i = 0; i < map[current_map]->number_of_fringe; i++)
-       {
-
-           int draw_x = (int)(map[current_map]->fringe_x[i] - tcam_x);
-           int draw_y = (int)(map[current_map]->fringe_y[i] - tcam_y);
-
-           if (draw_x >= 0-tile_img[map[current_map]->fringe[i]].w &&
-              draw_x < 1024 &&
-              draw_y < 600 &&
-              draw_y >= 0-tile_img[map[current_map]->fringe[i]].h)
-           DrawImage(draw_x, draw_y, tile_img[map[current_map]->fringe[i]]);
-           //printf("\nDraw_x=%i draw_y=%i tile[i]=%i i=%i\n", draw_x, draw_y, tile[i], i);
-
-       }
-
-       //draw vignette shadow
-       DrawImage(0, 0, shadow);
-
-        //GUI
-        if (draw_gui)
-        {
-
-            //draw party things
-            int current_buddy = 0;
-            bool first = true;
-            for (int i = 0; i < MAX_CLIENTS; i++)
-            {
-
-                //if this player is online and in party
-                if (i != MyID && Player[i].Status && Player[i].party > -1 && Player[i].party == Player[MyID].party)
-                {
-                    if (first)
-                    {
-                       DrawImage(224+652, 45, leave_party_img);
-                    }
-                    first = false;
-
-                    DrawImage(858, 81 + current_buddy*65, buddy_container);
-                    drawText(current_buddy+166);
-
-                    //drawXP bar
-                    for (unsigned int x = 0; x < Player[i].xp; x++)
-                    {
-                        DrawImage(224+637+x*2, 103 + current_buddy*65, party_filler[0]);
-                    }
-
-                    //draw HP bar
-                    for (int h = 0; h < Player[i].hp; h++)
-                    {
-                        DrawImage(224+637+h*2, 115 + current_buddy*65, party_filler[1]);
-                    }
-
-                    //draw direction arrow
-                    DrawImage(224+637, 125 + current_buddy*65, arrow[Player[i].arrow]);
-
-                    drawText(current_buddy+171);
-
-                    //go to next buddy
-                    current_buddy++;
-                }
-            }
-
-
-            if (draw_chat_back)
-               DrawImage(0, 0, chatBackImg);
-
-            //TODO stats gui
-            DrawImage(0, 500, stats_gui);
-            for (int i = 0; i < 4; i++)
-            {
-            	DrawImage(700 + 81*i, 515, hud_button_img);
-            	DrawImage(708 + 81*i, 515, hud_icon[i]);
-
-            }
-            for (int i = 0; i < ((Player[MyID].hp / (float)Player[MyID].max_hp)*(209)); i++)
-            {
-                   DrawImage(41+2*i, 543, hp_filler);
-            }
-
-
-            //XP bar
-            for (int i = 0; i < ((Player[MyID].xp / (float)Player[MyID].max_xp)*(209)); i++)
-            {
-                   DrawImage(41+2*i, 515, xp_filler);
-            }
-            drawText(51);//xp
-            drawText(52);//hp
-            drawText(53);//level
-            drawText(54); //stats
-
-           //chat bar
-           if (chat_box == 3){
-              DrawImage(tSeek*8+2, 584, chatcursor);
-           }
-
-           //sign
-           if (popup_sign){
-        	   DrawImage(150, 372, sign_bubble);
-        	   for (int i = 0; i < current_sign.NUM_LINES; i++)
-        		   drawText(current_sign.line[i]);
-           }
-           //npc dialogue
-		   if (popup_npc){
-
-
-		     //if not on final
-		     if (current_page != FINAL_PAGE)
-		     {
-		    	 DrawImage(150, 372, sign_bubble);
-		    	 for (int i = 0; i < current_npc.NUM_LINES; i++)
-		    		 drawText(*current_npc.line[current_page][i]);
-		    	 DrawImage(860, 372, next_page);
-		     }else {
-		    	 // _handler for quests
-		    	 switch (current_npc.quest)
-		    	 {
-		    	 	 //quest 0 is the Clan creen
-		    	 	 case 0:
-		    	 		 	//this is already handled by inputBox code.
-		    		 break;
-
-		    		 //quest 1 is the Stat Reset Screen
-		    	 	 case 1:
-
-		    	     break;
-
-		    	     //this npc does nothing, he is done talking. (usually -1)
-		    	 	 default:
-		    	 	 break;
-
-		    	 }
-		     }//end final page or not
-
-		   }//end popup
-        }//end if draw gui
-
-       glColor3f(1.0f, 1.0f, 1.0f);
-
-    }
-
-    //draw text:
-   switch (menu)
-   {
-          case 0:
-               for (int i = 0; i < 2; i++)
-                   drawText(i);
-          break;
-
-          case 1: case 2:
-			  for (int i = 0; i < 2; i++)
-				  drawText(i);
-               for (int i = 16; i < 18; i++)
-                   drawText(i);
-          break;
-          case 3:
-               for (int i = 0; i < 2; i++)
-                   drawText(i);
-          break;
-
-          case 4:
-               //username font
-               for (int i = 0; i < MAX_CLIENTS; i++)
-                   if (Player[i].Status)
-                      drawText(i+18);
-
-               //chat
-               if (draw_chat)
-               {
-                  for (int i = 2; i < 15; i++)
-                      drawText(i);
-               }
-               if (draw_gui)
-               {
-                    //ping
-                    drawText(15);
-                    //coordinates
-                     drawText(50);
-               }
-          break;
-
-          default:
-          break;
-   }
-
-
-
-        if (draw_gui)
-        {
-            //GUI pop ups
-            if (popup_menu == 1)
-            {
-               //inventory window
-               DrawImage(0, 244, inventory_gui);
-               DrawImage(256, 244, equip_show_gui);
-
-
-               //items
-               int i = 0;
-               for(int y = 0; y < 4; y++)
-                  for (int x = 0; x < 6; x++)
-                  {
-
-
-                      int item = Player[MyID].inventory[i][0];
-                      int amount = Player[MyID].inventory[i][1];
-
-                      int offset_x = (32-Item[item].w)/2;
-                      int offset_y = (32-Item[item].h)/2;
-                      if (amount > 0)
-                         DrawImage(14+offset_x+39*x, 256+offset_y+56*y,Item_img[item]);
-
-                      //selector box
-                      if (i == selectedInventoryItem)
-                      {
-                         DrawImage(11+39*x, 255+56*y, inventorySelectorBox);
-
-
-                         std::stringstream ss;
-                         ss << amount;
-
-                         if (amount > 0)
-                         {
-                            Message[83].SetText(Item[item].descr);
-                            Message[84].SetText(ss.str());
-
-                            drawText(83);
-
-                             //position it
-                             Message[84].pos_x = 155 - (numDigits(amount)-1)*8;
-                             drawText(84);
-                         }
-
-
-                      }
-                      else if (i == hoveredInventoryItem)
-                      {
-                          DrawImage(11+39*x, 255+56*y, inventorySelectorBox);
-                      }
-
-
-                      drawText(55+i);
-
-                      //dragging an item
-                      if (i == selectedInventoryItem && hoveredInventoryItem >= 0 && lclick)
-                      {
-						  int itemAmount;
-						  itemAmount = Player[MyID].inventory[i][1];
-
-						  //center the item over your mouse
-						  if (itemAmount > 0) {
-							  offset_x -= 16;
-							  offset_y -= 16;
-							  DrawImage(hoverItemX + offset_x, hoverItemY + offset_y, Item_img[item]);
-						  }
-                      }
-
-                      i++;
-
-
-                  }
-
-
-
-                  //equipment window
-                  if (popup_gui_menu == 7)
-                  {
-                     //draw the window
-                     DrawImage(256, 244, equip_img);
-
-                     //draw the sword
-                     int eq = Player[MyID].equipI[0];
-                     if (eq > 0)
-                     {
-                        //draw the icon
-                        DrawImage(465+(32-Item_img[eq].w)/2, 348+(32-Item_img[eq].h)/2,Item_img[eq]);
-
-                     }
-
-                     //draw the hat
-                     eq = Player[MyID].equipI[1];
-                     if (eq > 0)
-                     {
-                        //draw the icon
-                        DrawImage(466+(32-Item_img[eq].w)/2, 274+(32-Item_img[eq].h)/2,Item_img[eq]);
-                     }
-
-
-                     //draw the trophy
-                     eq = Player[MyID].equipI[2];
-					  if (eq > 0)
-					  {
-						 //draw the icon
-						 DrawImage(330+(32-Item_img[eq].w)/2, 321+(32-Item_img[eq].h)/2,Item_img[eq]);
-					  }
-
-
-
-                     //where to draw the selector
-                     switch (equipmentSlot)
-                     {
-                            case 0://sword
-                                    DrawImage(459, 347, inventorySelectorBox);
-                            break;
-                            case 1://hat
-                                   DrawImage(459, 273, inventorySelectorBox);
-                            break;
-                            case 2://trophy
-								   DrawImage(325, 316, inventorySelectorBox);
-							break;
-
-                            default:break;
-                     }
-
-
-                     drawText(162);
-                     drawText(163);
-                     drawText(164);
-                     drawText(165);
-
-                  }
-
-            }
-            else if (popup_menu == 2)
-            {
-
-               DrawImage(0, 358, stats_popup);
-
-
-               //stats text
-               drawText(79);
-               drawText(80);
-               drawText(81);
-               drawText(82);
-
-            }
-            else if (popup_menu == 3)
-            {
-               DrawImage(0, 244, options_popup);
-
-               /* draw little options selectors */
-			   //Sign enabling
-			   if (enableSIGN)
-				   DrawImage(169, 393, option_selector);
-			   else
-				   DrawImage(206, 393, option_selector);
-               //Master sound
-               if (enableSND)
-                  DrawImage(169, 417, option_selector);
-               else
-                  DrawImage(206, 417,option_selector);
-               //Sound Effects
-               if (enableSFX)
-                  DrawImage(169, 441, option_selector);
-               else
-                  DrawImage(206, 441,option_selector);
-               //GameMusic
-               if (enableMUS)
-                  DrawImage(169, 465, option_selector);
-               else
-                  DrawImage(206, 465, option_selector);
-
-
-            }
-
-
-            //gui input box pop up
-            if (popup_gui_menu == 1 || popup_gui_menu == 10)
-            {
-              DrawImage(256, 372, popup_gui_input_img);
-              //input gui pop up
-               if (chat_box == 5){
-                  DrawImage(iSeek*8+308, 429, chatcursor);
-               }
-              drawText(85);
-              drawText(86);
-              drawText(87);
-              drawText(88);
-            } else
-            //gui player request popup
-            if (popup_gui_menu == 2)
-            {
-               DrawImage(256, 372, popup_gui_request_img);
-               drawText(89);
-            } else
-            if (popup_gui_menu == 3 || popup_gui_menu == 8 || popup_gui_menu == 9 || popup_gui_menu == 11)
-            {
-               DrawImage(256, 372, popup_gui_confirm_img);
-               drawText(85);
-               drawText(87);
-               drawText(88);
-            } else
-            if (popup_gui_menu == 4)
-            {//trade
-
-
-               DrawImage(224+256, 225, trade_gui_img);
-
-
-               //selector for increment mass trading
-               switch (offerIncrement)
-               {
-                      case 1:         DrawImage(224+429, 232, mass_trade_selector); break;
-                      case 10:        DrawImage(224+457, 232, mass_trade_selector); break;
-                      case 100:       DrawImage(224+485, 232, mass_trade_selector); break;
-                      case 1000:      DrawImage(224+513, 232, mass_trade_selector); break;
-                      case 10000:     DrawImage(224+541, 232, mass_trade_selector); break;
-                      case 100000:    DrawImage(224+569, 232, mass_trade_selector); break;
-                      case 1000000:   DrawImage(224+597, 232, mass_trade_selector); break;
-                      default: break;
-               }
-
-               //ready/waiting text
-               drawText(142);
-               drawText(143);
-
-
-               //items
-               int i = 0;
-               for(int y = 0; y < 4; y++)
-                  for (int x = 0; x < 6; x++)
-                  {
-                      //
-                      // LOCAL
-                      //
-                      int item = Player[MyID].localTrade[i][0];
-                      int amount = Player[MyID].localTrade[i][1];
-
-
-                      if (amount > 0)
-                         DrawImage(224+270+(32-Item[item].w)/2+39*x, 256+(32-Item[item].h)/2+56*y,Item_img[item]);
-
-                      //selector box
-                      if (i == selectedLocalItem)
-                      {
-                         DrawImage(224+267+39*x, 255+56*y, inventorySelectorBox);
-
-                         std::stringstream ss;
-                         ss << amount;
-
-                         if (amount > 0)
-                         {
-                            Message[138].SetText(Item[item].descr);
-                            Message[139].SetText(ss.str());
-
-                            drawText(138);
-
-                             //position it
-                             Message[139].pos_x = 224 + 411 - (numDigits(amount)-1)*8;
-                             drawText(139);
-                         }
-                      }
-
-
-
-                      //
-                      // REMOTE
-                      //
-                      item = Player[MyID].remoteTrade[i][0];
-                      amount = Player[MyID].remoteTrade[i][1];
-
-
-                      if (amount > 0)
-                         DrawImage(782+(32-Item[item].w)/2+39*x, 256+(32-Item[item].h)/2+56*y,Item_img[item]);
-
-                      //selector box
-                      if (i == selectedRemoteItem)
-                      {
-                         DrawImage(779+39*x, 255+56*y, inventorySelectorBox);
-
-                         std::stringstream ss;
-                         ss << amount;
-
-                         if (amount > 0)
-                         {
-                            Message[140].SetText(Item[item].descr);
-                            Message[141].SetText(ss.str());
-
-                            drawText(140);
-
-                             //position it
-                             Message[141].pos_x = 1004 - (numDigits(amount)-1)*8;
-                             drawText(141);
-                         }
-                      }
-
-                      drawText(90+i);
-                      drawText(114+i);
-
-                      i++;
-                  }
-            }//end trade
-            else if (popup_gui_menu == 5)
-            {//bank!
-                    DrawImage(768, 244, bank_gui_img);
-
-            //selector for increment mass trading
-               switch (offerIncrement)
-               {
-                      case 1:         DrawImage(224+573, 254, mass_trade_selector); break;
-                      case 10:        DrawImage(224+601, 254, mass_trade_selector); break;
-                      case 100:       DrawImage(224+629, 254, mass_trade_selector); break;
-                      case 1000:      DrawImage(224+657, 254, mass_trade_selector); break;
-                      case 10000:     DrawImage(224+685, 254, mass_trade_selector); break;
-                      case 100000:    DrawImage(224+713, 254, mass_trade_selector); break;
-                      case 1000000:   DrawImage(224+741, 254, mass_trade_selector); break;
-                      default: break;
-               }
-
-               //items
-               int i = bankScroll*6;
-               int t = 0;
-               for(int y = 0; y < 3 && i < NUM_ITEMS; y++)
-                  for (int x = 0; x < 6 && i < NUM_ITEMS; x++)
-                  {
-                      //
-                      // bank items :)
-                      //
-                      int item = i;
-                      int amount = Player[MyID].bank[i];
-
-
-                      // if (amount > 0)
-                      DrawImage(782+(32-Item[item].w)/2+39*x, 278+(32-Item[item].h)/2+56*y,Item_img[item]);
-                      if (amount == 0)
-                      {
-                                 //draw a "greyed out" look over the image
-                                 DrawImage(780+39*x, 278+56*y, greyedImg);
-                      }
-
-                      //selector box
-                      if (i == selectedBankItem)
-                      {
-                         DrawImage(779+39*x, 277+56*y, inventorySelectorBox);
-
-                         std::stringstream ss;
-                         ss << amount;
-
-
-                        Message[138].SetText(Item[item].descr);
-                        Message[139].SetText(ss.str());
-
-                        drawText(138);
-
-                         //position it
-
-                         Message[139].pos_x = 964 - (numDigits(amount)-1)*8;
-                         drawText(139);
-
-                      }
-
-                      //item descriptor and amount
-                      drawText(90+t);
-                      drawText(114+t);
-
-                      //amount under icon
-                      drawText(144+t);
-
-                      i++;
-                      t++;
-                  }
-            }//end bank
-            else if (popup_gui_menu == 6)
-            {//shop!
-               DrawImage(768, 244, shop_gui_img);
-
-               //selector for increment mass trading
-               switch (offerIncrement)
-               {
-                      case 1:         DrawImage(224+573, 254, mass_trade_selector); break;
-                      case 10:        DrawImage(224+601, 254, mass_trade_selector); break;
-                      case 100:       DrawImage(224+629, 254, mass_trade_selector); break;
-                      case 1000:      DrawImage(224+657, 254, mass_trade_selector); break;
-                      case 10000:     DrawImage(224+685, 254, mass_trade_selector); break;
-                      case 100000:    DrawImage(224+713, 254, mass_trade_selector); break;
-                      case 1000000:   DrawImage(224+741, 254, mass_trade_selector); break;
-                      default: break;
-               }
-
-
-
-               //items
-               int i = 0;
-               for(int y = 0; y < 4; y++)
-                  for (int x = 0; x < 6; x++)
-                  {
-                      //
-                      // shop
-                      //
-					  int item = 0;
-					  int amount = 0;
-
-					  if (shopBuyMode)
-					  {
-						  item = map[current_map]->Shop[currentShop].item[x][y][0];
-						  amount = 1;
-					  }
-					  else
-					  {
-						  item = Player[MyID].inventory[selectedInventoryItem][0];
-						  amount = Player[MyID].inventory[selectedInventoryItem][1];
-					  }
-
-                      int price = 0;
-
-                      /* Buy or sell price? */
-                      if (shopBuyMode)
-                         price = map[current_map]->Shop[currentShop].item[x][y][1];
-                      else
-                         price = Item[item].price;
-
-					  // if buying, only draw items that are for sale. OR
-					  // if selling, only draw in the first item slot of the shop
-					  // and only draw it if a legit inventory slot is selected.
-                      if ((price > 0 && amount > 0 && shopBuyMode)
-				       || (x == 0 && y == 0 && amount > 0 && item > 0 && !shopBuyMode))
-                         DrawImage(782+(32-Item[item].w)/2+39*x, 278+(32-Item[item].h)/2+42*y, Item_img[item]);
-
-
-                      //selector box
-                      if (i == selectedShopItem)
-                      {
-                         DrawImage(779+39*x, 277+42*y, inventorySelectorBox);
-
-                         if (price > 0 && amount > 0)
-                         {
-                             std::stringstream ss;
-                             ss << price;
-
-                            std::stringstream ss2;
-                            ss2 << Item[item].descr;
-
-                            if (shopBuyMode)
-                               ss2 << " costs:";
-                            else
-                               ss2 << " sells for:";
-
-                            //but if its free dont offer at all.. nothing in life is free :)
-
-
-                            Message[138].SetText(ss2.str());
-                            Message[139].SetText(ss.str());
-
-                            drawText(138);
-
-                             //position it
-
-                             Message[139].pos_x = 1004 - (numDigits(price)-1)*8;
-                             drawText(139);
-                         }
-                      }
-
-
-                      i++;
-                  }
-
-               //draw hover thing to show item stats when shoppin on amazon for fur coats
-               if (hoveredShopItemX > -1 && hoveredShopItemY > -1 && shopBuyMode)
-               {
-                  //-1 is disabled else it's the item X :)
-            	   DrawImage(768-89, 244, hover);
-
-            	   //draw these values, woot!
-            	   drawText(176);
-            	   drawText(177);
-            	   drawText(178);
-            	   drawText(179);
-               }
-
-
-            }//end shop
-
-    }//end if draw_gui
-
-    //draw sound toggle
-    if (draw_gui)
-    {
-       if (enableSND)
-          DrawImage(982, 10, soundon);
-       else
-          DrawImage(982, 10, soundoff);
-    }
-
-    if (menu == STATE_LOADING){
-    	DrawImage(0, 0, shadow);
-    	DrawImage(0, 0, loading_img);
-    }
-
-    if (menu == STATE_DISCONNECT) {
-    	DrawImage(0, 0, background);
-    }
+				}
+			}//end walking
+
+
+			//always draw hats! :D
+			if (Player[i].equip[1] != 0)
+			{
+				//where yto place the hat?
+				//hint: your head movesin the animation now
+				int hat_offset_y = 0;
+				int hat_offset_x = 0;
+
+				if (Player[i].attacking)
+				{
+					//Armed attack
+					if (Player[i].equip[0] != 0)
+					{
+						hat_offset_x = getHatAttackOffsetX(Player[i].current_frame);
+						hat_offset_y = getHatAttackOffsetY(Player[i].current_frame);
+					}
+					///Unarmed Attack
+					else
+					{
+						hat_offset_x = getHatUnarmedAttackOffsetX(Player[i].current_frame);
+						hat_offset_y = getHatUnarmedAttackOffsetY(Player[i].current_frame);
+					}
+				}
+				else
+				{
+					hat_offset_x = getHatWalkOffsetX(Player[i].current_frame);
+					hat_offset_y = getHatWalkOffsetY(Player[i].current_frame);
+				}
+
+				//draw walk
+				if (Player[i].facing_right)
+				{
+					DrawImagef(p_x + hat_offset_x,
+						p_y + hat_offset_y,
+						hat_img[Player[i].equip[1] - 1]);
+				}
+				else
+				{
+					DrawImageL(p_x - hat_offset_x,
+						p_y + hat_offset_y,
+						hat_img[Player[i].equip[1] - 1]);
+				}
+			}
+
+			//go back to white (turn off hit effect [red flash])
+			glColor3f(1.0f, 1.0f, 1.0f);
+
+			//draw grey box for it
+			for (int nameSlot = 0; (std::size_t)nameSlot < Player[i].Nick.length(); nameSlot++)
+				DrawImagef(Player[i].nametag.pos_x + nameSlot * 8 + 1, Player[i].nametag.pos_y + 1, chatcursor);
+
+			for (unsigned int nameSlot = 0; (std::size_t)nameSlot < (std::size_t)Player[i].clantag.length; nameSlot++)
+				DrawImagef(Player[i].clantag.pos_x + nameSlot * 8 + 1, Player[i].clantag.pos_y + 1, chatcursor);
+						
+			//draw each player's name tag and clan tag
+			drawText(Player[i].nametag);
+			drawText(Player[i].clantag);
+		}//for all clients
+
+		//draw fringe tiles
+		for (int i = 0; i < map[current_map]->number_of_fringe; i++)
+		{
+			int draw_x = map[current_map]->fringe_x[i] - camera_x;
+			int draw_y = map[current_map]->fringe_y[i] - camera_y;
+
+			if (draw_x >= 0 - tile_img[map[current_map]->fringe[i]].w &&
+				draw_x < 1024 &&
+				draw_y < 600 &&
+				draw_y >= 0 - tile_img[map[current_map]->fringe[i]].h)
+				DrawImage(draw_x, draw_y, tile_img[map[current_map]->fringe[i]]);
+		}
+
+		//draw vignette shadow
+		DrawImage(0, 0, shadow);
+
+		//GUI
+		if (draw_gui)
+		{
+
+			//draw party things
+			int current_buddy = 0;
+			bool first = true;
+			for (int i = 0; i < MAX_CLIENTS; i++)
+			{
+
+				//if this player is online and in party
+				if (i != MyID && Player[i].Status && Player[i].party > -1 && Player[i].party == Player[MyID].party)
+				{
+					if (first)
+					{
+						DrawImagef(224 + 652, 45, leave_party_img);
+					}
+					first = false;
+
+					DrawImagef(858, 81 + current_buddy * 65, buddy_container);
+					drawText(current_buddy + 166);
+
+					//drawXP bar
+					for (unsigned int x = 0; x < Player[i].xp; x++)
+					{
+						DrawImagef(224 + 637 + x * 2, 103 + current_buddy * 65, party_filler[0]);
+					}
+
+					//draw HP bar
+					for (int h = 0; h < Player[i].hp; h++)
+					{
+						DrawImagef(224 + 637 + h * 2, 115 + current_buddy * 65, party_filler[1]);
+					}
+
+					//draw direction arrow
+					DrawImagef(224 + 637, 125 + current_buddy * 65, arrow[Player[i].arrow]);
+
+					drawText(current_buddy + 171);
+
+					//go to next buddy
+					current_buddy++;
+				}
+			}
+
+
+			if (draw_chat_back)
+				DrawImagef(0, 0, chatBackImg);
+
+			//TODO stats gui
+			DrawImagef(0, 500, stats_gui);
+			for (int i = 0; i < 4; i++)
+			{
+				DrawImagef(700 + 81 * i, 515, hud_button_img);
+				DrawImagef(708 + 81 * i, 515, hud_icon[i]);
+
+			}
+			for (int i = 0; i < ((Player[MyID].hp / (float)Player[MyID].max_hp)*(209)); i++)
+			{
+				DrawImagef(41 + 2 * i, 543, hp_filler);
+			}
+
+
+			//XP bar
+			for (int i = 0; i < ((Player[MyID].xp / (float)Player[MyID].max_xp)*(209)); i++)
+			{
+				DrawImagef(41 + 2 * i, 515, xp_filler);
+			}
+			drawText(51);//xp
+			drawText(52);//hp
+			drawText(53);//level
+			drawText(54); //stats
+
+		   //chat bar
+			if (chat_box == 3) {
+				DrawImagef(tSeek * 8 + 2, 584, chatcursor);
+			}
+
+			//sign
+			if (popup_sign) {
+				DrawImagef(150, 372, sign_bubble);
+				for (int i = 0; i < current_sign.NUM_LINES; i++)
+					drawText(current_sign.line[i]);
+			}
+			//npc dialogue
+			if (popup_npc) {
+
+
+				//if not on final
+				if (current_page != FINAL_PAGE)
+				{
+					DrawImagef(150, 372, sign_bubble);
+					for (int i = 0; i < current_npc.NUM_LINES; i++)
+						drawText(*current_npc.line[current_page][i]);
+					DrawImagef(860, 372, next_page);
+				}
+				else {
+					// _handler for quests
+					switch (current_npc.quest)
+					{
+						//quest 0 is the Clan creen
+					case 0:
+						//this is already handled by inputBox code.
+						break;
+
+						//quest 1 is the Stat Reset Screen
+					case 1:
+
+						break;
+
+						//this npc does nothing, he is done talking. (usually -1)
+					default:
+						break;
+
+					}
+				}//end final page or not
+
+			}//end popup
+		}//end if draw gui
+
+		glColor3f(1.0f, 1.0f, 1.0f);
+
+	}
+
+	//draw text:
+	switch (menu)
+	{
+	case 0:
+		for (int i = 0; i < 2; i++)
+			drawText(i);
+		break;
+
+	case 1: case 2:
+		for (int i = 0; i < 2; i++)
+			drawText(i);
+		for (int i = 16; i < 18; i++)
+			drawText(i);
+		break;
+	case 3:
+		for (int i = 0; i < 2; i++)
+			drawText(i);
+		break;
+
+	case 4:
+		//username font
+		for (int i = 0; i < MAX_CLIENTS; i++)
+			if (Player[i].Status)
+				drawText(i + 18);
+
+		//chat
+		if (draw_chat)
+		{
+			for (int i = 2; i < 15; i++)
+				drawText(i);
+		}
+		if (draw_gui)
+		{
+			//ping
+			drawText(15);
+			//coordinates
+			drawText(50);
+		}
+		break;
+
+	default:
+		break;
+	}
+
+
+
+	if (draw_gui)
+	{
+		//GUI pop ups
+		if (popup_menu == 1)
+		{
+			//inventory window
+			DrawImagef(0, 244, inventory_gui);
+			DrawImagef(256, 244, equip_show_gui);
+
+
+			//items
+			int i = 0;
+			for (int y = 0; y < 4; y++)
+			{
+				for (int x = 0; x < 6; x++)
+				{
+
+
+					int item = Player[MyID].inventory[i][0];
+					unsigned int amount = Player[MyID].inventory[i][1];
+
+					int offset_x = (32 - Item[item].w) / 2;
+					int offset_y = (32 - Item[item].h) / 2;
+					if (amount > 0)
+						DrawImagef(14 + offset_x + 39 * x, 256 + offset_y + 56 * y, Item_img[item]);
+
+					//selector box
+					if (i == selectedInventoryItem)
+					{
+						DrawImagef(11 + 39 * x, 255 + 56 * y, inventorySelectorBox);
+
+
+						std::stringstream ss;
+						ss << amount;
+
+						if (amount > 0)
+						{
+							Message[83].SetText(Item[item].descr);
+							Message[84].SetText(ss.str());
+
+							drawText(83);
+
+							//position it
+							Message[84].pos_x = 155 - (numDigits(amount) - 1) * 8;
+							drawText(84);
+						}
+
+
+					}
+					else if (i == hoveredInventoryItem)
+					{
+						DrawImagef(11 + 39 * x, 255 + 56 * y, inventorySelectorBox);
+					}
+
+
+					drawText(55 + i);
+
+					//dragging an item
+					if (i == selectedInventoryItem && hoveredInventoryItem >= 0 && lclick)
+					{
+						int itemAmount;
+						itemAmount = Player[MyID].inventory[i][1];
+
+						//center the item over your mouse
+						if (itemAmount > 0) {
+							offset_x -= 16;
+							offset_y -= 16;
+							DrawImagef(hoverItemX + offset_x, hoverItemY + offset_y, Item_img[item]);
+						}
+					}
+
+					i++;
+
+
+				}
+			}
+
+			//equipment window
+			if (popup_gui_menu == 7)
+			{
+				//draw the window
+				DrawImagef(256, 244, equip_img);
+
+				//draw the sword
+				int eq = Player[MyID].equipI[0];
+				if (eq > 0)
+				{
+					//draw the icon
+					DrawImagef(465 + (32 - Item_img[eq].w) / 2, 348 + (32 - Item_img[eq].h) / 2, Item_img[eq]);
+				}
+
+				//draw the hat
+				eq = Player[MyID].equipI[1];
+				if (eq > 0)
+				{
+					//draw the icon
+					DrawImagef(466 + (32 - Item_img[eq].w) / 2, 274 + (32 - Item_img[eq].h) / 2, Item_img[eq]);
+				}
+
+
+				//draw the trophy
+				eq = Player[MyID].equipI[2];
+				if (eq > 0)
+				{
+					//draw the icon
+					DrawImagef(330 + (32 - Item_img[eq].w) / 2, 321 + (32 - Item_img[eq].h) / 2, Item_img[eq]);
+				}
+
+
+
+				//where to draw the selector
+				switch (equipmentSlot)
+				{
+				case 0://sword
+					DrawImagef(459, 347, inventorySelectorBox);
+					break;
+				case 1://hat
+					DrawImagef(459, 273, inventorySelectorBox);
+					break;
+				case 2://trophy
+					DrawImagef(325, 316, inventorySelectorBox);
+					break;
+
+				default:
+					break;
+				}
+
+				drawText(162);
+				drawText(163);
+				drawText(164);
+				drawText(165);
+			}
+
+		}
+		else if (popup_menu == 2)
+		{
+
+			DrawImagef(0, 358, stats_popup);
+
+
+			//stats text
+			drawText(79);
+			drawText(80);
+			drawText(81);
+			drawText(82);
+
+		}
+		else if (popup_menu == 3)
+		{
+			DrawImagef(0, 244, options_popup);
+
+			/* draw little options selectors */
+			//Sign enabling
+			if (enableSIGN)
+				DrawImagef(169, 393, option_selector);
+			else
+				DrawImagef(206, 393, option_selector);
+			//Master sound
+			if (enableSND)
+				DrawImagef(169, 417, option_selector);
+			else
+				DrawImagef(206, 417, option_selector);
+			//Sound Effects
+			if (enableSFX)
+				DrawImagef(169, 441, option_selector);
+			else
+				DrawImagef(206, 441, option_selector);
+			//GameMusic
+			if (enableMUS)
+				DrawImagef(169, 465, option_selector);
+			else
+				DrawImagef(206, 465, option_selector);
+
+
+		}
+
+
+		//gui input box pop up
+		if (popup_gui_menu == 1 || popup_gui_menu == 10)
+		{
+			DrawImagef(256, 372, popup_gui_input_img);
+			//input gui pop up
+			if (chat_box == 5) {
+				DrawImagef(iSeek * 8 + 308, 429, chatcursor);
+			}
+			drawText(85);
+			drawText(86);
+			drawText(87);
+			drawText(88);
+		}
+		else
+			//gui player request popup
+			if (popup_gui_menu == 2)
+			{
+				DrawImagef(256, 372, popup_gui_request_img);
+				drawText(89);
+			}
+			else
+				if (popup_gui_menu == 3 || popup_gui_menu == 8 || popup_gui_menu == 9 || popup_gui_menu == 11)
+				{
+					DrawImagef(256, 372, popup_gui_confirm_img);
+					drawText(85);
+					drawText(87);
+					drawText(88);
+				}
+				else
+					if (popup_gui_menu == 4)
+					{//trade
+
+
+						DrawImagef(224 + 256, 225, trade_gui_img);
+
+
+						//selector for increment mass trading
+						switch (offerIncrement)
+						{
+						case 1:         DrawImagef(224 + 429, 232, mass_trade_selector); break;
+						case 10:        DrawImagef(224 + 457, 232, mass_trade_selector); break;
+						case 100:       DrawImagef(224 + 485, 232, mass_trade_selector); break;
+						case 1000:      DrawImagef(224 + 513, 232, mass_trade_selector); break;
+						case 10000:     DrawImagef(224 + 541, 232, mass_trade_selector); break;
+						case 100000:    DrawImagef(224 + 569, 232, mass_trade_selector); break;
+						case 1000000:   DrawImagef(224 + 597, 232, mass_trade_selector); break;
+						default: break;
+						}
+
+						//ready/waiting text
+						drawText(142);
+						drawText(143);
+
+
+						//items
+						int i = 0;
+						for (int y = 0; y < 4; y++)
+							for (int x = 0; x < 6; x++)
+							{
+								//
+								// LOCAL
+								//
+								int item = Player[MyID].localTrade[i][0];
+								unsigned int amount = Player[MyID].localTrade[i][1];
+
+
+								if (amount > 0)
+									DrawImagef(224 + 270 + (32 - Item[item].w) / 2 + 39 * x, 256 + (32 - Item[item].h) / 2 + 56 * y, Item_img[item]);
+
+								//selector box
+								if (i == selectedLocalItem)
+								{
+									DrawImagef(224 + 267 + 39 * x, 255 + 56 * y, inventorySelectorBox);
+
+									std::stringstream ss;
+									ss << amount;
+
+									if (amount > 0)
+									{
+										Message[138].SetText(Item[item].descr);
+										Message[139].SetText(ss.str());
+
+										drawText(138);
+
+										//position it
+										Message[139].pos_x = 224 + 411 - (numDigits(amount) - 1) * 8;
+										drawText(139);
+									}
+								}
+
+
+
+								//
+								// REMOTE
+								//
+								item = Player[MyID].remoteTrade[i][0];
+								amount = Player[MyID].remoteTrade[i][1];
+
+
+								if (amount > 0)
+									DrawImagef(782 + (32 - Item[item].w) / 2 + 39 * x, 256 + (32 - Item[item].h) / 2 + 56 * y, Item_img[item]);
+
+								//selector box
+								if (i == selectedRemoteItem)
+								{
+									DrawImagef(779 + 39 * x, 255 + 56 * y, inventorySelectorBox);
+
+									std::stringstream ss;
+									ss << amount;
+
+									if (amount > 0)
+									{
+										Message[140].SetText(Item[item].descr);
+										Message[141].SetText(ss.str());
+
+										drawText(140);
+
+										//position it
+										Message[141].pos_x = 1004 - (numDigits(amount) - 1) * 8;
+										drawText(141);
+									}
+								}
+
+								drawText(90 + i);
+								drawText(114 + i);
+
+								i++;
+							}
+					}//end trade
+					else if (popup_gui_menu == 5)
+					{//bank!
+						DrawImagef(768, 244, bank_gui_img);
+
+						//selector for increment mass trading
+						switch (offerIncrement)
+						{
+						case 1:         DrawImagef(224 + 573, 254, mass_trade_selector); break;
+						case 10:        DrawImagef(224 + 601, 254, mass_trade_selector); break;
+						case 100:       DrawImagef(224 + 629, 254, mass_trade_selector); break;
+						case 1000:      DrawImagef(224 + 657, 254, mass_trade_selector); break;
+						case 10000:     DrawImagef(224 + 685, 254, mass_trade_selector); break;
+						case 100000:    DrawImagef(224 + 713, 254, mass_trade_selector); break;
+						case 1000000:   DrawImagef(224 + 741, 254, mass_trade_selector); break;
+						default: break;
+						}
+
+						//items
+						int i = bankScroll * 6;
+						int t = 0;
+						for (int y = 0; y < 3 && i < NUM_ITEMS; y++)
+							for (int x = 0; x < 6 && i < NUM_ITEMS; x++)
+							{
+								//
+								// bank items :)
+								//
+								int item = i;
+								unsigned int amount = Player[MyID].bank[i];
+
+
+								// if (amount > 0)
+								DrawImagef(782 + (32 - Item[item].w) / 2 + 39 * x, 278 + (32 - Item[item].h) / 2 + 56 * y, Item_img[item]);
+								if (amount == 0)
+								{
+									//draw a "greyed out" look over the image
+									DrawImagef(780 + 39 * x, 278 + 56 * y, greyedImg);
+								}
+
+								//selector box
+								if (i == selectedBankItem)
+								{
+									DrawImagef(779 + 39 * x, 277 + 56 * y, inventorySelectorBox);
+
+									std::stringstream ss;
+									ss << amount;
+
+
+									Message[138].SetText(Item[item].descr);
+									Message[139].SetText(ss.str());
+
+									drawText(138);
+
+									//position it
+
+									Message[139].pos_x = 964 - (numDigits(amount) - 1) * 8;
+									drawText(139);
+
+								}
+
+								//item descriptor and amount
+								drawText(90 + t);
+								drawText(114 + t);
+
+								//amount under icon
+								drawText(144 + t);
+
+								i++;
+								t++;
+							}
+					}//end bank
+					else if (popup_gui_menu == 6)
+					{//shop!
+						DrawImagef(768, 244, shop_gui_img);
+
+						//selector for increment mass trading
+						switch (offerIncrement)
+						{
+						case 1:         DrawImagef(224 + 573, 254, mass_trade_selector); break;
+						case 10:        DrawImagef(224 + 601, 254, mass_trade_selector); break;
+						case 100:       DrawImagef(224 + 629, 254, mass_trade_selector); break;
+						case 1000:      DrawImagef(224 + 657, 254, mass_trade_selector); break;
+						case 10000:     DrawImagef(224 + 685, 254, mass_trade_selector); break;
+						case 100000:    DrawImagef(224 + 713, 254, mass_trade_selector); break;
+						case 1000000:   DrawImagef(224 + 741, 254, mass_trade_selector); break;
+						default: break;
+						}
+
+
+
+						//items
+						int i = 0;
+						for (int y = 0; y < 4; y++)
+							for (int x = 0; x < 6; x++)
+							{
+								//
+								// shop
+								//
+								int item = 0;
+								unsigned int amount = 0;
+
+								if (shopBuyMode)
+								{
+									item = map[current_map]->Shop[currentShop].item[x][y][0];
+									amount = 1;
+								}
+								else
+								{
+									item = Player[MyID].inventory[selectedInventoryItem][0];
+									amount = Player[MyID].inventory[selectedInventoryItem][1];
+								}
+
+								int price = 0;
+
+								/* Buy or sell price? */
+								if (shopBuyMode)
+									price = map[current_map]->Shop[currentShop].item[x][y][1];
+								else
+									price = Item[item].price;
+
+								// if buying, only draw items that are for sale. OR
+								// if selling, only draw in the first item slot of the shop
+								// and only draw it if a legit inventory slot is selected.
+								if ((price > 0 && amount > 0 && shopBuyMode)
+									|| (x == 0 && y == 0 && amount > 0 && item > 0 && !shopBuyMode))
+									DrawImagef(782 + (32 - Item[item].w) / 2 + 39 * x, 278 + (32 - Item[item].h) / 2 + 42 * y, Item_img[item]);
+
+
+								//selector box
+								if (i == selectedShopItem)
+								{
+									DrawImagef(779 + 39 * x, 277 + 42 * y, inventorySelectorBox);
+
+									if (price > 0 && amount > 0)
+									{
+										std::stringstream ss;
+										ss << price;
+
+										std::stringstream ss2;
+										ss2 << Item[item].descr;
+
+										if (shopBuyMode)
+											ss2 << " costs:";
+										else
+											ss2 << " sells for:";
+
+										//but if its free dont offer at all.. nothing in life is free :)
+
+
+										Message[138].SetText(ss2.str());
+										Message[139].SetText(ss.str());
+
+										drawText(138);
+
+										//position it
+
+										Message[139].pos_x = 1004 - (numDigits(price) - 1) * 8;
+										drawText(139);
+									}
+								}
+
+
+								i++;
+							}
+
+						//draw hover thing to show item stats when shoppin on amazon for fur coats
+						if (hoveredShopItemX > -1 && hoveredShopItemY > -1 && shopBuyMode)
+						{
+							//-1 is disabled else it's the item X :)
+							DrawImagef(768 - 89, 244, hover);
+
+							//draw these values, woot!
+							drawText(176);
+							drawText(177);
+							drawText(178);
+							drawText(179);
+						}
+
+
+					}//end shop
+
+	}//end if draw_gui
+
+	//draw sound toggle
+	if (draw_gui)
+	{
+		if (enableSND)
+			DrawImagef(982, 10, soundon);
+		else
+			DrawImagef(982, 10, soundoff);
+	}
+
+	if (menu == STATE_LOADING) {
+		DrawImagef(0, 0, shadow);
+		DrawImagef(0, 0, loading_img);
+	}
+
+	if (menu == STATE_DISCONNECT) {
+		DrawImagef(0, 0, background);
+	}
 }//end draw construct_frame
 
-bool blocked(float box1_x1, float box1_y1, float box1_x2, float box1_y2)
+bool boxesIntersect(float box1_x1, float box1_y1, float box1_x2, float box1_y2, float box2_x1, float box2_y1, float box2_x2, float box2_y2)
 {
-     for (int r = 0; r < map[current_map]->number_of_rects; r++)
-     {
-          float box2_x1 = map[current_map]->collision_rect[r].x;
-          float box2_y1 = map[current_map]->collision_rect[r].y;
-          float box2_x2 = map[current_map]->collision_rect[r].x + map[current_map]->collision_rect[r].w;
-          float box2_y2 = map[current_map]->collision_rect[r].y + map[current_map]->collision_rect[r].h;
+	return	(box1_x2 > box2_x1 && box1_x1 < box2_x2 && box1_y2 > box2_y1 && box1_y1 < box2_y2);
+}
 
+bool blocked(float box1_x1, float box1_y1, float box1_x2, float box1_y2, bool npc)
+{
+	unsigned char current_map = Player[MyID].current_map;
+	for (int r = 0; r < map[current_map]->number_of_rects; r++)
+	{
+		float box2_x1 = map[current_map]->collision_rect[r].x;
+		float box2_y1 = map[current_map]->collision_rect[r].y;
+		float box2_x2 = map[current_map]->collision_rect[r].x + map[current_map]->collision_rect[r].w;
+		float box2_y2 = map[current_map]->collision_rect[r].y + map[current_map]->collision_rect[r].h;
 
-          if (box1_x2 > box2_x1 && box1_x1 < box2_x2 && box1_y2 > box2_y1 && box1_y1 < box2_y2)
-          {
-            // printf("collision with rect[%i]\n\tme:\t{%i,%i,%i,%i}\n\tit:\t{%i,%i,%i,%i}\n", r, box1_x1, box1_y1, box1_x2, box1_y2, box2_x1, box2_y1, box2_x2, box2_y2);
-            // printf("%i > %i && %i < %i && %i > %i && %i < %i\n\n", box1_x2, box2_x1, box1_x1, box2_x2, box1_y2, box2_y1, box1_y1, box2_y2);
-             return true;
+		if (boxesIntersect(box1_x1, box1_y1, box1_x2, box1_y2, box2_x1, box2_y1, box2_x2, box2_y2))
+			return true;
+	}
 
-          }
-     }
-     for (int r = 0; r < map[current_map]->num_targets; r++)
-          {
-               if (!map[current_map]->Target[r].active)
-                     continue;
-               float box2_x1 = map[current_map]->Target[r].x;
-               float box2_y1 = map[current_map]->Target[r].y;
-               float box2_x2 = map[current_map]->Target[r].x + map[current_map]->Target[r].w;
-               float box2_y2 = map[current_map]->Target[r].y + map[current_map]->Target[r].h;
+	for (int r = 0; r < map[current_map]->num_targets; r++)
+	{
+		if (!map[current_map]->Target[r].active)
+		{
+			if (!npc)
+				continue;
+		}
 
+		float box2_x1 = map[current_map]->Target[r].x;
+		float box2_y1 = map[current_map]->Target[r].y;
+		float box2_x2 = map[current_map]->Target[r].x + map[current_map]->Target[r].w;
+		float box2_y2 = map[current_map]->Target[r].y + map[current_map]->Target[r].h;
 
-               if (box1_x2 > box2_x1 && box1_x1 < box2_x2 && box1_y2 > box2_y1 && box1_y1 < box2_y2)
-                  return true;
-          }
+		if (boxesIntersect(box1_x1, box1_y1, box1_x2, box1_y2, box2_x1, box2_y1, box2_x2, box2_y2))
+			return true;
+	}
 
-     return false;
+	return false;
 }
 
 int pressKey(int key)
 {
-   int returnKey = 0;
+	int returnKey = 0;
 
-   //movement
-   if (menu == 4)//game
-       switch( key )
-       {
+	//movement
+	if (menu == 4)//game
+		switch (key)
+		{
 
-       case SDLK_ESCAPE:
-    	   popup_menu = 0;
-       break;
+		case SDLK_ESCAPE:
+			popup_menu = 0;
+			break;
 
-       case '4':
-       case 'o':
-    	  if (chat_box == 4 && draw_gui && menu == STATE_PLAY && popup_gui_menu == 0)
-		  {
-			 if (popup_menu == 3)
-				 popup_menu = 0;
-			 else
-				popup_menu = 3;
-		  }
-       break;
+		case '4':
+		case 'o':
+			if (chat_box == 4 && draw_gui && menu == STATE_PLAY && popup_gui_menu == 0)
+			{
+				if (popup_menu == 3)
+					popup_menu = 0;
+				else
+					popup_menu = 3;
+			}
+			break;
 
-       case '3':
-       case 'e':
-    	   if (chat_box == 4)
-    	   {
-			  //if inventory is open
-			  if (popup_menu != 1)
-				  inventory();
+		case '3':
+		case 'e':
+			if (chat_box == 4)
+			{
+				//if inventory is open
+				if (popup_menu != 1)
+					inventory();
 
-			  //handle different ways for hiding and showing
-			  if (popup_gui_menu == 0)
-			  {
-				  popup_gui_menu = 7;
-			  }
-			  else if (popup_gui_menu == 7)
-			  {
-				  popup_gui_menu = 0;
-			  }
-    	   }
-       break;
+				//handle different ways for hiding and showing
+				if (popup_gui_menu == 0)
+				{
+					popup_gui_menu = 7;
+				}
+				else if (popup_gui_menu == 7)
+				{
+					popup_gui_menu = 0;
+				}
+			}
+			break;
 
-       case '2':
-       case 'p':
-    	   if (chat_box == 4 && draw_gui && menu == STATE_PLAY && popup_menu != 4 && popup_gui_menu == 0)
-    	   {
+		case '2':
+		case 'p':
+			if (chat_box == 4 && draw_gui && menu == STATE_PLAY && popup_menu != 4 && popup_gui_menu == 0)
+			{
 				if (popup_menu == 2)
 					popup_menu = 0;
 				else
 					popup_menu = 2;
-    	   }
-       break;
+			}
+			break;
 
-       case 'i':
-       case '1':
-    	   if (chat_box == 4)
-    	   	inventory();
-       break;
+		case 'i':
+		case '1':
+			if (chat_box == 4)
+				inventory();
+			break;
 
 
-       case 'r':
-		   // Check to see if the action key ('r') has been released before throwing again
-		   if (!actionKeyDown)
-		   {
-			   actionKeyDown = true;
-			   if (chat_box == 4 && !Player[MyID].attacking)
-			   {
-				   Client.castSpell();
-			   }
-		   }
-	   break;
+		case 'r':
+			// Check to see if the action key ('r') has been released before throwing again
+			if (!actionKeyDown)
+			{
+				actionKeyDown = true;
+				if (chat_box == 4 && !Player[MyID].attacking)
+				{
+					Client.castSpell();
+				}
+			}
+			break;
 
-       case SDLK_LEFT:
-       case 'a':
-            if (chat_box == 4 && !Player[MyID].attacking && Player[MyID].x_speed != -2)
-            {
+		case SDLK_LEFT:
+		case 'a':
+			if (chat_box == 4 && !Player[MyID].attacking && Player[MyID].x_speed != -2)
+			{
 				//Send action to server
 				Client.playerAction("left", Player[MyID].x, Player[MyID].y);
 
 				//Client prediction physics
-            	LEFT = true;
-            	RIGHT = false;
+				LEFT = true;
+				RIGHT = false;
 
-                Player[MyID].x_speed = -2;
-                Player[MyID].facing_right = false;
-            }
-       break;
+				Player[MyID].x_speed = -WALK_SPEED;
+				Player[MyID].facing_right = false;
+			}
+			break;
 
-       case SDLK_RIGHT:
-       case 'd':
-            if (chat_box == 4 && !Player[MyID].attacking && Player[MyID].x_speed != 2)
-            {
+		case SDLK_RIGHT:
+		case 'd':
+			if (chat_box == 4 && !Player[MyID].attacking && Player[MyID].x_speed != 2)
+			{
 				//send action to SKO network
 				Client.playerAction("right", Player[MyID].x, Player[MyID].y);
 
 				//Client prediction physics
-                RIGHT = true;
-                LEFT = false;
-                Player[MyID].x_speed = 2;
-                Player[MyID].facing_right = true;
-            }
+				RIGHT = true;
+				LEFT = false;
+				Player[MyID].x_speed = WALK_SPEED;
+				Player[MyID].facing_right = true;
+			}
 
-       break;
+			break;
 
 
-       case 305:
-       case 306:
-       case 307:
-       case 308:
-       case 's':
-            if(chat_box == 4 && Player[MyID].ground && !Player[MyID].attacking)
-            {
+		case 305:
+		case 306:
+		case 307:
+		case 308:
+		case 's':
+		case SDLK_DOWN:
+			if (chat_box == 4 && Player[MyID].ground && !Player[MyID].attacking)
+			{
 				//send action to SKO network
-			    Client.playerAction("attack", Player[MyID].x, Player[MyID].y);
+				Client.playerAction("attack", Player[MyID].x, Player[MyID].y);
 
-               if (enableSND && enableSFX)
-                     Mix_PlayChannel( -1, attack_noise, 0 );
+				if (enableSND && enableSFX)
+					Mix_PlayChannel(-1, attack_noise, 0);
 
-               Player[MyID].attacking = true;
-               Player[MyID].current_frame = 0;
-               Player[MyID].x_speed = 0;
-            }
-       break;
-       default:
-               //printf("event.key.keysym.sym: %i\n", event.key.keysym.sym);
-       break;
-       case SDLK_SPACE:
-       case 'w':
-            if (chat_box == 4 && !Player[MyID].attacking)
+				Player[MyID].attacking = true;
+				Player[MyID].current_frame = 0;
+				Player[MyID].x_speed = 0;
+			}
+			break;
+		default:
+			//printf("event.key.keysym.sym: %i\n", event.key.keysym.sym);
+			break;
+		case SDLK_SPACE:
+		case 'w':
+		case SDLK_UP:
+			if (chat_box == 4 && !Player[MyID].attacking)
+				//verical collision detection
+				if (blocked(Player[MyID].x + 25, Player[MyID].y + Player[MyID].y_speed + 0 + 0.15, Player[MyID].x + 38, Player[MyID].y + Player[MyID].y_speed + 64 + 0.15, false))
+				{
+					//Send action to SKO network
+					Client.playerAction("jump", Player[MyID].x, Player[MyID].y);
 
-            //verical collision detection
-            if (blocked(Player[MyID].x + 25, Player[MyID].y+Player[MyID].y_speed + 0 + 0.15, Player[MyID].x + 38, Player[MyID].y+Player[MyID].y_speed + 64 +0.15))
-            {
-				//Send action to SKO network
-				Client.playerAction("jump", Player[MyID].x, Player[MyID].y);
+					//fly
+					Player[MyID].y_speed = -6;
+				}
+			break;
+		
+		case 't':
+			if (menu == STATE_PLAY)
+			{
+				if (!openChat())
+					key = SDLK_RETURN;
+			}
+			break;
+	}
 
-                //fly
-                Player[MyID].y_speed = -6;
-            }
-       break;
-    }
+	//menus..
+	switch (key)
+	{
 
-   //menus..
-   switch (key)
-   {
+	case SDLK_F1:
+		draw_gui = !draw_gui;
+		break;
 
-           case SDLK_F1:
-                draw_gui = !draw_gui;
-           break;
+	case SDLK_F2:
+		draw_chat = !draw_chat;
+		break;
 
-           case SDLK_F2:
-                draw_chat = !draw_chat;
-           break;
+	case SDLK_F3:
+		draw_chat_back = !draw_chat_back;
+		break;
 
-           case SDLK_F3:
-                draw_chat_back = !draw_chat_back;
-           break;
+	case SDLK_LSHIFT: case SDLK_RSHIFT:
+		SHIFT = true;
+		key = '@'; //fake
+		break;
 
-           case SDLK_LSHIFT: case SDLK_RSHIFT:
-                   SHIFT = true;
-                key = '@'; //fake
-           break;
+	case 256: key = '0'; break;
+	case 257: key = '1'; break;
+	case 258: key = '2'; break;
+	case 259: key = '3'; break;
+	case 260: key = '4'; break;
+	case 261: key = '5'; break;
+	case 262: key = '6'; break;
+	case 263: key = '7'; break;
+	case 264: key = '8'; break;
+	case 265: key = '9'; break;
+	case 266: key = '.'; break;
+	case 267: key = '/'; break;
+	case 268: key = '*'; break;
+	case 269: key = '-'; break;
+	case 270: key = '+'; break;
+	case 271:
+		key = SDLK_RETURN;
+		break;
 
-           case 256: key = '0'; break;
-           case 257: key = '1'; break;
-           case 258: key = '2'; break;
-           case 259: key = '3'; break;
-           case 260: key = '4'; break;
-           case 261: key = '5'; break;
-           case 262: key = '6'; break;
-           case 263: key = '7'; break;
-           case 264: key = '8'; break;
-           case 265: key = '9'; break;
-           case 266: key = '.'; break;
-           case 267: key = '/'; break;
-           case 268: key = '*'; break;
-           case 269: key = '-'; break;
-           case 270: key = '+'; break;
-           case 271:
-                key = SDLK_RETURN;
-           break;
+	case SDLK_RIGHT:
+	case SDLK_LEFT:
+	case SDLK_UP:
+	case SDLK_DOWN:
+	case SDLK_CAPSLOCK:
+	case 2:
+	case 16:
+	case 19:
+	case 27:
+	case 127:
+		/*
+		   numpad
+		*/
+	case 277:
+	case 278:
+	case 279:
+	case 280:
+	case 281:
+		//case 282:   //SDLK_F1
+		//case 283:   //SDLK_F2
+		//case 284:   //SDLK_F3
+	case 285:
+	case 286:
+	case 287:
+	case 288:
+	case 289:
+	case 290:
+	case 291:
+	case 292:
+	case 293: //SDLK_F12
+	case 316:
+	case 302:
+	case 300:
+	case 305:
+	case 306:
+	case 307:
+	case 308:
+	case 311:
+	case 312:
+	case 319:
+		key = '@';
+		break;
 
-           case SDLK_RIGHT:
-           case SDLK_LEFT:
-           case SDLK_UP:
-           case SDLK_DOWN:
-           case SDLK_CAPSLOCK:
-           case 2:
-           case 16:
-           case 19:
-           case 27:
-           case 127:
-           /*
-              numpad
-           */
-           case 277:
-           case 278:
-           case 279:
-           case 280:
-           case 281:
-           //case 282:   //SDLK_F1
-           //case 283:   //SDLK_F2
-           //case 284:   //SDLK_F3
-           case 285:
-           case 286:
-           case 287:
-           case 288:
-           case 289:
-           case 290:
-           case 291:
-           case 292:
-           case 293: //SDLK_F12
-           case 316:
-           case 302:
-           case 300:
-           case 305:
-           case 306:
-           case 307:
-           case 308:
-           case 311:
-           case 312:
-           case 319:
-                key = '@';
-           break;
+	case SDLK_TAB:
+		key = '&';
+		break;
 
-           case SDLK_TAB:
-                key = '&';
-           break;
+	default:
+		break;
 
-           default:
-           break;
-
-   }
-
-
-
-   if (key != SDLK_RETURN    &&
-       key != SDLK_BACKSPACE &&
-       !SHIFT)
-   {
-       if (key != '@' && key != '&')
-       {
-           returnKey = key;
-
-           //key input
-           if (chat_box == 1)
-           {
-               switch (key)
-               {
-                 //normal letters
-                case 'a':case 'b':case 'c':case 'd':case 'e':case 'f':case 'g':case 'h':case 'i':case 'j':case 'k':case 'l':case 'm':case 'n':case 'o':case 'p':case 'q':case 'r':case 's':case 't':case 'u':case 'v':case 'w':case 'x':case 'y':case 'z':
-                //numbers
-                case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': case '0':
-
-                  uMessage[uSeek] = key;
-                  //seek forward one but don't go off the screen
-                  uSeek++;
-                  if (uSeek >= NAME_PASS_MAX)
-                     uSeek = NAME_PASS_MAX - 1;
-                  break;
-
-                  default: break;
-               }
-           }else
-           if (chat_box == 2)
-           {
-               pMessage[pSeek] = key;
-               ppMessage[pSeek] = '*';
-               //seek forward one but don't go off the screen
-               pSeek++;
-               if (pSeek >= NAME_PASS_MAX)
-                  pSeek = NAME_PASS_MAX - 1;
-           }else
-           if (chat_box == 3)
-           {
-
-               tMessage[tSeek] = key;
-               //seek forward one but don't go off the screen
-               tSeek++;
-               int max = MAX_T_MESSAGE-2;//76 - Player[MyID].Nick.length();
-               if (tSeek > max)
-                  tSeek = max;
-
-               //chat_box = 0;
-           }else
-           if (chat_box == 5) {
-              if (inputBox.numeric)
-              {
-                  switch (key)
-                   {
-                    //numbers
-                    case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': case '0':
-
-                      iMessage[iSeek] = key;
-                      //seek forward one but don't go off the screen
-                      iSeek++;
-                      if (iSeek > 9)
-                         iSeek = 9;
-                      break;
-
-                      default: break;
-                   }
-              }//only numeric
-              else
-              {
-            	  iMessage[iSeek] = key;
-
-			   //seek forward one but don't go off the screen
-			   iSeek++;
-
-                  if (iSeek > 18)
-                     iSeek = 18;
-
-              }//alphanumeric
-           }//chat_box == 5, inputBox gui pop up
-       }//not a break key
-       else if (key == '&')
-       {
-          if (chat_box == 1)
-             chat_box = 2;
-          else if (chat_box == 2)
-             chat_box = 1;
-
-       } //tab
+	}
 
 
-   }
-   //if you hit enter, send the message
-   else if (key == SDLK_RETURN)
-   {
-       if (chat_box == 3)
-       {
-		   if (tMessage[0] == '&')
-			   DEBUG_FLAG = true;
-		   else if (tMessage[0] > 0)
-			   Client.sendChat(tMessage);
 
-		   //clear chat bar
-		   //TODO: this was here, but leaves a dirty character:  for (int i = 0; i < MAX_T_MESSAGE - 2; i++)
-           for (int i = 0; i < MAX_T_MESSAGE-1; i++)
-               tMessage[i] = 0;
-
-           tSeek = 0;
-           chat_box = 4;
-       }
-       else if (chat_box == 4)
-       {
-          chat_box = 3;
-       }
-
-		if (menu == STATE_LOGIN)//logging in
+	if (key != SDLK_RETURN    &&
+		key != SDLK_BACKSPACE &&
+		!SHIFT)
+	{
+		if (key != '@' && key != '&')
 		{
-			//clear message in corner
-			Message[0].SetText("");
-			Message[1].SetText("");
-			drawText(0);
-			drawText(1);
+			returnKey = key;
 
-			username = uMessage;
-			password = pMessage;
+			//key input
+			if (chat_box == 1)
+			{
+				switch (key)
+				{
+					//normal letters
+				case 'a':case 'b':case 'c':case 'd':case 'e':case 'f':case 'g':case 'h':case 'i':case 'j':case 'k':case 'l':case 'm':case 'n':case 'o':case 'p':case 'q':case 'r':case 's':case 't':case 'u':case 'v':case 'w':case 'x':case 'y':case 'z':
+					//numbers
+				case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': case '0':
 
-			TryToLogin();
+					uMessage[uSeek] = key;
+					//seek forward one but don't go off the screen
+					uSeek++;
+					if (uSeek >= NAME_PASS_MAX)
+						uSeek = NAME_PASS_MAX - 1;
+					break;
+
+				default: break;
+				}
+			}
+			else
+				if (chat_box == 2)
+				{
+					pMessage[pSeek] = key;
+					ppMessage[pSeek] = '*';
+					//seek forward one but don't go off the screen
+					pSeek++;
+					if (pSeek >= NAME_PASS_MAX)
+						pSeek = NAME_PASS_MAX - 1;
+				}
+				else
+					if (chat_box == 3)
+					{
+
+						tMessage[tSeek] = key;
+						//seek forward one but don't go off the screen
+						tSeek++;
+						int max = MAX_T_MESSAGE - 2;//76 - Player[MyID].Nick.length();
+						if (tSeek > max)
+							tSeek = max;
+
+						//chat_box = 0;
+					}
+					else
+						if (chat_box == 5) {
+							if (inputBox.numeric)
+							{
+								switch (key)
+								{
+									//numbers
+								case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': case '0':
+
+									iMessage[iSeek] = key;
+									//seek forward one but don't go off the screen
+									iSeek++;
+									if (iSeek > 9)
+										iSeek = 9;
+									break;
+
+								default: break;
+								}
+							}//only numeric
+							else
+							{
+								iMessage[iSeek] = key;
+
+								//seek forward one but don't go off the screen
+								iSeek++;
+
+								if (iSeek > 18)
+									iSeek = 18;
+
+							}//alphanumeric
+						}//chat_box == 5, inputBox gui pop up
+		}//not a break key
+		else if (key == '&')
+		{
+			if (chat_box == 1)
+				chat_box = 2;
+			else if (chat_box == 2)
+				chat_box = 1;
+
+		} //tab
+	}
+	//if you hit enter, send the message
+	else if (key == SDLK_RETURN)
+	{
+		if (menu == STATE_PLAY)
+		{
+			if (openChat())
+					sendChat();
+		}
+
+		if (menu == STATE_LOGIN || menu == STATE_CREATE)
+		{
+				authenticateUser();
 		}
 	}
-   else if (key == SDLK_BACKSPACE)
-   {
-        returnKey = key;
+	else if (key == SDLK_BACKSPACE)
+	{
+		returnKey = key;
 
-        if (chat_box == 1)
-        {
-        	//do we move the cursor back?
-        	bool goBack = (uMessage[uSeek] == 0);
+		if (chat_box == 1)
+		{
+			//do we move the cursor back?
+			bool goBack = (uMessage[uSeek] == 0);
 
-            //erase this spot for sure
-            uMessage[uSeek] = 0;
+			//erase this spot for sure
+			uMessage[uSeek] = 0;
 
-            //if marked to go back, scoot the cursor back
-            if (goBack && uSeek)
-                uSeek --;
+			//if marked to go back, scoot the cursor back
+			if (goBack && uSeek)
+				uSeek--;
 
-            //clear the spot the cursor is in
-            uMessage[uSeek] = 0;
-        }
-        if (chat_box == 2)
-        {
-        	//do we move the cursor back?
+			//clear the spot the cursor is in
+			uMessage[uSeek] = 0;
+		}
+		if (chat_box == 2)
+		{
+			//do we move the cursor back?
 			bool goBack = (pMessage[pSeek] == 0);
 
 			//erase this spot for sure
@@ -4389,15 +4417,15 @@ int pressKey(int key)
 
 			//if marked to go back, scoot the cursor back
 			if (goBack && pSeek)
-				pSeek --;
+				pSeek--;
 
 			//clear the spot the cursor is in
 			pMessage[pSeek] = 0;
 			ppMessage[pSeek] = 0;
-        }
-        if (chat_box == 3)
-        {
-        	//do we move the cursor back?
+		}
+		if (chat_box == 3)
+		{
+			//do we move the cursor back?
 			bool goBack = (tMessage[tSeek] == 0);
 
 			//erase this spot for sure
@@ -4405,14 +4433,14 @@ int pressKey(int key)
 
 			//if marked to go back, scoot the cursor back
 			if (goBack && tSeek)
-				tSeek --;
+				tSeek--;
 
 			//clear the spot the cursor is in
 			tMessage[tSeek] = 0;
-        }
-        if (chat_box == 5)
-        {
-        	//do we move the cursor back?
+		}
+		if (chat_box == 5)
+		{
+			//do we move the cursor back?
 			bool goBack = (iMessage[iSeek] == 0);
 
 			//erase this spot for sure
@@ -4420,201 +4448,209 @@ int pressKey(int key)
 
 			//if marked to go back, scoot the cursor back
 			if (goBack && iSeek)
-				iSeek --;
+				iSeek--;
 
 			//clear the spot the cursor is in
 			iMessage[iSeek] = 0;
-        }
-   }
+		}
+	}
 
-   else if (SHIFT == true && key != '@')
-   {
-        returnKey = key;
-        char symbol = ' ';
+	else if (SHIFT == true && key != '@')
+	{
+		returnKey = key;
+		char symbol = ' ';
 
-        //capitalize the keys
-        switch (key)
-        {
-           //normal letters
-           case 'a':case 'b':case 'c':case 'd':case 'e':case 'f':case 'g':case 'h':case 'i':case 'j':case 'k':case 'l':case 'm':case 'n':case 'o':case 'p':case 'q':case 'r':case 's':case 't':case 'u':case 'v':case 'w':case 'x':case 'y':case 'z':
-                symbol = key - 32;
+		//capitalize the keys
+		switch (key)
+		{
+			//normal letters
+		case 'a':case 'b':case 'c':case 'd':case 'e':case 'f':case 'g':case 'h':case 'i':case 'j':case 'k':case 'l':case 'm':case 'n':case 'o':case 'p':case 'q':case 'r':case 's':case 't':case 'u':case 'v':case 'w':case 'x':case 'y':case 'z':
+			symbol = key - 32;
 
-           break;
+			break;
 
-           //odd symbols
-           case '\'':
-                   symbol = '\"';
-           break;
-           case '\\':
-                symbol = '|';
-           break;
-           case ';':
-                symbol = ':';
-           break;
+			//odd symbols
+		case '\'':
+			symbol = '\"';
+			break;
+		case '\\':
+			symbol = '|';
+			break;
+		case ';':
+			symbol = ':';
+			break;
 
-           case ',':
-                symbol = '<';
-           break;
+		case ',':
+			symbol = '<';
+			break;
 
-           case '.':
-                symbol = '>';
-           break;
+		case '.':
+			symbol = '>';
+			break;
 
-           case '/':
-                symbol = '?';
-           break;
-           case '`':
-                symbol = '~';
-           break;
-           case '-':
-                symbol = '_';
-           break;
-           case '=':
-                symbol = '+';
-           break;
-           case '[':
-                symbol = '{';
-           break;
-           case ']':
-                symbol = '}';
-           break;
+		case '/':
+			symbol = '?';
+			break;
+		case '`':
+			symbol = '~';
+			break;
+		case '-':
+			symbol = '_';
+			break;
+		case '=':
+			symbol = '+';
+			break;
+		case '[':
+			symbol = '{';
+			break;
+		case ']':
+			symbol = '}';
+			break;
 
-           //numbers
-           case '1':
-                symbol = '!';
-           break;
-           case '2':
-                symbol = '@';
-           break;
-           case '3':
-                symbol = '#';
-           break;
-           case '4':
-                symbol = '$';
-           break;
-           case '5':
-                symbol = '%';
-           break;
-           case '6':
-                symbol = '^';
-           break;
-           case '7':
-                symbol = '&';
-           break;
-           case '8':
-                symbol = '*';
-           break;
-           case '9':
-                symbol = '(';
-           break;
-           case '0':
-                symbol = ')';
-           break;
+			//numbers
+		case '1':
+			symbol = '!';
+			break;
+		case '2':
+			symbol = '@';
+			break;
+		case '3':
+			symbol = '#';
+			break;
+		case '4':
+			symbol = '$';
+			break;
+		case '5':
+			symbol = '%';
+			break;
+		case '6':
+			symbol = '^';
+			break;
+		case '7':
+			symbol = '&';
+			break;
+		case '8':
+			symbol = '*';
+			break;
+		case '9':
+			symbol = '(';
+			break;
+		case '0':
+			symbol = ')';
+			break;
 
 
-           //spacebar-or-error
-           default:
+			//spacebar-or-error
+		default:
 
-           break;
-        }
+			break;
+		}
 
-        if (chat_box == 2)
-        {
-             pMessage[pSeek] = symbol;
-             ppMessage[pSeek] = '*';
-        }
-        if (chat_box == 3)
-        {
-           tMessage[tSeek] = symbol;
-        }
-        if (chat_box == 1)
-        {
-            //only allowed certain ones
-            switch (symbol)
-            {
-                //caps
-                case 'A':case 'B':case 'C':case 'D':case 'E':case 'F':case 'G':case 'H':case 'I':case 'J':case 'K':case 'L':case 'M':case 'N':case 'O':case 'P':case 'Q':case 'R':case 'S':case 'T':case 'U':case 'V':case 'W':case 'X':case 'Y':case 'Z':
-                //only allowed symbols
-                case '_':
-                 uMessage[uSeek] = symbol;
+		if (chat_box == 2)
+		{
+			pMessage[pSeek] = symbol;
+			ppMessage[pSeek] = '*';
+		}
+		if (chat_box == 3)
+		{
+			tMessage[tSeek] = symbol;
+		}
+		if (chat_box == 1)
+		{
+			//only allowed certain ones
+			switch (symbol)
+			{
+				//caps
+			case 'A':case 'B':case 'C':case 'D':case 'E':case 'F':case 'G':case 'H':case 'I':case 'J':case 'K':case 'L':case 'M':case 'N':case 'O':case 'P':case 'Q':case 'R':case 'S':case 'T':case 'U':case 'V':case 'W':case 'X':case 'Y':case 'Z':
+				//only allowed symbols
+			case '_':
+				uMessage[uSeek] = symbol;
 
-                 //seek forward one but don't go off the screen
-                 uSeek++;
-                 if (uSeek >= 19)
-                    uSeek = 19;
-                 break;
+				//seek forward one but don't go off the screen
+				uSeek++;
+				if (uSeek >= 19)
+					uSeek = 19;
+				break;
 
-                 default:
+			default:
 
-                 break;
-            }
-        }
-        if (chat_box == 2)
-        {
-           //seek forward one but don't go off the screen
-           pSeek++;
-           if (pSeek >= NAME_PASS_MAX)
-              pSeek = NAME_PASS_MAX;
-        }
-        if (chat_box == 3)
-        {
-           //seek forward one but don't go off the screen
-           tSeek++;
-           int max = MAX_T_MESSAGE-2;// - Player[MyID].Nick.length();
-           if (tSeek > max)
-              tSeek = max;
-        }
-        if (chat_box == 5 && !inputBox.numeric)
-	   {
-		//do we move the cursor back?
-		bool goBack = (iMessage[iSeek] == 0);
+				break;
+			}
+		}
+		if (chat_box == 2)
+		{
+			//seek forward one but don't go off the screen
+			pSeek++;
+			if (pSeek >= NAME_PASS_MAX)
+				pSeek = NAME_PASS_MAX;
+		}
+		if (chat_box == 3)
+		{
+			//seek forward one but don't go off the screen
+			tSeek++;
+			int max = MAX_T_MESSAGE - 2;// - Player[MyID].Nick.length();
+			if (tSeek > max)
+				tSeek = max;
+		}
+		if (chat_box == 5 && !inputBox.numeric)
+		{
+			//do we move the cursor back?
+			bool goBack = (iMessage[iSeek] == 0);
 
-		//erase this spot for sure
-		iMessage[iSeek] = 0;
+			//erase this spot for sure
+			iMessage[iSeek] = 0;
 
-		//if marked to go back, scoot the cursor back
-		if (goBack && iSeek)
-			iSeek --;
+			//if marked to go back, scoot the cursor back
+			if (goBack && iSeek)
+				iSeek--;
 
-		//clear the spot the cursor is in
-		iMessage[iSeek] = 0;
-	   }
+			//clear the spot the cursor is in
+			iMessage[iSeek] = 0;
+		}
 
-   }
+	}
 
-   //update the little string at the bottom of the screen where you are typing
-   if (chat_box == 1)
-      Message[16].SetText(uMessage);
-   if (chat_box == 2)
-      Message[17].SetText(ppMessage);
-   if (chat_box == 3 || chat_box == 4)
-      Message[2].SetText(tMessage);
-   if (chat_box == 5)
-      inputBox.inputText->SetText(iMessage);
+	//update the little string at the bottom of the screen where you are typing
+	if (chat_box == 1)
+		Message[16].SetText(uMessage);
+	if (chat_box == 2)
+		Message[17].SetText(ppMessage);
+	if (chat_box == 3 || chat_box == 4)
+		Message[2].SetText(tMessage);
+	if (chat_box == 5)
+		inputBox.inputText->SetText(iMessage);
 
-   return returnKey;
+	return returnKey;
 }
 void HandleUI()
 {
 	//When a user is typing and holds down a key, repeat it
-    if (keyRepeat && SDL_GetTicks() - keyTicker > 500)
-    {
-		if (SDL_GetTicks() - keyRepeatTicker > 20) {
+	if (keyRepeat && OPI_Clock::milliseconds() - keyTicker > 500)
+	{
+		if (OPI_Clock::milliseconds() - keyRepeatTicker > 20) {
 			pressKey(keyRepeat);
-			keyRepeatTicker = SDL_GetTicks();
+			keyRepeatTicker = OPI_Clock::milliseconds();
 		}
-    }
+	}
 
 	//if there are no SDL events then return to main loop
 	while (SDL_PollEvent(&event))
 	{
 		int x = event.button.x;
 		int y = event.button.y;
+		unsigned char current_map = Player[MyID].current_map;
 
 		switch (event.type)
 		{
 			//mouse clickies
 		case SDL_MOUSEBUTTONDOWN:
+			
+			if (menu == 4)
+			{
+				printf("CLICK AT (%i,%i)\n", (int)(x + camera_x), (int)(y + camera_y));
+				printf("TILE X/Y (%i,%i)\n", (int)(x + camera_x)/32*32, (int)(y + camera_y)/32*32);
+			}
+			
 			if (!lclick) {
 				//buttons!!
 				guiHit = false;
@@ -4756,7 +4792,7 @@ void HandleUI()
 						ss1 << "+" << str;
 						Message[177].SetText(ss1.str());
 
-						//defence bonus
+						//defense bonus
 						def = Item[item].dp;
 						ss2 << "+" << def;
 						Message[178].SetText(ss2.str());
@@ -4790,7 +4826,7 @@ void HandleUI()
 
 			//keys
 		case SDL_KEYDOWN:
-			keyTicker = SDL_GetTicks();
+			keyTicker = OPI_Clock::milliseconds();
 			keyRepeat = pressKey(event.key.keysym.sym);
 
 			//disable space on jumping
@@ -4802,7 +4838,7 @@ void HandleUI()
 
 
 		case SDL_KEYUP:
-			keyTicker = SDL_GetTicks();
+			keyTicker = OPI_Clock::milliseconds();
 			keyRepeat = 0;
 
 			switch (event.key.keysym.sym)
@@ -4859,32 +4895,33 @@ void HandleUI()
 	}
 }//end handle ui
 
-void* Network(void *arg)
+void Network()
 {
 	//connect normally
 	connectError = ConnectToSKOServer();
 	tryingToConnect = false;
 
-	if (fatalNetworkError)
-		return NULL;
-
 	// If client could not connect upon opening the game
 	// patiently reconnect until a connection is made or the user exists the game.
-	for (int i = 0; connectError && i < 15; i++)
+	for (int i = 0; connectError && i < 10; i++)
 	{
-		if (Client.TryReconnect(2000))
+		if (Client.TryReconnect(1000))
 		{
 			connectError = false;
-			Message[0].SetText("   You are connected to the server!");
-			Message[1].SetText("Login or create a new account to play.");
+			Client.sendVersion(VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
 		}
 		else
 		{
-			std::string message = "Trying to reconnect for 30 seconds";
+			std::string message = "    Trying to reconnect for 10 seconds";
 			for (int dot = 0; dot < i; dot++)
-				message += ".";
+				message += "...";
 			Message[1].SetText(message);
 		}
+	}
+
+	if (connectError)
+	{
+		Message[1].SetText("Try again later? Use www.StickKnightsOnline.com/Chat for help!");
 	}
 
 	while (!done && !connectError && !versionError)
@@ -4893,43 +4930,47 @@ void* Network(void *arg)
 		// Try reconnecting and displaying 
 		if (!Client.isConnected())
 		{
-			if (menu !=STATE_DISCONNECT)
+			if (menu != STATE_DISCONNECT)
 				Disconnect();
 			continue;
 		}
 
 		Client.receivePacket(connectError);
 		Client.checkPing();
-		SDL_Delay(1);
+		OPI_Sleep::microseconds(100);
 	}
 
 	//Close connection gracefully
 	Client.disconnect();
-
-	return NULL;
-}
-
-void* PhysicsLoop(void *arg)
-{
-	KE_Timestep *timestep = new KE_Timestep(60);
-
-	while (!done)
-	{
-		//update the timestep
-		timestep->Update();
-
-		while (timestep->Check())
-		{
-			physics();
-		}
-
-		/* Don't run too fast */
-		SDL_Delay(1);
-	}
-	return NULL;
 }
 
 void Graphics();
+
+
+void PhysicsLoop()
+{
+	KE_Timestep *timestep = new KE_Timestep(60);
+	bool draw = false;
+
+	while (!done)
+	{
+		timestep->Update();
+
+		draw = false;
+		while (timestep->Check())
+		{
+			physics();
+			draw = true;
+		}
+
+		if (draw)
+			Graphics();
+
+		HandleUI();
+		OPI_Sleep::microseconds(1);
+	}
+}
+
 
 /* loadContent - this is both a place to store
  * 	hard-coded content as a "TODO" to fix in the future
@@ -4946,7 +4987,7 @@ void loadContent()
 	items_drop_noise = Mix_LoadWAV("SND/items_drop.wav");
 	grunt_noise = Mix_LoadWAV("SND/grunt.wav");
 	login_noise = Mix_LoadWAV("SND/login.wav");
-	logout_noise= Mix_LoadWAV("SND/logout.wav");
+	logout_noise = Mix_LoadWAV("SND/logout.wav");
 	hit1 = Mix_LoadWAV("SND/hit1.wav");
 	hit2 = Mix_LoadWAV("SND/hit2.wav");
 	hit3 = Mix_LoadWAV("SND/hit3.wav");
@@ -4967,22 +5008,22 @@ void loadContent()
 	}
 	////
 	//tile images for the map
-	for  (int i = 0; i < 256; i++)//check if file exists, etc.
+	for (int i = 0; i < 256; i++)//check if file exists, etc.
 	{
-			char szFilename[24];
-			sprintf(szFilename, "IMG/TILE/tile%i.png", i);
-			std::ifstream checker (szFilename);
+		char szFilename[24];
+		sprintf(szFilename, "IMG/TILE/tile%i.png", i);
+		std::ifstream checker(szFilename);
 
-			if (checker.is_open())
-			{
-				checker.close();
-				tile_img[i].setImage(szFilename);
-			}
-			else
-			{
-				printf("Loaded %i tile images.", i);
-				break;
-			}
+		if (checker.is_open())
+		{
+			checker.close();
+			tile_img[i].setImage(szFilename);
+		}
+		else
+		{
+			printf("Loaded %i tile images.\n", i);
+			break;
+		}
 	}
 
 	//content is now loaded so draw
@@ -4992,596 +5033,600 @@ void loadContent()
 #ifdef WINDOWS_OS
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLine, int nCmdShow)
-
 {
 
 #else
 
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
 
 #endif
-	std::string hashTestResult = hasher.Hash(toLower("pASsWoRD"));
-	printf("Testing hasher...%s\r\n", hashTestResult.c_str());
 
-	if (hashTestResult != "Quq6He1Ku8vXTw4hd0cXeEZAw0nqbpwPxZn50NcOVbk=")
-	{
-		printf("The hasher does not seem to be working properly. Check argon2 version.\r\n");
+	hasher = new OPI_Hasher();
+	if (!hasher->verifyHash(toLower("pASsWoRD"), "Quq6He1Ku8vXTw4hd0cXeEZAw0nqbpwPxZn50NcOVbk="))
 		return 1;
-	}
 
 	if (SDL_Init(SDL_INIT_EVERYTHING) == -1)
 	{
 		SDL_Quit();
 		return 1;
 	}
-    std::ifstream optionFile("DAT/options.dat", std::ios::in|std::ios::binary|std::ios::ate);
+	std::ifstream optionFile("DAT/options.dat", std::ios::in | std::ios::binary | std::ios::ate);
 
-     if (optionFile.is_open())
-     {
-        std::ifstream::pos_type size;
-        //allocate memory
-        size = optionFile.tellg();
-        char * memblock = (char *)malloc(size);
+	if (optionFile.is_open())
+	{
+		std::ifstream::pos_type size;
+		//allocate memory
+		size = optionFile.tellg();
+		char * memblock = (char *)malloc(size);
 
-        //load the file into memory
-        optionFile.seekg (0, std::ios::beg);
-        optionFile.read (memblock, size);
-        //close file
-        optionFile.close();
+		//load the file into memory
+		optionFile.seekg(0, std::ios::beg);
+		optionFile.read(memblock, size);
+		//close file
+		optionFile.close();
 
-        //build an int from 4 bytes
-        enableSND = (bool)(int)memblock[0];
-        enableSFX = (bool)(int)memblock[1];
-        enableMUS = (bool)(int)memblock[2];
+		//build an int from 4 bytes
+		enableSND = (bool)(int)memblock[0];
+		enableSFX = (bool)(int)memblock[1];
+		enableMUS = (bool)(int)memblock[2];
 		enableSIGN = (bool)(int)memblock[3];
 
-        //fix memory leak
-        free (memblock);
-      }
+		//fix memory leak
+		free(memblock);
+	}
 
-	 //Initialize SDL_mixer
-	 if (Mix_OpenAudio(48000, MIX_DEFAULT_FORMAT, 2, 1024) == -1)
-	 {
-		 printf("ERROR! COULD NOT INIT SOUND!\n");
-		 enableSND = false;
-		 enableMUS = false;
-		 enableSFX = false;
-	 }
+	//Initialize SDL_mixer
+	if (Mix_OpenAudio(48000, MIX_DEFAULT_FORMAT, 2, 1024) == -1)
+	{
+		printf("ERROR! COULD NOT INIT SOUND!\n");
+		enableSND = false;
+		enableMUS = false;
+		enableSFX = false;
+	}
 
-     //chat line buffer
-     for (int i = 0; i < NUM_CHAT_LINES; i++)
-    	 chat_line[i] = new std::string("");
+	//chat line buffer
+	for (int i = 0; i < NUM_CHAT_LINES; i++)
+		chat_line[i] = new std::string("");
 
-     	//read config.ini file and set all options
-    	INIReader configFile("DAT/config.ini");
-        if (configFile.ParseError() < 0) {
+	//read config.ini file and set all options
+	INIReader configFile("DAT/config.ini");
+	if (configFile.ParseError() < 0) {
 
-			if (configFile.ParseError() == -1)
-				printf("file open error. TIP: Line endings must be CRLF!");
+		if (configFile.ParseError() == -1)
+			printf("file open error. TIP: Line endings must be CRLF!");
 
-			if (configFile.ParseError() == -2)
-				printf("memory allocation error.");
+		if (configFile.ParseError() == -2)
+			printf("memory allocation error.");
 
-           printf("error: Can't load 'config.ini'\n");
-           return 1;
-        }
-        SERVER_IP = configFile.Get("server", "hostname", "optimuspi.us");
-        SERVER_PORT = configFile.GetInteger("server", "port", 1337);
-        bool FULLSCREEN = configFile.GetBoolean("graphics", "fullscreen", false);
+		printf("error: Can't load 'config.ini'\n");
+		return 1;
+	}
+	SERVER_IP = configFile.Get("server", "hostname", "optimuspi.us");
+	SERVER_PORT = configFile.GetInteger("server", "port", 1337);
+	bool FULLSCREEN = configFile.GetBoolean("graphics", "fullscreen", false);
 
-    printf("Connecting to %s:%i\n\n", SERVER_IP.c_str(), SERVER_PORT);
+	printf("Connecting to %s:%i\n\n", SERVER_IP.c_str(), SERVER_PORT);
 
-    setTitle();
+	setTitle();
 
-    if (FULLSCREEN)
-    	screen = SDL_SetVideoMode( 1024, 600, 32, SDL_OPENGL | SDL_FULLSCREEN);
-    else
-    	screen = SDL_SetVideoMode( 1024, 600, 32, SDL_OPENGL);
+	if (FULLSCREEN)
+	{
+		screen = SDL_SetVideoMode(1024, 600, 32, SDL_OPENGL | SDL_FULLSCREEN);
+	}
+	else
+	{
+		screen = SDL_SetVideoMode(1024, 600, 32, SDL_OPENGL);
+	}
 
-    screenOptions();
+	screenOptions();
 
-    if (screen == NULL){
-       SDL_Quit();
-        exit (2);
-    }
+	if (screen == NULL) {
+		SDL_Quit();
+		exit(2);
+	}
 
-    loading_img.setImage("IMG/GUI/loading.png");
-    background.setImage("IMG/GUI/loading.png");
-    Graphics();
+	loading_img.setImage("IMG/GUI/loading.png");
+	background.setImage("IMG/GUI/loading.png");
+	Graphics();
 
-    //stickman sprite sheet
-    stickman_sprite_img.setImage("IMG/SPRITES/stickman.png");
-    skeleton_sprite_img.setImage("IMG/SPRITES/skeleton.png");
+	//stickman sprite sheet
+	stickman_sprite_img.setImage("IMG/SPRITES/stickman.png");
+	skeleton_sprite_img.setImage("IMG/SPRITES/skeleton.png");
 
-    //target imges
-    target_img[TARGET_BULLSEYE].setImage("IMG/TARGET/bullseye.png");
-    target_img[TARGET_KEG].setImage("IMG/TARGET/keg.png");
-    target_img[TARGET_CRATE].setImage("IMG/TARGET/crate.png");
+	//target imges
+	target_img[TARGET_BULLSEYE].setImage("IMG/TARGET/bullseye.png");
+	target_img[TARGET_KEG].setImage("IMG/TARGET/keg.png");
+	target_img[TARGET_CRATE].setImage("IMG/TARGET/crate.png");
 
 
-    closeChatButton.setBounds(687+150, 4+372, 10,10);
-    nextPageButton.setBounds(860, 372, 92, 43);
-    leave_party_button.setBounds( 224+652, 45, 148, 32);
+	closeChatButton.setBounds(687 + 150, 4 + 372, 10, 10);
+	nextPageButton.setBounds(860, 372, 92, 43);
+	leave_party_button.setBounds(224 + 652, 45, 148, 32);
 
 	enable_auto_signs_button.setBounds(169, 393, 34, 17);
 	disable_auto_signs_button.setBounds(206, 393, 34, 17);
 
-    unmute_sound_button.setBounds( 169, 417, 34, 17 );
-    mute_sound_button.setBounds( 206, 417, 34, 17 );
+	unmute_sound_button.setBounds(169, 417, 34, 17);
+	mute_sound_button.setBounds(206, 417, 34, 17);
 
-    unmute_effects_button.setBounds( 169, 441, 34, 17 );
-    mute_effects_button.setBounds( 206, 441, 34, 17 );
+	unmute_effects_button.setBounds(169, 441, 34, 17);
+	mute_effects_button.setBounds(206, 441, 34, 17);
 
-    unmute_music_button.setBounds( 169, 465, 34, 17 );
-    mute_music_button.setBounds( 206, 465, 34, 17 );
-
-
-    login_button.setBounds( 400, 220, 167, 65 );nextPageButton.setBounds(874, 372, 92, 43);
-    create_button.setBounds( 400, 310, 167, 65 );
-    quit_button.setBounds( 400, 400, 167, 65 );
-    okay_button.setBounds( 428, 320, 167, 65 );
-    back_button.setBounds( 428, 410, 167, 65 );
-
-    username_box.setBounds( 362, 219, 300, 20 );
-    password_box.setBounds( 362, 274, 200, 20 );
-    chatting_box.setBounds( 0, 588, 1024, 11 );
-
-    equip_toggle_button.setBounds(256, 244, 16, 256);
-    equip_button.setBounds(272, 244, 240, 256);
-
-    inventory_button.setBounds( 700,          515, 81, 64);
-    stats_button.setBounds(     700+81,       515, 81, 64);
-    options_button.setBounds(   700+81+81,    515, 81, 64);
-    logout_button.setBounds(    700+81+81+81, 515, 81, 64);
-
-    hp_button.setBounds(8, 405, 53, 18);
-    str_button.setBounds(8, 434, 53, 18);
-    def_button.setBounds(8, 464, 53, 18);
-    inv_item_button.setBounds(18, 253, 1024, 220);
-
-    worldInteractButton.setBounds(0, 0, 1024, 600);
-    playerRequestButton.setBounds(320, 400, 129, 90);
-
-    //trade buttons
-    tradeAcceptButton.setBounds(224+425, 481, 101, 14);
-    tradeCancelButton.setBounds(224+528, 481, 101, 14);
-    tradeIncrementButton.setBounds(224+430, 233, 194, 13);
-
-    //inventory buttons
-    drop_button.setBounds(168, 481, 38, 14);
-    use_button.setBounds(207, 481, 38, 14);
-
-    //pop up gui input box
-    inputBoxButton.setBounds(256, 372, 256, 128);
-
-    //bank buttons and that
-    bankIncrementButton.setBounds(224+573, 254, 193, 13);
-    bankAcceptButton.setBounds(224+553, 478, 101, 14);
-    bankCancelButton.setBounds(224+700, 478, 101, 14);
-    bankScrollButton.setBounds(224+653, 475, 40, 19);
-
-    //shop buttons and that
-    shopIncrementButton.setBounds(224+573, 254, 193, 13);
-    shopCancelButton.setBounds(224+700, 478, 101, 14);
-    shopToggleButton.setBounds(224+650, 477, 45, 16);
-    shopAcceptButton.setBounds(224+553, 478, 101, 14);
-
-    //sound toggle
-    soundToggleButton.setBounds(992, 0, 32, 32);
+	unmute_music_button.setBounds(169, 465, 34, 17);
+	mute_music_button.setBounds(206, 465, 34, 17);
 
 
-    //enemy sprite
-    EnemySprite[0] = SKO_Sprite("enemySprites", "bandit");
-    EnemySprite[1] = SKO_Sprite("enemySprites", "hobo");
-    EnemySprite[2] = SKO_Sprite("enemySprites", "banditboss");
-    EnemySprite[3] = SKO_Sprite("enemySprites", "skeleton");
-    EnemySprite[4] = SKO_Sprite("enemySprites", "skeletonguard");
-    EnemySprite[5] = SKO_Sprite("enemySprites", "skeletonboss");
-    EnemySprite[6] = SKO_Sprite("enemySprites", "skeletonhaunted");
+	login_button.setBounds(400, 220, 167, 65); nextPageButton.setBounds(874, 372, 92, 43);
+	create_button.setBounds(400, 310, 167, 65);
+	quit_button.setBounds(400, 400, 167, 65);
+	okay_button.setBounds(428, 320, 167, 65);
+	back_button.setBounds(428, 410, 167, 65);
 
-    //npc sprite
-    NpcSprite[0] = SKO_Sprite("npcSprites", "guard");
+	username_box.setBounds(362, 219, 300, 20);
+	password_box.setBounds(362, 274, 200, 20);
+	chatting_box.setBounds(0, 588, 1024, 11);
 
-    //main menu images
-    back_button_img.setImage("IMG/GUI/back_text.png");
-    play_button_img.setImage("IMG/GUI/play_text.png");
-    blank_button_img.setImage("IMG/GUI/blank_button.png");
-    login_button_img.setImage("IMG/GUI/login_text.png");
-    create_button_img.setImage("IMG/GUI/create_text.png");
-    quit_button_img.setImage("IMG/GUI/quit_text.png");
-    banner_img.setImage("IMG/GUI/banner.png");
+	equip_toggle_button.setBounds(256, 244, 16, 256);
+	equip_button.setBounds(272, 244, 240, 256);
 
-    //sign bubble
-    sign_bubble.setImage("IMG/GUI/sign_bubble.png");
-    next_page.setImage("IMG/GUI/next_page.png");
+	inventory_button.setBounds(700, 515, 81, 64);
+	stats_button.setBounds(700 + 81, 515, 81, 64);
+	options_button.setBounds(700 + 81 + 81, 515, 81, 64);
+	logout_button.setBounds(700 + 81 + 81 + 81, 515, 81, 64);
 
-    //char bar for username
-    cred_bar.setImage("IMG/GUI/cred_bar.png");
+	hp_button.setBounds(8, 405, 53, 18);
+	str_button.setBounds(8, 434, 53, 18);
+	def_button.setBounds(8, 464, 53, 18);
+	inv_item_button.setBounds(18, 253, 1024, 220);
 
-    shadow.setImage("IMG/MISC/shadow.png");
-    font.setImage("IMG/MISC/font.png");
-    chatcursor.setImage("IMG/MISC/chatcursor.png");
+	worldInteractButton.setBounds(0, 0, 1024, 600);
+	playerRequestButton.setBounds(320, 400, 129, 90);
 
+	//trade buttons
+	tradeAcceptButton.setBounds(224 + 425, 481, 101, 14);
+	tradeCancelButton.setBounds(224 + 528, 481, 101, 14);
+	tradeIncrementButton.setBounds(224 + 430, 233, 194, 13);
 
-    //hud
-    stats_gui.setImage("IMG/GUI/stats_gui.png");
-    hud_button_img.setImage("IMG/GUI/hud_button.png");
-    hud_icon[0].setImage("IMG/GUI/inventory_button.png");
-    hud_icon[1].setImage("IMG/GUI/stats_button.png");
-    hud_icon[2].setImage("IMG/GUI/options_button.png");
-    hud_icon[3].setImage("IMG/GUI/logout_button.png");
+	//inventory buttons
+	drop_button.setBounds(168, 481, 38, 14);
+	use_button.setBounds(207, 481, 38, 14);
 
-    options_img.setImage("IMG/GUI/credits.png");
-    disconnect_img.setImage("IMG/GUI/disconnected.png");
-    inventorySelectorBox.setImage("IMG/GUI/inventory_selector.png");
-    mass_trade_selector.setImage("IMG/GUI/mass_trade_selector.png");
-    option_selector.setImage("IMG/GUI/option_selector.png");
-    bank_gui_img.setImage("IMG/GUI/bank_window.png");
-    greyedImg.setImage("IMG/GUI/greyedImg.png");
-    shop_gui_img.setImage("IMG/GUI/shop_window.png");
-    chatBackImg.setImage("IMG/GUI/chat_back.png");
-    equip_show_gui.setImage("IMG/GUI/equipment_show.png");
-    equip_img.setImage("IMG/GUI/equipment.png");
-    hover.setImage("IMG/GUI/hover.png");
+	//pop up gui input box
+	inputBoxButton.setBounds(256, 372, 256, 128);
 
+	//bank buttons and that
+	bankIncrementButton.setBounds(224 + 573, 254, 193, 13);
+	bankAcceptButton.setBounds(224 + 553, 478, 101, 14);
+	bankCancelButton.setBounds(224 + 700, 478, 101, 14);
+	bankScrollButton.setBounds(224 + 653, 475, 40, 19);
 
-    //hats n helmets
-    hat_img[0].setImage("IMG/EQUIP/HAT/blue_party_hat.png");
-    hat_img[1].setImage("IMG/EQUIP/HAT/santa_hat.png");
-    hat_img[2].setImage("IMG/EQUIP/HAT/gold_party_hat.png");
-    hat_img[3].setImage("IMG/EQUIP/HAT/nerd_glasses.png");
-    hat_img[4].setImage("IMG/EQUIP/HAT/bunny_ears.png");
-    hat_img[5].setImage("IMG/EQUIP/HAT/skull_mask.png");
-    hat_img[6].setImage("IMG/EQUIP/HAT/bandana.png");
-    hat_img[7].setImage("IMG/EQUIP/HAT/sunglasses.png");
-    hat_img[8].setImage("IMG/EQUIP/HAT/bandana_mask.png");
-    hat_img[9].setImage("IMG/EQUIP/HAT/halloween_mask.png");
-    hat_img[10].setImage("IMG/EQUIP/HAT/guard_helm.png");
-    hat_img[11].setImage("IMG/EQUIP/HAT/white_party_hat.png");
-    hat_img[12].setImage("IMG/EQUIP/HAT/skeleton_helm.png");
-    hat_img[13].setImage("IMG/EQUIP/HAT/training_helmet.png");
-    hat_img[14].setImage("IMG/EQUIP/HAT/purple_party_hat.png");
+	//shop buttons and that
+	shopIncrementButton.setBounds(224 + 573, 254, 193, 13);
+	shopCancelButton.setBounds(224 + 700, 478, 101, 14);
+	shopToggleButton.setBounds(224 + 650, 477, 45, 16);
+	shopAcceptButton.setBounds(224 + 553, 478, 101, 14);
+
+	//sound toggle
+	soundToggleButton.setBounds(992, 0, 32, 32);
 
 
-    //trophies to show off in the player's off-hand. Can be thrown at other players.
-    trophy_img[0].setImage("IMG/ITEM/cherry_pi.png");
-    trophy_img[1].setImage("IMG/ITEM/easter_egg.png");
-    trophy_img[2].setImage("IMG/ITEM/pumpkin.png");
-    trophy_img[3].setImage("IMG/ITEM/icecream.png");
-    trophy_img[4].setImage("IMG/ITEM/jack-o-lantern.png");
-    trophy_img[5].setImage("IMG/ITEM/snowball.png");
+	//enemy sprite
+	EnemySprite[0] = SKO_Sprite("enemySprites", "bandit");
+	EnemySprite[1] = SKO_Sprite("enemySprites", "hobo");
+	EnemySprite[2] = SKO_Sprite("enemySprites", "banditboss");
+	EnemySprite[3] = SKO_Sprite("enemySprites", "skeleton");
+	EnemySprite[4] = SKO_Sprite("enemySprites", "skeletonguard");
+	EnemySprite[5] = SKO_Sprite("enemySprites", "skeletonboss");
+	EnemySprite[6] = SKO_Sprite("enemySprites", "skeletonhaunted");
 
-    //weapon
-    //todo make this better
-    //but for now the equip id is on the server
-    //and the id is here in brackets -1
-    // so sword-training is equipid 1 and index [0]
-    weapon_img[0].setImage("IMG/EQUIP/WEAPON/sword-training.png");
-    weapon_img[1].setImage("IMG/EQUIP/WEAPON/dagger.png");
-    weapon_img[2].setImage("IMG/EQUIP/WEAPON/sword-rusted.png");
-    weapon_img[3].setImage("IMG/EQUIP/WEAPON/sword-steel.png");
-    weapon_img[4].setImage("IMG/EQUIP/WEAPON/sword-gold.png");
-    weapon_img[5].setImage("IMG/EQUIP/WEAPON/sword-crystal.png");
-    weapon_img[6].setImage("IMG/EQUIP/WEAPON/axe-rusted.png");
-    weapon_img[7].setImage("IMG/EQUIP/WEAPON/axe-steel.png");
-    weapon_img[8].setImage("IMG/EQUIP/WEAPON/axe-gold.png");
-    weapon_img[9].setImage("IMG/EQUIP/WEAPON/axe-crystal.png");
-    weapon_img[10].setImage("IMG/EQUIP/WEAPON/hammer-rusted.png");
-    weapon_img[11].setImage("IMG/EQUIP/WEAPON/hammer-steel.png");
-    weapon_img[12].setImage("IMG/EQUIP/WEAPON/hammer-gold.png");
-    weapon_img[13].setImage("IMG/EQUIP/WEAPON/hammer-crystal.png");
-    weapon_img[14].setImage("IMG/EQUIP/WEAPON/scythe.png");
-    weapon_img[15].setImage("IMG/EQUIP/WEAPON/reaper_scythe.png");
-    weapon_img[16].setImage("IMG/EQUIP/WEAPON/candy_cane.png");
+	//npc sprite
+	NpcSprite[0] = SKO_Sprite("npcSprites", "guard");
 
+	//main menu images
+	back_button_img.setImage("IMG/GUI/back_text.png");
+	play_button_img.setImage("IMG/GUI/play_text.png");
+	blank_button_img.setImage("IMG/GUI/blank_button.png");
+	login_button_img.setImage("IMG/GUI/login_text.png");
+	create_button_img.setImage("IMG/GUI/create_text.png");
+	quit_button_img.setImage("IMG/GUI/quit_text.png");
+	banner_img.setImage("IMG/GUI/banner.png");
 
-    //GUI elements
-    xp_filler.setImage("IMG/GUI/xp_bar_filler.png");
-    hp_filler.setImage("IMG/GUI/hp_bar_filler.png");
-    inventory_gui.setImage("IMG/GUI/inventory.png");
-    stats_popup.setImage("IMG/GUI/stats.png");
-    options_popup.setImage("IMG/GUI/options.png");
+	//sign bubble
+	sign_bubble.setImage("IMG/GUI/sign_bubble.png");
+	next_page.setImage("IMG/GUI/next_page.png");
 
-    //Items
-    Item[ITEM_GOLD] = SKO_Item(8, 8, 0, "Gold");
-    Item[ITEM_GOLD_PHAT] = SKO_Item(10, 13, 0, "Gold Party Hat");
-    Item[ITEM_MYSTERY_BOX] = SKO_Item(16, 15, 0, "Mystery Box");
-    Item[ITEM_CHEESE] = SKO_Item(13, 20, 1,  "Cheese");
-    Item[ITEM_CARROT] = SKO_Item(15, 17, 1, "Carrot");
-    Item[ITEM_BEER] = SKO_Item(9, 31, 2, "Beer");
-    Item[ITEM_WINE] = SKO_Item(9, 31, 4, "Wine");
-    Item[ITEM_POTION] = SKO_Item(10, 16, 5,"Health Potion");
-    Item[ITEM_DIAMOND] = SKO_Item(15, 14, 100, "Diamond");
-    Item[ITEM_SWORD_TRAINING] = SKO_Item(11, 31, 5, "Training Sword", 0, 1, 0);
-    Item[ITEM_BLUE_PHAT] = SKO_Item(10,13, 0, "Blue Party Hat");
-    Item[ITEM_SANTA_HAT] = SKO_Item(17,10, 0, "Santa Hat");
-    Item[ITEM_NERD_GLASSES] = SKO_Item(21, 13, 0, "Nerd Glasses");
-    Item[ITEM_CHERRY_PI] = SKO_Item(32, 28, 0, "Cherry Pi");
-    Item[ITEM_BUNNY_EARS] = SKO_Item(14, 10, 0, "Bunny Ears");
-    Item[ITEM_EASTER_EGG] = SKO_Item(8, 10, 0, "Easter Egg");
-    Item[ITEM_SKULL_MASK] = SKO_Item(13, 18, 0, "Skull Mask");
-    Item[ITEM_PUMPKIN] = SKO_Item(21, 23, 0, "Pumpkin");
-    Item[ITEM_ICECREAM] = SKO_Item(9, 16, 0, "Icecream Cone");
-    Item[ITEM_SUNGLASSES] = SKO_Item(21, 13, 0, "Sunglasses");
-    Item[ITEM_SWORD_RUSTED] = SKO_Item(11, 32, 15, "Rusty Sword", 0, 2, 1);
-    Item[ITEM_SWORD_STEEL] = SKO_Item(11, 32, 400, "Steel Sword", 0, 4, 2);
-    Item[ITEM_SWORD_GOLD] = SKO_Item(11, 32, 8600, "Golden Sword", 0, 11, 3);
-    Item[ITEM_SWORD_CRYSTAL] = SKO_Item(11, 32, 100300, "Crystal Sword", 0, 22, 5);
-    Item[ITEM_AXE_RUSTED] = SKO_Item(12, 31, 15, "Rusty Hatchet", 0, 3, 1);
-    Item[ITEM_AXE_STEEL] = SKO_Item(12, 31, 425, "Steel Hatchet", 0, 5, 1);
-    Item[ITEM_AXE_GOLD] = SKO_Item(21, 32, 9600, "Golden Axe", 0, 13, 2);
-    Item[ITEM_AXE_CRYSTAL] = SKO_Item(24, 32, 98525, "Crystal Axe", 0, 24, 3);
-    Item[ITEM_HAMMER_RUSTED] = SKO_Item(17, 32, 10, "Rusty Hammer", 0, 4, 0);
-    Item[ITEM_HAMMER_STEEL] = SKO_Item(17, 32, 90, "Steel Hammer", 0, 7, 0);
-    Item[ITEM_HAMMER_GOLD] = SKO_Item(17, 32, 6120, "Golden Hammer", 0, 16, 2);
-    Item[ITEM_HAMMER_CRYSTAL] = SKO_Item(29, 32, 99085, "Crystal Hammer", 0, 25, 3);
-    Item[ITEM_SCYTHE] = SKO_Item(23, 25, 900, "Scythe", 0, 3, 3);
-    Item[ITEM_SCYTHE_REAPER] = SKO_Item(27, 32, 15, "Reaper's Scythe", 10, 10, 10);
-    Item[ITEM_HALLOWEEN_MASK] = SKO_Item(18, 21, 0, "Halloween Mask");
-    Item[ITEM_GUARD_HELM] = SKO_Item(18, 21, 2500, "Guard Helmet", 10, 1, 5);
-    Item[ITEM_JACK_OLANTERN] = SKO_Item(21, 23, 0, "Jack O' Lantern");
-    Item[ITEM_WHITE_PHAT] = SKO_Item(10, 13, 0, "White Party Hat");
-    Item[ITEM_CANDY_CANE] = SKO_Item(16, 31, 0, "Candy Cane", 3, 3, 3);
-    Item[ITEM_SKELETON_HELM] = SKO_Item(18, 21, 500, "Skeleton Helm", 1, 2, 1);
-    Item[ITEM_TRAINING_HELM] = SKO_Item(18, 21, 75, "Training Helm", 0, 0, 1);
-    Item[ITEM_PURPLE_PHAT] = SKO_Item(10, 13, 0, "Purple Party Hat");
-    Item[ITEM_SNOW_BALL] = SKO_Item(12, 12, 0, "Snowball");
+	//char bar for username
+	cred_bar.setImage("IMG/GUI/cred_bar.png");
 
-    Item_img[ITEM_GOLD].setImage("IMG/ITEM/gold.png");
-    Item_img[ITEM_GOLD_PHAT].setImage("IMG/ITEM/gold_party_hat.png");
-    Item_img[ITEM_MYSTERY_BOX].setImage("IMG/ITEM/mystery_box.png");
-    Item_img[ITEM_CHEESE].setImage("IMG/ITEM/cheese.png");
-    Item_img[ITEM_CARROT].setImage("IMG/ITEM/carrot.png");
-    Item_img[ITEM_BEER].setImage("IMG/ITEM/beer.png");
-    Item_img[ITEM_WINE].setImage("IMG/ITEM/wine.png");
-    Item_img[ITEM_POTION].setImage("IMG/ITEM/potion.png");
-    Item_img[ITEM_DIAMOND].setImage("IMG/ITEM/diamond.png");
-    Item_img[ITEM_SWORD_TRAINING].setImage("IMG/ITEM/sword-training.png");
-    Item_img[ITEM_BLUE_PHAT].setImage("IMG/ITEM/blue_party_hat.png");
-    Item_img[ITEM_SANTA_HAT].setImage("IMG/ITEM/santa_hat.png");
-    Item_img[ITEM_NERD_GLASSES].setImage("IMG/ITEM/nerd_glasses.png");
-    Item_img[ITEM_CHERRY_PI].setImage("IMG/ITEM/cherry_pi.png");
-    Item_img[ITEM_BUNNY_EARS].setImage("IMG/ITEM/bunny_ears.png");
-    Item_img[ITEM_EASTER_EGG].setImage("IMG/ITEM/easter_egg.png");
-    Item_img[ITEM_SKULL_MASK].setImage("IMG/ITEM/skull_mask.png");
-    Item_img[ITEM_PUMPKIN].setImage("IMG/ITEM/pumpkin.png");
-    Item_img[ITEM_ICECREAM].setImage("IMG/ITEM/icecream.png");
-    Item_img[ITEM_SUNGLASSES].setImage("IMG/ITEM/sunglasses.png");
-
-    //added 10-30-2013
-    Item_img[ITEM_SWORD_RUSTED].setImage("IMG/ITEM/sword-rusted.png");
-    Item_img[ITEM_SWORD_STEEL].setImage("IMG/ITEM/sword-steel.png");
-    Item_img[ITEM_SWORD_GOLD].setImage("IMG/ITEM/sword-gold.png");
-    Item_img[ITEM_SWORD_CRYSTAL].setImage("IMG/ITEM/sword-crystal.png");
-
-    Item_img[ITEM_AXE_RUSTED].setImage("IMG/ITEM/axe-rusted.png");
-    Item_img[ITEM_AXE_STEEL].setImage("IMG/ITEM/axe-steel.png");
-    Item_img[ITEM_AXE_GOLD].setImage("IMG/ITEM/axe-gold.png");
-    Item_img[ITEM_AXE_CRYSTAL].setImage("IMG/ITEM/axe-crystal.png");
-
-    Item_img[ITEM_HAMMER_RUSTED].setImage("IMG/ITEM/hammer-rusted.png");
-    Item_img[ITEM_HAMMER_STEEL].setImage("IMG/ITEM/hammer-steel.png");
-    Item_img[ITEM_HAMMER_GOLD].setImage("IMG/ITEM/hammer-gold.png");
-    Item_img[ITEM_HAMMER_CRYSTAL].setImage("IMG/ITEM/hammer-crystal.png");
-
-    ///halloween event items
-    Item_img[ITEM_SCYTHE].setImage("IMG/ITEM/scythe.png");
-    Item_img[ITEM_SCYTHE_REAPER].setImage("IMG/ITEM/scythe_reaper.png");
-    Item_img[ITEM_HALLOWEEN_MASK].setImage("IMG/ITEM/halloween_mask.png");
-    Item_img[ITEM_GUARD_HELM].setImage("IMG/ITEM/guard_helmet.png");
-    Item_img[ITEM_JACK_OLANTERN].setImage("IMG/ITEM/jack-o-lantern.png");
-
-    //some more in jterm 2014 added (finally. quit slacking)
-    Item_img[ITEM_WHITE_PHAT].setImage("IMG/ITEM/white_party_hat.png");
-    Item_img[ITEM_CANDY_CANE].setImage("IMG/ITEM/candy_cane.png");
-    Item_img[ITEM_SKELETON_HELM].setImage("IMG/ITEM/skeleton_helmet.png");
+	shadow.setImage("IMG/MISC/shadow.png");
+	font.setImage("IMG/MISC/font.png");
+	chatcursor.setImage("IMG/MISC/chatcursor.png");
 
 
-   // added on 2/10/2015
-   Item_img[ITEM_TRAINING_HELM].setImage("IMG/ITEM/training_helmet.png");
+	//hud
+	stats_gui.setImage("IMG/GUI/stats_gui.png");
+	hud_button_img.setImage("IMG/GUI/hud_button.png");
+	hud_icon[0].setImage("IMG/GUI/inventory_button.png");
+	hud_icon[1].setImage("IMG/GUI/stats_button.png");
+	hud_icon[2].setImage("IMG/GUI/options_button.png");
+	hud_icon[3].setImage("IMG/GUI/logout_button.png");
 
-   // added on 2/22/2015
-   Item_img[ITEM_PURPLE_PHAT].setImage("IMG/ITEM/purple_party_hat.png");
-   Item_img[ITEM_SNOW_BALL].setImage("IMG/ITEM/snowball.png");
+	options_img.setImage("IMG/GUI/credits.png");
+	disconnect_img.setImage("IMG/GUI/disconnected.png");
+	inventorySelectorBox.setImage("IMG/GUI/inventory_selector.png");
+	mass_trade_selector.setImage("IMG/GUI/mass_trade_selector.png");
+	option_selector.setImage("IMG/GUI/option_selector.png");
+	bank_gui_img.setImage("IMG/GUI/bank_window.png");
+	greyedImg.setImage("IMG/GUI/greyedImg.png");
+	shop_gui_img.setImage("IMG/GUI/shop_window.png");
+	chatBackImg.setImage("IMG/GUI/chat_back.png");
+	equip_show_gui.setImage("IMG/GUI/equipment_show.png");
+	equip_img.setImage("IMG/GUI/equipment.png");
+	hover.setImage("IMG/GUI/hover.png");
 
-    //gui popup
-    popup_gui_input_img.setImage("IMG/GUI/popup_gui_amount.png");
-    popup_gui_request_img.setImage("IMG/GUI/popup_gui_request.png");
-    popup_gui_confirm_img.setImage("IMG/GUI/popup_gui_confirm.png");
-    trade_gui_img.setImage("IMG/GUI/trade_window.png");
 
-    //sound toggle
-    soundon.setImage("IMG/MISC/soundon.png");
-    soundoff.setImage("IMG/MISC/soundoff.png");
+	//hats n helmets
+	hat_img[0].setImage("IMG/EQUIP/HAT/blue_party_hat.png");
+	hat_img[1].setImage("IMG/EQUIP/HAT/santa_hat.png");
+	hat_img[2].setImage("IMG/EQUIP/HAT/gold_party_hat.png");
+	hat_img[3].setImage("IMG/EQUIP/HAT/nerd_glasses.png");
+	hat_img[4].setImage("IMG/EQUIP/HAT/bunny_ears.png");
+	hat_img[5].setImage("IMG/EQUIP/HAT/skull_mask.png");
+	hat_img[6].setImage("IMG/EQUIP/HAT/bandana.png");
+	hat_img[7].setImage("IMG/EQUIP/HAT/sunglasses.png");
+	hat_img[8].setImage("IMG/EQUIP/HAT/bandana_mask.png");
+	hat_img[9].setImage("IMG/EQUIP/HAT/halloween_mask.png");
+	hat_img[10].setImage("IMG/EQUIP/HAT/guard_helm.png");
+	hat_img[11].setImage("IMG/EQUIP/HAT/white_party_hat.png");
+	hat_img[12].setImage("IMG/EQUIP/HAT/skeleton_helm.png");
+	hat_img[13].setImage("IMG/EQUIP/HAT/training_helmet.png");
+	hat_img[14].setImage("IMG/EQUIP/HAT/purple_party_hat.png");
 
 
-    //party buddy container
-    buddy_container.setImage("IMG/GUI/buddy_container.png");
-    leave_party_img.setImage("IMG/GUI/leave_party.png");
+	//trophies to show off in the player's off-hand. Can be thrown at other players.
+	trophy_img[0].setImage("IMG/ITEM/cherry_pi.png");
+	trophy_img[1].setImage("IMG/ITEM/easter_egg.png");
+	trophy_img[2].setImage("IMG/ITEM/pumpkin.png");
+	trophy_img[3].setImage("IMG/ITEM/icecream.png");
+	trophy_img[4].setImage("IMG/ITEM/jack-o-lantern.png");
+	trophy_img[5].setImage("IMG/ITEM/snowball.png");
 
-    //todo really? make a rotating image.
-    //arrows
-    arrow[0].setImage("IMG/GUI/arrow_ul.png");
-    arrow[1].setImage("IMG/GUI/arrow_u.png");
-    arrow[2].setImage("IMG/GUI/arrow_ur.png");
-    arrow[3].setImage("IMG/GUI/arrow_r.png");
-    arrow[4].setImage("IMG/GUI/arrow_dr.png");
-    arrow[5].setImage("IMG/GUI/arrow_d.png");
-    arrow[6].setImage("IMG/GUI/arrow_dl.png");
-    arrow[7].setImage("IMG/GUI/arrow_l.png");
+	//weapon
+	//todo make this better
+	//but for now the equip id is on the server
+	//and the id is here in brackets -1
+	// so sword-training is equipid 1 and index [0]
+	weapon_img[0].setImage("IMG/EQUIP/WEAPON/sword-training.png");
+	weapon_img[1].setImage("IMG/EQUIP/WEAPON/dagger.png");
+	weapon_img[2].setImage("IMG/EQUIP/WEAPON/sword-rusted.png");
+	weapon_img[3].setImage("IMG/EQUIP/WEAPON/sword-steel.png");
+	weapon_img[4].setImage("IMG/EQUIP/WEAPON/sword-gold.png");
+	weapon_img[5].setImage("IMG/EQUIP/WEAPON/sword-crystal.png");
+	weapon_img[6].setImage("IMG/EQUIP/WEAPON/axe-rusted.png");
+	weapon_img[7].setImage("IMG/EQUIP/WEAPON/axe-steel.png");
+	weapon_img[8].setImage("IMG/EQUIP/WEAPON/axe-gold.png");
+	weapon_img[9].setImage("IMG/EQUIP/WEAPON/axe-crystal.png");
+	weapon_img[10].setImage("IMG/EQUIP/WEAPON/hammer-rusted.png");
+	weapon_img[11].setImage("IMG/EQUIP/WEAPON/hammer-steel.png");
+	weapon_img[12].setImage("IMG/EQUIP/WEAPON/hammer-gold.png");
+	weapon_img[13].setImage("IMG/EQUIP/WEAPON/hammer-crystal.png");
+	weapon_img[14].setImage("IMG/EQUIP/WEAPON/scythe.png");
+	weapon_img[15].setImage("IMG/EQUIP/WEAPON/reaper_scythe.png");
+	weapon_img[16].setImage("IMG/EQUIP/WEAPON/candy_cane.png");
 
-    //hp xp fillers for party
-    party_filler[0].setImage("IMG/GUI/party_xp_bar_filler.png");
-    party_filler[1].setImage("IMG/GUI/party_hp_bar_filler.png");
 
-    //Text
-    for (int i = 0; i < NUM_TEXT; i++) {
-        Message[i] = OPI_Text();
-    }
+	//GUI elements
+	xp_filler.setImage("IMG/GUI/xp_bar_filler.png");
+	hp_filler.setImage("IMG/GUI/hp_bar_filler.png");
+	inventory_gui.setImage("IMG/GUI/inventory.png");
+	stats_popup.setImage("IMG/GUI/stats.png");
+	options_popup.setImage("IMG/GUI/options.png");
 
-    // enemy hp bars
-    enemy_hp.setImage("IMG/MISC/enemy_hp.png");
+	//Items
+	Item[ITEM_GOLD] = SKO_Item(8, 8, 0, "Gold");
+	Item[ITEM_GOLD_PHAT] = SKO_Item(10, 13, 0, "Gold Party Hat");
+	Item[ITEM_MYSTERY_BOX] = SKO_Item(16, 15, 0, "Mystery Box");
+	Item[ITEM_CHEESE] = SKO_Item(13, 20, 1, "Cheese");
+	Item[ITEM_CARROT] = SKO_Item(15, 17, 1, "Carrot");
+	Item[ITEM_BEER] = SKO_Item(9, 31, 2, "Beer");
+	Item[ITEM_WINE] = SKO_Item(9, 31, 4, "Wine");
+	Item[ITEM_POTION] = SKO_Item(10, 16, 5, "Health Potion");
+	Item[ITEM_DIAMOND] = SKO_Item(15, 14, 100, "Diamond");
+	Item[ITEM_SWORD_TRAINING] = SKO_Item(11, 31, 10, "Training Sword", 0, 1, 0);
+	Item[ITEM_BLUE_PHAT] = SKO_Item(10, 13, 0, "Blue Party Hat");
+	Item[ITEM_SANTA_HAT] = SKO_Item(17, 10, 0, "Santa Hat");
+	Item[ITEM_NERD_GLASSES] = SKO_Item(21, 13, 0, "Nerd Glasses");
+	Item[ITEM_CHERRY_PI] = SKO_Item(32, 28, 0, "Cherry Pi");
+	Item[ITEM_BUNNY_EARS] = SKO_Item(14, 10, 0, "Bunny Ears");
+	Item[ITEM_EASTER_EGG] = SKO_Item(8, 10, 0, "Easter Egg");
+	Item[ITEM_SKULL_MASK] = SKO_Item(13, 18, 0, "Skull Mask");
+	Item[ITEM_PUMPKIN] = SKO_Item(21, 23, 0, "Pumpkin");
+	Item[ITEM_ICECREAM] = SKO_Item(9, 16, 0, "Icecream Cone");
+	Item[ITEM_SUNGLASSES] = SKO_Item(21, 13, 0, "Sunglasses");
+
+	Item[ITEM_SWORD_RUSTED] = SKO_Item(11, 32, 250, "Rusty Sword", 0, 2, 2);
+	Item[ITEM_SWORD_STEEL] = SKO_Item(11, 32, 8000, "Steel Sword", 0, 4, 4);
+	Item[ITEM_SWORD_GOLD] = SKO_Item(11, 32, 40000, "Golden Sword", 0, 8, 8);
+	Item[ITEM_SWORD_CRYSTAL] = SKO_Item(11, 32, 120000, "Crystal Sword", 1, 16, 16);
+
+	Item[ITEM_AXE_RUSTED] = SKO_Item(12, 31, 250, "Rusty Hatchet", 0, 1, 3);
+	Item[ITEM_AXE_STEEL] = SKO_Item(12, 31, 8000, "Steel Hatchet", 0, 3, 5);
+	Item[ITEM_AXE_GOLD] = SKO_Item(21, 32, 40000, "Golden Axe", 0, 6, 10);
+	Item[ITEM_AXE_CRYSTAL] = SKO_Item(24, 32, 120000, "Crystal Axe", 1, 14, 18);
+
+	Item[ITEM_HAMMER_RUSTED] = SKO_Item(17, 32, 250, "Rusty Hammer", 0, 3, 1);
+	Item[ITEM_HAMMER_STEEL] = SKO_Item(17, 32, 8000, "Steel Hammer", 0, 5, 3);
+	Item[ITEM_HAMMER_GOLD] = SKO_Item(17, 32, 40000, "Golden Hammer", 0, 10, 6);
+	Item[ITEM_HAMMER_CRYSTAL] = SKO_Item(29, 32, 120000, "Crystal Hammer", 1, 18, 14);
+
+	Item[ITEM_SCYTHE] = SKO_Item(23, 25, 900, "Scythe", 0, 3, 3);
+	Item[ITEM_SCYTHE_REAPER] = SKO_Item(27, 32, 15, "Reaper's Scythe", 10, 10, 10);
+	Item[ITEM_HALLOWEEN_MASK] = SKO_Item(18, 21, 0, "Halloween Mask");
+	Item[ITEM_GUARD_HELM] = SKO_Item(18, 21, 2500, "Guard Helmet", 10, 1, 5);
+	Item[ITEM_JACK_OLANTERN] = SKO_Item(21, 23, 0, "Jack O' Lantern");
+	Item[ITEM_WHITE_PHAT] = SKO_Item(10, 13, 0, "White Party Hat");
+	Item[ITEM_CANDY_CANE] = SKO_Item(16, 31, 0, "Candy Cane", 3, 3, 3);
+	Item[ITEM_SKELETON_HELM] = SKO_Item(18, 21, 500, "Skeleton Helm", 1, 2, 1);
+	Item[ITEM_TRAINING_HELM] = SKO_Item(18, 21, 10, "Training Helm", 0, 0, 1);
+	Item[ITEM_PURPLE_PHAT] = SKO_Item(10, 13, 0, "Purple Party Hat");
+	Item[ITEM_SNOW_BALL] = SKO_Item(12, 12, 0, "Snowball");
+
+	Item_img[ITEM_GOLD].setImage("IMG/ITEM/gold.png");
+	Item_img[ITEM_GOLD_PHAT].setImage("IMG/ITEM/gold_party_hat.png");
+	Item_img[ITEM_MYSTERY_BOX].setImage("IMG/ITEM/mystery_box.png");
+	Item_img[ITEM_CHEESE].setImage("IMG/ITEM/cheese.png");
+	Item_img[ITEM_CARROT].setImage("IMG/ITEM/carrot.png");
+	Item_img[ITEM_BEER].setImage("IMG/ITEM/beer.png");
+	Item_img[ITEM_WINE].setImage("IMG/ITEM/wine.png");
+	Item_img[ITEM_POTION].setImage("IMG/ITEM/potion.png");
+	Item_img[ITEM_DIAMOND].setImage("IMG/ITEM/diamond.png");
+	Item_img[ITEM_SWORD_TRAINING].setImage("IMG/ITEM/sword-training.png");
+	Item_img[ITEM_BLUE_PHAT].setImage("IMG/ITEM/blue_party_hat.png");
+	Item_img[ITEM_SANTA_HAT].setImage("IMG/ITEM/santa_hat.png");
+	Item_img[ITEM_NERD_GLASSES].setImage("IMG/ITEM/nerd_glasses.png");
+	Item_img[ITEM_CHERRY_PI].setImage("IMG/ITEM/cherry_pi.png");
+	Item_img[ITEM_BUNNY_EARS].setImage("IMG/ITEM/bunny_ears.png");
+	Item_img[ITEM_EASTER_EGG].setImage("IMG/ITEM/easter_egg.png");
+	Item_img[ITEM_SKULL_MASK].setImage("IMG/ITEM/skull_mask.png");
+	Item_img[ITEM_PUMPKIN].setImage("IMG/ITEM/pumpkin.png");
+	Item_img[ITEM_ICECREAM].setImage("IMG/ITEM/icecream.png");
+	Item_img[ITEM_SUNGLASSES].setImage("IMG/ITEM/sunglasses.png");
+
+	//added 10-30-2013
+	Item_img[ITEM_SWORD_RUSTED].setImage("IMG/ITEM/sword-rusted.png");
+	Item_img[ITEM_SWORD_STEEL].setImage("IMG/ITEM/sword-steel.png");
+	Item_img[ITEM_SWORD_GOLD].setImage("IMG/ITEM/sword-gold.png");
+	Item_img[ITEM_SWORD_CRYSTAL].setImage("IMG/ITEM/sword-crystal.png");
+
+	Item_img[ITEM_AXE_RUSTED].setImage("IMG/ITEM/axe-rusted.png");
+	Item_img[ITEM_AXE_STEEL].setImage("IMG/ITEM/axe-steel.png");
+	Item_img[ITEM_AXE_GOLD].setImage("IMG/ITEM/axe-gold.png");
+	Item_img[ITEM_AXE_CRYSTAL].setImage("IMG/ITEM/axe-crystal.png");
+
+	Item_img[ITEM_HAMMER_RUSTED].setImage("IMG/ITEM/hammer-rusted.png");
+	Item_img[ITEM_HAMMER_STEEL].setImage("IMG/ITEM/hammer-steel.png");
+	Item_img[ITEM_HAMMER_GOLD].setImage("IMG/ITEM/hammer-gold.png");
+	Item_img[ITEM_HAMMER_CRYSTAL].setImage("IMG/ITEM/hammer-crystal.png");
+
+	///halloween event items
+	Item_img[ITEM_SCYTHE].setImage("IMG/ITEM/scythe.png");
+	Item_img[ITEM_SCYTHE_REAPER].setImage("IMG/ITEM/scythe_reaper.png");
+	Item_img[ITEM_HALLOWEEN_MASK].setImage("IMG/ITEM/halloween_mask.png");
+	Item_img[ITEM_GUARD_HELM].setImage("IMG/ITEM/guard_helmet.png");
+	Item_img[ITEM_JACK_OLANTERN].setImage("IMG/ITEM/jack-o-lantern.png");
+
+	//some more in jterm 2014 added (finally. quit slacking)
+	Item_img[ITEM_WHITE_PHAT].setImage("IMG/ITEM/white_party_hat.png");
+	Item_img[ITEM_CANDY_CANE].setImage("IMG/ITEM/candy_cane.png");
+	Item_img[ITEM_SKELETON_HELM].setImage("IMG/ITEM/skeleton_helmet.png");
+
+
+	// added on 2/10/2015
+	Item_img[ITEM_TRAINING_HELM].setImage("IMG/ITEM/training_helmet.png");
+
+	// added on 2/22/2015
+	Item_img[ITEM_PURPLE_PHAT].setImage("IMG/ITEM/purple_party_hat.png");
+	Item_img[ITEM_SNOW_BALL].setImage("IMG/ITEM/snowball.png");
+
+	//gui popup
+	popup_gui_input_img.setImage("IMG/GUI/popup_gui_amount.png");
+	popup_gui_request_img.setImage("IMG/GUI/popup_gui_request.png");
+	popup_gui_confirm_img.setImage("IMG/GUI/popup_gui_confirm.png");
+	trade_gui_img.setImage("IMG/GUI/trade_window.png");
+
+	//sound toggle
+	soundon.setImage("IMG/MISC/soundon.png");
+	soundoff.setImage("IMG/MISC/soundoff.png");
+
+
+	//party buddy container
+	buddy_container.setImage("IMG/GUI/buddy_container.png");
+	leave_party_img.setImage("IMG/GUI/leave_party.png");
+
+	//todo really? make a rotating image.
+	//arrows
+	arrow[0].setImage("IMG/GUI/arrow_ul.png");
+	arrow[1].setImage("IMG/GUI/arrow_u.png");
+	arrow[2].setImage("IMG/GUI/arrow_ur.png");
+	arrow[3].setImage("IMG/GUI/arrow_r.png");
+	arrow[4].setImage("IMG/GUI/arrow_dr.png");
+	arrow[5].setImage("IMG/GUI/arrow_d.png");
+	arrow[6].setImage("IMG/GUI/arrow_dl.png");
+	arrow[7].setImage("IMG/GUI/arrow_l.png");
+
+	//hp xp fillers for party
+	party_filler[0].setImage("IMG/GUI/party_xp_bar_filler.png");
+	party_filler[1].setImage("IMG/GUI/party_hp_bar_filler.png");
+
+	//Text
+	for (int i = 0; i < NUM_TEXT; i++) {
+		Message[i] = OPI_Text();
+	}
+
+	// enemy hp bars
+	enemy_hp.setImage("IMG/MISC/enemy_hp.png");
 
 	// tiled background
-    back_img[0].setImage("IMG/MISC/sky_back.png");
-    back_img[1].setImage("IMG/MISC/far_back.png");
-    back_img[2].setImage("IMG/MISC/med_back.png");
-    back_img[3].setImage("IMG/MISC/close_back.png");
+	back_img[0].setImage("IMG/MISC/sky_back_new.png");
+	back_img[1].setImage("IMG/MISC/far_back.png");
+	back_img[2].setImage("IMG/MISC/med_back.png");
+	back_img[3].setImage("IMG/MISC/close_back.png");
 
-    TILES_WIDE = (1024/back_img[1].w) + 2;
-    TILES_TALL = (600/back_img[1].h) + 2;
+	TILES_WIDE = (1024 / back_img[1].w) + 2;
+	TILES_TALL = (600 / back_img[1].h) + 2;
 
-    //Message[0],[1]
-    Text(370, 530, "", 240, 250, 250);
-    Text(345, 555, "", 240, 250, 250);
-    Message[0].SetText("Loading...");
-    Message[1].SetText("Attempting to connect to the server...");
+	//Message[0],[1]
+	Text(370, 530, "", 240, 250, 250);
+	Text(345, 555, "", 240, 250, 250);
+	Message[0].SetText("Loading...");
+	Message[1].SetText("Attempting to connect to the server...");
 
-    construct_frame();
-    SDL_GL_SwapBuffers();
-
-
-    //Message[2] what you type
-    Text(2, 585, "", 0, 0, 0);
-    //Message[2].SetText(tMessage);
-    tMessage[0] = ' ';
-    uMessage[0] = ' ';
-    pMessage[0] = ' ';
-    //Message[3],[4],[5],[6], [7], [8], [9], [10], [11], [12], [13], [14] data from the server
-    Text(6, 8,   "", 245, 255, 250);
-    Text(6, 19,  "", 245, 255, 250);
-    Text(6, 30,  "", 245, 255, 250);
-    Text(6, 41,  "", 245, 255, 250);
-    Text(6, 52,  "", 245, 255, 250);
-    Text(6, 63,  "", 245, 255, 250);
-    Text(6, 74,  "", 245, 255, 250);
-    Text(6, 85,  "", 245, 255, 250);
-    Text(6, 96,  "", 245, 255, 250);
-    Text(6, 107, "", 245, 255, 250);
-    Text(6, 118, "", 245, 255, 250);
-    Text(6, 129, "", 245, 255, 250);
+	construct_frame();
+	SDL_GL_SwapBuffers();
 
 
-    //ping ([15])
-    Text(840, 20,"Ping:", 180, 210, 100);
-
-    //username ([16])
-    Text(364, 223, " ", 250, 250, 255);
-    //password ([17])
-    Text(364, 278," ", 250, 250, 255);
-
-
-
-    //username tags[18]-[49]
-    for (int i = 0; i < 32; i++) {
-        Text(20, 100, "", 255, 255, 255);
-    }
-
-    // Coords ([50])
-    Text(840, 7, "Coords: (0,0)", 190, 210, 100);
-
-    //xp[51], hp[52]
-    Text(224+135, 520, "0/10", 255, 255, 255);
-    Text(224+135, 548, "0/10", 255, 255, 255);
-
-    //level[53]
-    Text(750, 7, "Level:  0",50, 225, 225);
-    //stats[54]
-    Text(750, 20, "Points: 0", 158, 5, 160);
-
-    //inventory [55]-[78]
-    for (int y = 0; y < 4; y++)
-        for (int x = 0; x < 6; x++)
-             Text(12+x*39, 291+y*56, "", 255, 255, 255);
-
-    //stats_popup [79]-[82]
-    Text(61, 378, "0", 255, 255, 255);
-    Text(61, 407, "0", 255, 255, 255);
-    Text(61, 436, "0", 255, 255, 255);
-    Text(61, 466, "0", 255, 255, 255);
-
-    //inventory selected item [83], [84]
-    Text(10, 482, "0", 255, 255, 255);
-    Text(155, 482, "0", 255, 255, 255);
+	//Message[2] what you type
+	Text(2, 585, "", 0, 0, 0);
+	//Message[2].SetText(tMessage);
+	tMessage[0] = ' ';
+	uMessage[0] = ' ';
+	pMessage[0] = ' ';
+	//Message[3],[4],[5],[6], [7], [8], [9], [10], [11], [12], [13], [14] data from the server
+	Text(6, 8, "", 245, 255, 250);
+	Text(6, 19, "", 245, 255, 250);
+	Text(6, 30, "", 245, 255, 250);
+	Text(6, 41, "", 245, 255, 250);
+	Text(6, 52, "", 245, 255, 250);
+	Text(6, 63, "", 245, 255, 250);
+	Text(6, 74, "", 245, 255, 250);
+	Text(6, 85, "", 245, 255, 250);
+	Text(6, 96, "", 245, 255, 250);
+	Text(6, 107, "", 245, 255, 250);
+	Text(6, 118, "", 245, 255, 250);
+	Text(6, 129, "", 245, 255, 250);
 
 
-    //popup gui input text box [85], [86], [87], [88]
-    Text(300, 392, "0", 255, 255, 255); //message
-    Text(308, 427, "0", 255, 255, 255); //input
-    Text(407, 461, "cancel", 255, 255, 255); // cancel
-    Text(309, 461, "okay", 255, 255, 255); // okay
+	//ping ([15])
+	Text(840, 20, "Ping:", 180, 210, 100);
 
-    inputBox.outputText = &Message[85];
-    inputBox.inputText = &Message[86];
-    inputBox.cancelText = &Message[87];
-    inputBox.okayText = &Message[88];
-
-    //popup gui player action request [89]
-    Text(300, 380, "Invite X to...", 255, 255, 255);
-
-
-    //local trade
-    //inventory [90]-[113]
-    for (int y = 0; y < 4; y++)
-        for (int x = 0; x < 6; x++)
-             Text(224+268+x*39, 291+y*56, "", 255, 255, 255);
-
-    //remote trade
-    //inventory [114]-[137]
-    for (int y = 0; y < 4; y++)
-        for (int x = 0; x < 6; x++)
-             Text(224+556+x*39, 291+y*56, "", 255, 255, 255);
+	//username ([16])
+	Text(364, 223, " ", 250, 250, 255);
+	//password ([17])
+	Text(364, 278, " ", 250, 250, 255);
 
 
 
-    //local trade descriptor [138], [139]
-    Text(224+266, 482, "0", 255, 255, 255);
-    Text(224+411, 482, "0", 255, 255, 255);
-    //remote trade descriptor [140], [141]
-    Text(224+635, 482, "0", 255, 255, 255);
-    Text(224+780, 482, "0", 255, 255, 255);
+	//username tags[18]-[49]
+	for (int i = 0; i < 32; i++) {
+		Text(20, 100, "", 255, 255, 255);
+	}
 
-    //local ready/accept text and remote [142], [143]
-    Text(224+340, 235, "Waiting...", 255, 255, 255);
-    Text(224+628, 235, "Waiting...", 255, 255, 255);
+	// Coords ([50])
+	Text(840, 7, "Coords: (0,0)", 190, 210, 100);
 
-     //bank item amounts
-    //bank [144]-[161]
-    for (int y = 0; y < 3; y++)
-        for (int x = 0; x < 6; x++)
-             Text(224+556+x*39, 313+y*56, "none", 255, 255, 255);
+	//xp[51], hp[52]
+	Text(224 + 135, 520, "0/10", 255, 255, 255);
+	Text(224 + 135, 548, "0/10", 255, 255, 255);
 
-    //equipment window
-    // hp, sp, dp [162-164]
-    Text(333, 380, "+", 20, 160, 20);
-    Text(333, 408, "+", 20, 160, 20);
-    Text(333, 438, "+", 20, 160, 20);
+	//level[53]
+	Text(750, 7, "Level:  0", 50, 225, 225);
+	//stats[54]
+	Text(750, 20, "Points: 0", 158, 5, 160);
 
-    //descriptor [165]
-    Text(294, 482, "???", 255, 255, 255);
+	//inventory [55]-[78]
+	for (int y = 0; y < 4; y++)
+		for (int x = 0; x < 6; x++)
+			Text(12 + x * 39, 291 + y * 56, "", 255, 255, 255);
 
-    //buddy name [166-170]
-    for (int b=0;b<5;b++)
-        Text(224+638, 86+65*b, "", 0,0,0);
+	//stats_popup [79]-[82]
+	Text(61, 378, "0", 255, 255, 255);
+	Text(61, 407, "0", 255, 255, 255);
+	Text(61, 436, "0", 255, 255, 255);
+	Text(61, 466, "0", 255, 255, 255);
 
-    //buddy coords [171-175]
-    for (int b=0;b<5;b++)
-        Text(224+652, 127+65*b, "", 0,0,0);
+	//inventory selected item [83], [84]
+	Text(10, 482, "0", 255, 255, 255);
+	Text(155, 482, "0", 255, 255, 255);
 
-    //item hover window [176][177][178][179]
-	Text(768-89+30,256,"+0",0,0,0);
-	Text(768-89+30,284,"+100",0,0,0);
-	Text(768-89+30,314,"+10",0,0,0);
-	Text(768-89+30,338,"142009",0,0,0);
 
-    //initialize all the clients
-    for ( int i = 0; i < MAX_CLIENTS; i++ )
+	//popup gui input text box [85], [86], [87], [88]
+	Text(300, 392, "0", 255, 255, 255); //message
+	Text(308, 427, "0", 255, 255, 255); //input
+	Text(407, 461, "cancel", 255, 255, 255); // cancel
+	Text(309, 461, "okay", 255, 255, 255); // okay
+
+	inputBox.outputText = &Message[85];
+	inputBox.inputText = &Message[86];
+	inputBox.cancelText = &Message[87];
+	inputBox.okayText = &Message[88];
+
+	//popup gui player action request [89]
+	Text(300, 380, "Invite X to...", 255, 255, 255);
+
+
+	//local trade
+	//inventory [90]-[113]
+	for (int y = 0; y < 4; y++)
+		for (int x = 0; x < 6; x++)
+			Text(224 + 268 + x * 39, 291 + y * 56, "", 255, 255, 255);
+
+	//remote trade
+	//inventory [114]-[137]
+	for (int y = 0; y < 4; y++)
+		for (int x = 0; x < 6; x++)
+			Text(224 + 556 + x * 39, 291 + y * 56, "", 255, 255, 255);
+
+
+
+	//local trade descriptor [138], [139]
+	Text(224 + 266, 482, "0", 255, 255, 255);
+	Text(224 + 411, 482, "0", 255, 255, 255);
+	//remote trade descriptor [140], [141]
+	Text(224 + 635, 482, "0", 255, 255, 255);
+	Text(224 + 780, 482, "0", 255, 255, 255);
+
+	//local ready/accept text and remote [142], [143]
+	Text(224 + 340, 235, "Waiting...", 255, 255, 255);
+	Text(224 + 628, 235, "Waiting...", 255, 255, 255);
+
+	//bank item amounts
+   //bank [144]-[161]
+	for (int y = 0; y < 3; y++)
+		for (int x = 0; x < 6; x++)
+			Text(224 + 556 + x * 39, 313 + y * 56, "none", 255, 255, 255);
+
+	//equipment window
+	// hp, sp, dp [162-164]
+	Text(333, 380, "+", 20, 160, 20);
+	Text(333, 408, "+", 20, 160, 20);
+	Text(333, 438, "+", 20, 160, 20);
+
+	//descriptor [165]
+	Text(294, 482, "???", 255, 255, 255);
+
+	//buddy name [166-170]
+	for (int b = 0; b < 5; b++)
+		Text(224 + 638, 86 + 65 * b, "", 0, 0, 0);
+
+	//buddy coords [171-175]
+	for (int b = 0; b < 5; b++)
+		Text(224 + 652, 127 + 65 * b, "", 0, 0, 0);
+
+	//item hover window [176][177][178][179]
+	Text(768 - 89 + 30, 256, "+0", 0, 0, 0);
+	Text(768 - 89 + 30, 284, "+100", 0, 0, 0);
+	Text(768 - 89 + 30, 314, "+10", 0, 0, 0);
+	Text(768 - 89 + 30, 338, "142009", 0, 0, 0);
+
+	//initialize all the clients
+	for (int i = 0; i < MAX_CLIENTS; i++)
 	{
-        Player[i] = SKO_Player();
-    }
+		Player[i] = SKO_Player();
+	}
+	printf("After SKO_Player(): Player[0] party is: %i\n", Player[0].party);
 
-    loadContent();
+	loadContent();
 
 	if (enableSND && enableMUS)
 	{
@@ -5591,83 +5636,55 @@ int main (int argc, char *argv[])
 			printf("music played ok.");
 	}
 
-    //start drawing
-    pthread_t networkThread, physicsThread; //GraphicsThread;
+	printf("Starting network thread . . . \n");
+	std::thread networkThread(Network);
 
-    //here goes nothin'
-    if (pthread_create(&networkThread, NULL, Network, 0)){
-        printf("Could not create thread for Network...\n");
-        Kill();
-    }
+	OPI_Sleep::milliseconds(100);
 
-    SDL_Delay(100);
+	printf("Starting input and graphics . . . \n");
+	PhysicsLoop();
 
-    if (pthread_create(&physicsThread, NULL, PhysicsLoop, 0)){
-        printf("Could not create thread for Physics...\n");
-        Kill();
-    }
-
-    SDL_Delay(100);
-
-    KE_Timestep *timestep = new KE_Timestep(60);
-
-    printf("Starting input and graphics . . . \n");
-
-
-    //Input & graphics
-    while (!done)
-    {
-          timestep->Update();
-
-		  //limit graphics to about 60FPS but it can be lower if there is not enough processing power
-		  if (timestep->Check())
-		  {
-			  Graphics();
-		  }
-
-		  // With a sleep of 1 millisecond, 
-		  // UI handler will fire at max 1000 times per second
-		  // minus however long it takes to draw graphics
-		  HandleUI();
-          SDL_Delay(1);
-    }
-
-    printf("done == true. joining threads.\r\n");
-
-	pthread_join(networkThread, NULL);
-	pthread_join(physicsThread, NULL);
+	printf("done == true. joining threads.\r\n");
+	networkThread.join();
 
 	printf("Quitting Stick Knights Online.");
 	SDL_Quit();
-    return 0;
+	return 0;
 }//end main
 
 void Graphics()
 {
 	//Clear color buffer
-	glClear( GL_COLOR_BUFFER_BIT );
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    //graphics
-    construct_frame();
-    SDL_GL_SwapBuffers();
+	//graphics
+	construct_frame();
+	SDL_GL_SwapBuffers();
 }
 
 bool ConnectToSKOServer()
 {
 	if (Client.init(SERVER_IP, SERVER_PORT) == "error")
 	{
+		printf("FATAL: Client.init(SERVER_IP, SERVER_PORT) == \"error\"\n");
 		Message[0].SetText("There may be a problem with your internet connection.");
 		Message[1].SetText(" Join chat for help. www.StickKnightsOnline.com/chat");
+		Graphics();
 		fatalNetworkError = true;
 		return true;
 	}
 
-    if (Client.connect() == "error")
-    {
-        Message[0].SetText("There was an error connecting to the server!");
-        Message[1].SetText("Trying to reconnect for 30 seconds");
-        return true;
-    }
+	if (Client.connect() == "error")
+	{
+		printf("FATAL: Client.connect() == \"error\"\n");
+		Message[0].SetText("There was an error connecting to the server!");
+		Message[1].SetText("");
+		Graphics();
+		return true;
+	}
+
+	Message[0].SetText("Connected!");
+	Message[1].SetText("Attempting to verify client version...");
 
 	Client.sendVersion(VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
 	return false;
@@ -5675,32 +5692,33 @@ bool ConnectToSKOServer()
 
 int numDigits(int num)
 {
-    if (num == 0)
-       return 1;// 0 is still 1 digit
+	if (num == 0)
+		return 1;// 0 is still 1 digit
 
-    int count = 0;
-    while(num)
-    {
-       num /= 10;
-       ++count;
-    }
-    return count;
+	int count = 0;
+	while (num)
+	{
+		num /= 10;
+		++count;
+	}
+	return count;
 }
 
 void physics()
 {
 	//always scroll sky
-	if (menu < 4)
-		scroll_sky();
+	scroll_sky();
 
 	if (menu != STATE_PLAY)
 		return;
+
+	unsigned char current_map = Player[MyID].current_map;
 
 	//enemies
 	for (int i = 0; i < map[current_map]->num_enemies; i++)
 	{
 		//turn off flash effect
-		if (map[current_map]->Enemy[i].hit && SDL_GetTicks() - map[current_map]->Enemy[i].hit_ticker > 100)
+		if (map[current_map]->Enemy[i].hit && OPI_Clock::milliseconds() - map[current_map]->Enemy[i].hit_ticker > 100)
 		{
 			map[current_map]->Enemy[i].hit = false;
 		}
@@ -5725,7 +5743,8 @@ void physics()
 
 			map[current_map]->Enemy[i].y +
 			map[current_map]->Enemy[i].y_speed +
-			EnemySprite[map[current_map]->Enemy[i].sprite].y2);
+			EnemySprite[map[current_map]->Enemy[i].sprite].y2,
+			true);
 
 		//vertical movement
 		if (!block_y)
@@ -5751,7 +5770,7 @@ void physics()
 					map[current_map]->Enemy[i].y +
 					map[current_map]->Enemy[i].y_speed +
 					EnemySprite[map[current_map]->Enemy[i].sprite].y1 +
-					EnemySprite[map[current_map]->Enemy[i].sprite].y2)); loopVar++)
+					EnemySprite[map[current_map]->Enemy[i].sprite].y2, true)); loopVar++)
 					map[current_map]->Enemy[i].y +=
 					map[current_map]->Enemy[i].y_speed;
 
@@ -5773,7 +5792,7 @@ void physics()
 					map[current_map]->Enemy[i].y +
 					map[current_map]->Enemy[i].y_speed +
 					EnemySprite[map[current_map]->Enemy[i].sprite].y1 +
-					EnemySprite[map[current_map]->Enemy[i].sprite].y2)); loopVar++)
+					EnemySprite[map[current_map]->Enemy[i].sprite].y2, true)); loopVar++)
 					map[current_map]->Enemy[i].y += map[current_map]->Enemy[i].y_speed;
 			}
 
@@ -5792,7 +5811,7 @@ void physics()
 			map[current_map]->Enemy[i].x_speed +
 			EnemySprite[map[current_map]->Enemy[i].sprite].x2,
 			map[current_map]->Enemy[i].y +
-			EnemySprite[map[current_map]->Enemy[i].sprite].y2);
+			EnemySprite[map[current_map]->Enemy[i].sprite].y2, true);
 
 		//horizontal movement
 		if (!block_x)
@@ -5809,17 +5828,17 @@ void physics()
 		if ((map[current_map]->Enemy[i].x_speed != 0 && map[current_map]->Enemy[i].ground) || map[current_map]->Enemy[i].attacking)
 		{
 			//if it is time to change the frame
-			if (!map[current_map]->Enemy[i].attacking && SDL_GetTicks() - map[current_map]->Enemy[i].animation_ticker >= (unsigned int)animation_speed)
+			if (!map[current_map]->Enemy[i].attacking && OPI_Clock::milliseconds() - map[current_map]->Enemy[i].animation_ticker >= animation_speed)
 			{
 				map[current_map]->Enemy[i].current_frame++;
 
 				if (map[current_map]->Enemy[i].current_frame >= 6)
 					map[current_map]->Enemy[i].current_frame = 0;
 
-				map[current_map]->Enemy[i].animation_ticker = SDL_GetTicks();
+				map[current_map]->Enemy[i].animation_ticker = OPI_Clock::milliseconds();
 			}
 			//if it is time to change the frame
-			if (map[current_map]->Enemy[i].attacking && SDL_GetTicks() - map[current_map]->Enemy[i].attack_ticker >= attack_speed / 2.0)
+			if (map[current_map]->Enemy[i].attacking && OPI_Clock::milliseconds() - map[current_map]->Enemy[i].attack_ticker >= attack_speed / 2.0)
 			{
 				map[current_map]->Enemy[i].current_frame++;
 
@@ -5829,7 +5848,7 @@ void physics()
 					if (map[current_map]->Enemy[i].attacking)
 						map[current_map]->Enemy[i].attacking = false;
 				}
-				map[current_map]->Enemy[i].attack_ticker = SDL_GetTicks();
+				map[current_map]->Enemy[i].attack_ticker = OPI_Clock::milliseconds();
 			}
 		}
 		else
@@ -5840,7 +5859,6 @@ void physics()
 	//npcs
 	for (int i = 0; i < map[current_map]->num_npcs; i++)
 	{
-
 		//fall
 		if (map[current_map]->NPC[i].y_speed < 10)
 			map[current_map]->NPC[i].y_speed += GRAVITY;
@@ -5861,7 +5879,7 @@ void physics()
 
 			map[current_map]->NPC[i].y +
 			map[current_map]->NPC[i].y_speed +
-			NpcSprite[map[current_map]->NPC[i].sprite].y2);
+			NpcSprite[map[current_map]->NPC[i].sprite].y2, true);
 
 		//vertical movement
 		if (!block_y)
@@ -5890,7 +5908,7 @@ void physics()
 					map[current_map]->NPC[i].y +
 					map[current_map]->NPC[i].y_speed +
 					NpcSprite[map[current_map]->NPC[i].sprite].y1 +
-					NpcSprite[map[current_map]->NPC[i].sprite].y2)); loopVar++)
+					NpcSprite[map[current_map]->NPC[i].sprite].y2, true)); loopVar++)
 					map[current_map]->NPC[i].y +=
 					map[current_map]->NPC[i].y_speed;
 
@@ -5912,7 +5930,7 @@ void physics()
 					map[current_map]->NPC[i].y +
 					map[current_map]->NPC[i].y_speed +
 					NpcSprite[map[current_map]->NPC[i].sprite].y1 +
-					NpcSprite[map[current_map]->NPC[i].sprite].y2)); loopVar++)
+					NpcSprite[map[current_map]->NPC[i].sprite].y2, true)); loopVar++)
 					map[current_map]->NPC[i].y += map[current_map]->NPC[i].y_speed;
 			}
 
@@ -5931,7 +5949,7 @@ void physics()
 			map[current_map]->NPC[i].x_speed +
 			NpcSprite[map[current_map]->NPC[i].sprite].x2,
 			map[current_map]->NPC[i].y +
-			NpcSprite[map[current_map]->NPC[i].sprite].y2);
+			NpcSprite[map[current_map]->NPC[i].sprite].y2, true);
 
 		//horizontal movement
 		if (!block_x)
@@ -5949,14 +5967,14 @@ void physics()
 		if ((map[current_map]->NPC[i].x_speed != 0 && map[current_map]->NPC[i].ground))
 		{
 			//if it is time to change the frame
-			if (SDL_GetTicks() - map[current_map]->NPC[i].animation_ticker >= (unsigned int)animation_speed)
+			if (OPI_Clock::milliseconds() - map[current_map]->NPC[i].animation_ticker >= animation_speed)
 			{
 				map[current_map]->NPC[i].current_frame++;
 
 				if (map[current_map]->NPC[i].current_frame >= 6)
 					map[current_map]->NPC[i].current_frame = 0;
 
-				map[current_map]->NPC[i].animation_ticker = SDL_GetTicks();
+				map[current_map]->NPC[i].animation_ticker = OPI_Clock::milliseconds();
 			}
 
 		}
@@ -5971,7 +5989,7 @@ void physics()
 		if (Player[i].Status && Player[i].current_map == current_map)
 		{
 			//turn off flash effect
-			if (Player[i].hit && SDL_GetTicks() - Player[i].hit_ticker > 100)
+			if (Player[i].hit && OPI_Clock::milliseconds() - Player[i].hit_ticker > 100)
 			{
 				Player[i].hit = false;
 			}
@@ -5984,7 +6002,7 @@ void physics()
 			Player[i].ground = true;
 
 			//verical collision detection
-			bool block_y = blocked(Player[i].x + 25, Player[i].y + Player[i].y_speed + 13, Player[i].x + 38, Player[i].y + Player[i].y_speed + 64);
+			bool block_y = blocked(Player[i].x + 25, Player[i].y + Player[i].y_speed + 13, Player[i].x + 38, Player[i].y + Player[i].y_speed + 64, false);
 
 
 			//vertical movement
@@ -5995,40 +6013,6 @@ void physics()
 				Player[i].ground = false;
 
 				Player[i].y += Player[i].y_speed;
-
-				if (i == MyID) {
-					//move tiles background
-					if (camera_y > 0)
-					{
-						back_offsety[1] -= (Player[i].y_speed) / 3.3;
-						back_offsety[2] -= (Player[i].y_speed) / 2.2;
-						back_offsety[3] -= (Player[i].y_speed) / 1.75;
-						back_offsety[1] -= 0.01;
-					}
-
-					if (back_offsety[1] > back_img[1].h)
-						back_offsety[1] -= back_img[1].h;
-
-					if (back_offsety[1] < -back_img[1].h)
-						back_offsety[1] += back_img[1].h;
-
-					back_offsety[2] += 0.015;
-
-					if (back_offsety[2] > back_img[2].h)
-						back_offsety[2] -= back_img[2].h;
-
-					if (back_offsety[2] < -back_img[2].h)
-						back_offsety[2] += back_img[2].h;
-
-					back_offsety[3] -= 0.01;
-
-					if (back_offsety[3] > back_img[3].h)
-						back_offsety[3] -= back_img[3].h;
-
-					if (back_offsety[3] < -back_img[3].h)
-						back_offsety[3] += back_img[3].h;
-				}
-
 			}
 			else
 			{  //blocked, stop
@@ -6038,7 +6022,7 @@ void physics()
 
 					//todo see if while or if is better
 					for (int loopVar = 0; loopVar < HIT_LOOPS &&
-						(!blocked(Player[i].x + 25, Player[i].y + Player[i].y_speed + 13, Player[i].x + 38, Player[i].y + Player[i].y_speed + 64))
+						(!blocked(Player[i].x + 25, Player[i].y + Player[i].y_speed + 13, Player[i].x + 38, Player[i].y + Player[i].y_speed + 64, false))
 						; loopVar++)
 						Player[i].y += Player[i].y_speed;
 
@@ -6052,7 +6036,7 @@ void physics()
 					//todo see if while or if is better
 					//trying out for 3 loops
 					for (int loopVar = 0; loopVar < HIT_LOOPS &&
-						(!blocked(Player[i].x + 25, Player[i].y + Player[i].y_speed + 13, Player[i].x + 38, Player[i].y + Player[i].y_speed + 64))
+						(!blocked(Player[i].x + 25, Player[i].y + Player[i].y_speed + 13, Player[i].x + 38, Player[i].y + Player[i].y_speed + 64, false))
 						; loopVar++)
 						Player[i].y += Player[i].y_speed;
 				}
@@ -6060,47 +6044,12 @@ void physics()
 			}
 
 			//horizontal collision detection
-			bool block_x = blocked(Player[i].x + Player[i].x_speed + 23, Player[i].y + 13, Player[i].x + Player[i].x_speed + 40, Player[i].y + 64);
+			bool block_x = blocked(Player[i].x + Player[i].x_speed + 23, Player[i].y + 13, Player[i].x + Player[i].x_speed + 40, Player[i].y + 64, false);
 
 			//horizontal movement
 			if (!block_x)
 			{//not blocked, walk
 				Player[i].x += (Player[i].x_speed);
-
-				//move tiles background
-				if (i == MyID) {
-
-					back_offsetx[1] -= 0.02;
-					back_offsetx[2] -= 0.05;
-					back_offsetx[3] -= 0.1;
-
-					if (camera_x > 0)
-					{
-
-						back_offsetx[1] -= (Player[i].x_speed) / 3.3;
-						back_offsetx[2] -= (Player[i].x_speed) / 2.2;
-						back_offsetx[3] -= (Player[i].x_speed) / 1.75;
-					}
-
-					if (back_offsetx[1] > back_img[1].w)
-						back_offsetx[1] -= back_img[1].w;
-
-					if (back_offsetx[1] < -back_img[1].w)
-						back_offsetx[1] += back_img[1].w;
-
-					if (back_offsetx[2] > back_img[2].w)
-						back_offsetx[2] -= back_img[2].w;
-
-					if (back_offsetx[2] < -back_img[2].w)
-						back_offsetx[2] += back_img[2].w;
-
-
-					if (back_offsetx[3] > back_img[3].w)
-						back_offsetx[3] -= back_img[3].w;
-
-					if (back_offsetx[3] < -back_img[3].w)
-						back_offsetx[3] += back_img[3].w;
-				}
 			}
 
 			//yourself
@@ -6113,7 +6062,7 @@ void physics()
 					Client.playerAction("left", Player[MyID].x, Player[MyID].y);
 
 					//Client prediction physics
-					Player[MyID].x_speed = -2;
+					Player[MyID].x_speed = -WALK_SPEED;
 					Player[MyID].facing_right = false;
 				}
 				if (RIGHT && !Player[MyID].attacking && Player[MyID].x_speed != 2)
@@ -6122,7 +6071,7 @@ void physics()
 					Client.playerAction("right", Player[MyID].x, Player[MyID].y);
 
 					//Client prediction physics
-					Player[MyID].x_speed = 2;
+					Player[MyID].x_speed = WALK_SPEED;
 					Player[MyID].facing_right = true;
 				}
 
@@ -6130,7 +6079,7 @@ void physics()
 					Player[i].x_speed = 0;
 
 				//cosmetic updates
-				if (SDL_GetTicks() - cosmeticTicker >= (unsigned int)cosmeticTime)
+				if (OPI_Clock::milliseconds() - cosmeticTicker >= cosmeticTime)
 				{
 					//coordinates
 					std::stringstream ss;
@@ -6186,7 +6135,7 @@ void physics()
 					//defend
 					std::stringstream ss3;
 					std::string dp_string;
-					ss3 << (unsigned int)Player[MyID].defence;
+					ss3 << (unsigned int)Player[MyID].defense;
 					dp_string = "" + ss3.str();
 					Message[82].SetText(dp_string);
 
@@ -6241,6 +6190,7 @@ void physics()
 						{
 							if (Player[MyID].party >= 0 && Player[pp].party == Player[MyID].party)
 							{
+								printf("Player party is: %i\n", Player[MyID].party);
 								Player[MyID].nametag.R = 0.2;
 								Player[MyID].nametag.G = 0.9;
 								Player[MyID].nametag.B = 0.2;
@@ -6321,8 +6271,6 @@ void physics()
 
 									buddy++;
 								}
-
-
 							}
 							else //(not in party)
 							{
@@ -6334,7 +6282,7 @@ void physics()
 					}
 
 
-					cosmeticTicker = SDL_GetTicks();
+					cosmeticTicker = OPI_Clock::milliseconds();
 				}
 			}
 
@@ -6345,17 +6293,18 @@ void physics()
 			if ((Player[i].x_speed != 0 && Player[i].ground) || Player[i].attacking)
 			{
 				//if it is time to change the frame
-				if (!Player[i].attacking && SDL_GetTicks() - Player[i].animation_ticker >= (unsigned int)animation_speed)
+				if (!Player[i].attacking && OPI_Clock::milliseconds() - Player[i].animation_ticker >= animation_speed)
 				{
 					Player[i].current_frame++;
 
 					if (Player[i].current_frame >= 6)
 						Player[i].current_frame = 0;
 
-					Player[i].animation_ticker = SDL_GetTicks();
+					Player[i].animation_ticker = OPI_Clock::milliseconds();
 				}
+
 				//if it is time to change the frame
-				if (Player[i].attacking && SDL_GetTicks() - Player[i].attack_ticker >= (unsigned int)attack_speed)
+				if (Player[i].attacking && OPI_Clock::milliseconds() - Player[i].attack_ticker >= attack_speed)
 				{
 					Player[i].current_frame++;
 
@@ -6365,7 +6314,7 @@ void physics()
 						if (Player[i].attacking)
 							Player[i].attacking = false;
 					}
-					Player[i].attack_ticker = SDL_GetTicks();
+					Player[i].attack_ticker = OPI_Clock::milliseconds();
 				}
 			}
 			else // reset to standing frame!
@@ -6386,7 +6335,7 @@ void physics()
 				map[current_map]->ItemObj[i].x + map[current_map]->ItemObj[i].x_speed,
 				map[current_map]->ItemObj[i].y,
 				map[current_map]->ItemObj[i].x + map[current_map]->ItemObj[i].x_speed + Item[(int)map[current_map]->ItemObj[i].itemID].w,
-				map[current_map]->ItemObj[i].y + Item[(int)map[current_map]->ItemObj[i].itemID].h);
+				map[current_map]->ItemObj[i].y + Item[(int)map[current_map]->ItemObj[i].itemID].h, false);
 
 			if (map[current_map]->ItemObj[i].y_speed < 10)
 				map[current_map]->ItemObj[i].y_speed += GRAVITY;
@@ -6396,7 +6345,7 @@ void physics()
 				map[current_map]->ItemObj[i].x + map[current_map]->ItemObj[i].x_speed,
 				map[current_map]->ItemObj[i].y + map[current_map]->ItemObj[i].y_speed,
 				map[current_map]->ItemObj[i].x + Item[(int)map[current_map]->ItemObj[i].itemID].w,
-				map[current_map]->ItemObj[i].y + map[current_map]->ItemObj[i].y_speed + Item[(int)map[current_map]->ItemObj[i].itemID].h);
+				map[current_map]->ItemObj[i].y + map[current_map]->ItemObj[i].y_speed + Item[(int)map[current_map]->ItemObj[i].itemID].h, false);
 
 
 			//vertical movement
@@ -6422,20 +6371,29 @@ void physics()
 	//end items
 
 	//Sign reading collision detection
+	// TODO - refactor into 
 	if (enableSIGN && (Player[MyID].x_speed != 0 || Player[MyID].y_speed != 1))
 	{
 		for (int i = 0; i < map[current_map]->num_signs; i++)
 		{
-			float rangeX = (std::abs)(Player[MyID].x - map[current_map]->Sign[i].x + map[current_map]->Sign[i].w/2.0);
-			float rangeY = (std::abs)(Player[MyID].y - map[current_map]->Sign[i].y + map[current_map]->Sign[i].h/2.0);
-			float distance = sqrt((rangeX*rangeX) + (rangeY*rangeY));
-			bool inRange;
-			inRange = (distance < 32);
-			if (inRange) {
-				bool isNew = ((current_sign.hasBeenClosed) == (map[current_map]->Sign[i].hasBeenClosed));
+			//TODO - get player Rect function
+			float px1 = Player[MyID].x + 25;
+			float px2 = Player[MyID].x + 38;
+			float py1 = Player[MyID].y;
+			float py2 = Player[MyID].y + 64;
+			float tx1 = map[current_map]->Sign[i].x;
+			float tx2 = map[current_map]->Sign[i].x + map[current_map]->Sign[i].w;
+			float ty1 = map[current_map]->Sign[i].y;
+			float ty2 = map[current_map]->Sign[i].y + map[current_map]->Sign[i].h;
+			
+			bool intersects = boxesIntersect(px1, py1, px2, py2, tx1, ty1, tx2, ty2);
+
+			if (intersects) {
+				bool isNew = (current_sign.hasBeenClosed == map[current_map]->Sign[i].hasBeenClosed);
 				if (isNew) {
 					if (popup_sign == false) {
 						current_sign = map[current_map]->Sign[i];
+						printf("Opening sign: (%i, %i, %i, %i))\n", (int)tx1, (int)tx2, (int)ty1, (int)ty2);
 					}
 				}
 				if (!current_sign.triggered && !(current_sign.hasBeenClosed)) {
@@ -6444,24 +6402,37 @@ void physics()
 						popup_menu = 0;
 						popup_sign = true;
 						popup_npc = false;
+						printf("Sign triggered\n");
 					}
 				}
 			}
 		}
 
-		float rangeX = (std::abs)(Player[MyID].x - current_sign.x + current_sign.w / 2.0);
-		float rangeY = (std::abs)(Player[MyID].y - current_sign.y + current_sign.h / 2.0);
-		float distance = sqrt((rangeX*rangeX) + (rangeY*rangeY));
-		bool inRange = (distance < 48);
-		if (!inRange && current_sign.triggered) {
-			popup_sign = false;
-			current_sign.hasBeenClosed = false;
-		}
-		if (distance > 48) {
+		if (!popup_sign)
+			return;
+
+		// Close currently open sign 
+		float px1 = Player[MyID].x + 25;
+		float px2 = Player[MyID].x + 38;
+		float py1 = Player[MyID].y;
+		float py2 = Player[MyID].y + 64;
+		float tx1 = current_sign.x - 32;
+		float tx2 = tx1 + current_sign.w + 32;
+		float ty1 = current_sign.y - 32;
+		float ty2 = ty1 + current_sign.h + 32;
+		bool intersects = boxesIntersect(px1, py1, px2, py2, tx1, ty1, tx2, ty2);
+
+		if (!intersects) 
+		{
+			printf("Sign not in range\n");
+			if (current_sign.triggered)
+			{
+				//close it if it has been triggered by walking, not by clicking
+				popup_sign = false;
+			}
 			current_sign.triggered = false;
 			current_sign.hasBeenClosed = false;
 		}
-
 	}
 }
 
@@ -6473,13 +6444,13 @@ void Disconnect()
 	menu = STATE_DISCONNECT;
 	Graphics();
 
-	//Try reconnecting for 30 seconds
-	if (Client.TryReconnect(30000))
+	//Try reconnecting for 10 seconds
+	if (Client.TryReconnect(10000))
 	{
 		if (loaded)
 			TryToLogin();
 	}
-	else 
+	else
 	{
 		Kill();
 	}
@@ -6487,14 +6458,17 @@ void Disconnect()
 
 void TryToLogin()
 {
-	Client.sendLoginRequest(username, password);
+	printf("Client.sendLoginRequest(%s, %s);\n", hasher->getUsername().c_str(), hasher->getPasswordHash().c_str());
+	Client.sendLoginRequest(hasher->getUsername(), hasher->getPasswordHash());
 }
 
 
 
 void Kill()
 {
+	printf("Kill();\n");
 	done = true;
+	Client.done = true;
 }
 
 

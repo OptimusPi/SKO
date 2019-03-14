@@ -36,8 +36,8 @@ class SKO_Player
         bool facing_right; 
         bool attacking;
         int  current_frame;
-        int animation_ticker;
-        int attack_ticker;
+        unsigned long long int animation_ticker;
+        unsigned long long int attack_ticker;
         int arrow;
         
      //stats
@@ -49,9 +49,9 @@ class SKO_Player
         unsigned char stat_points;
         unsigned int xp;
         unsigned int max_xp;
-        //strength and defence
+        //strength and defense
         unsigned char strength;
-        unsigned char defence;
+        unsigned char defense;
         unsigned char regen;
         
         
@@ -65,14 +65,15 @@ class SKO_Player
         unsigned int remoteTrade[24][2];
         
         //parties
-        int party, clan;
+        int party = -1;
+        int clan = -1;
                 
    //equip
         unsigned int equip[3];
         unsigned int equipI[3];
         
         bool hit;
-        int hit_ticker;
+        unsigned long long int hit_ticker;
 };
 
 #endif

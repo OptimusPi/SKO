@@ -1,10 +1,10 @@
 #include "KE_Timestep.h"
-
+#include "OPI_Clock.h"
 
 KE_Timestep::KE_Timestep(unsigned int FPS)
 {
-   frameTime = (unsigned long int)(1000.0/FPS);
-   currentTime = SDL_GetTicks();
+   frameTime = (unsigned long int)(1000000000.0/FPS);
+   currentTime = OPI_Clock::nanoseconds();
    newTime = 0;
    accumulator = 0;
    ready = false;
@@ -12,7 +12,7 @@ KE_Timestep::KE_Timestep(unsigned int FPS)
 
 void KE_Timestep::Update()
 {
-     newTime = SDL_GetTicks();
+     newTime = OPI_Clock::nanoseconds();
      accumulator += newTime - currentTime;
      currentTime = newTime;
 }

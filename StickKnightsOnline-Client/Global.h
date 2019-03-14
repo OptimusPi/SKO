@@ -19,12 +19,14 @@
 #include "SKO_Map.h"
 #include "InputBox.h"
 #include <iostream>
+#include "OPI_Hasher.h"
 
 #define MAX_CLIENTS 16
 
 #define ENEMY_DEAD_X -1000
 #define ENEMY_DEAD_Y -1000
 
+extern const float WALK_SPEED;
 extern OPI_Text Message[];
 extern Mix_Music *music;
 extern bool enableMUS;
@@ -49,13 +51,12 @@ extern Mix_Chunk *hit2;
 extern Mix_Chunk *hit3;
 extern bool loaded;
 extern SKO_Player Player[MAX_CLIENTS];
-extern float camera_x;
-extern float camera_y;
+extern float camera_xf;
+extern float camera_yf;
 extern SKO_Map *map[];
 extern int popup_gui_menu;
 extern int bankScroll;
 extern InputBox inputBox;
-extern int current_map;
 extern int lastSfx;
 extern void SetUsername(int);
 extern std::string *chat_line[];
@@ -68,4 +69,14 @@ extern bool connectError;
 extern bool versionError;
 extern void TryToLogin();
 extern int chat_box;
-extern std::string username;
+extern OPI_Hasher *hasher;
+
+
+// Center of screen for player
+#define PLAYER_CAMERA_X 480
+#define PLAYER_CAMERA_Y 300
+extern float camera_xspeed;
+extern float camera_yspeed;
+
+//Quit process
+extern void Kill();

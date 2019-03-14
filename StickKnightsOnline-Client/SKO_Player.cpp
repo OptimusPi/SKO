@@ -22,7 +22,7 @@ SKO_Player::SKO_Player()
     level = 255;
     stat_points = 255;
     strength = 255;
-    defence = 255;
+    defense = 255;
     
     facing_right = true;
     current_frame = 0;

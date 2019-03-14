@@ -6,7 +6,6 @@
 
 class OPI_Text
 {
-      
       public:
          OPI_Text();
          void SetText(std::string message);
@@ -14,7 +13,7 @@ class OPI_Text
          short int letter_y[MAX_T_MESSAGE];
          short int length;
          float R, G, B;
-         float pos_x, pos_y;
+         int pos_x, pos_y;
          bool used;
              
 };
