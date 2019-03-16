@@ -6190,7 +6190,6 @@ void physics()
 						{
 							if (Player[MyID].party >= 0 && Player[pp].party == Player[MyID].party)
 							{
-								printf("Player party is: %i\n", Player[MyID].party);
 								Player[MyID].nametag.R = 0.2;
 								Player[MyID].nametag.G = 0.9;
 								Player[MyID].nametag.B = 0.2;
