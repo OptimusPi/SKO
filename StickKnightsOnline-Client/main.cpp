@@ -6190,9 +6190,9 @@ void physics()
 						{
 							if (Player[MyID].party >= 0 && Player[pp].party == Player[MyID].party)
 							{
-								Player[MyID].nametag.R = 0.2;
-								Player[MyID].nametag.G = 0.9;
-								Player[MyID].nametag.B = 0.2;
+								Player[pp].nametag.R = 0.2;
+								Player[pp].nametag.G = 0.9;
+								Player[pp].nametag.B = 0.2;
 
 								if (MyID != pp)
 								{
@@ -6273,9 +6273,9 @@ void physics()
 							}
 							else //(not in party)
 							{
-								Player[MyID].nametag.R = 1;
-								Player[MyID].nametag.G = 1;
-								Player[MyID].nametag.B = 1;
+								Player[pp].nametag.R = 1;
+								Player[pp].nametag.G = 1;
+								Player[pp].nametag.B = 1;
 							}
 						}//end ident
 					}
