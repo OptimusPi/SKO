@@ -5345,23 +5345,23 @@ int main(int argc, char *argv[])
 	Item[ITEM_ICECREAM] = SKO_Item(9, 16, 0, "Icecream Cone");
 	Item[ITEM_SUNGLASSES] = SKO_Item(21, 13, 0, "Sunglasses");
 
-	Item[ITEM_SWORD_RUSTED] = SKO_Item(11, 32, 250, "Rusty Sword", 0, 2, 2);
-	Item[ITEM_SWORD_STEEL] = SKO_Item(11, 32, 8000, "Steel Sword", 0, 4, 4);
-	Item[ITEM_SWORD_GOLD] = SKO_Item(11, 32, 40000, "Golden Sword", 0, 8, 8);
-	Item[ITEM_SWORD_CRYSTAL] = SKO_Item(11, 32, 120000, "Crystal Sword", 1, 16, 16);
+	Item[ITEM_SWORD_RUSTED] = SKO_Item(11, 32, 25, "Rusty Sword", 0, 2, 2);
+	Item[ITEM_SWORD_STEEL] = SKO_Item(11, 32, 90, "Steel Sword", 0, 4, 4);
+	Item[ITEM_SWORD_GOLD] = SKO_Item(11, 32, 6000, "Golden Sword", 0, 8, 8);
+	Item[ITEM_SWORD_CRYSTAL] = SKO_Item(11, 32, 80000, "Crystal Sword", 1, 16, 16);
 
-	Item[ITEM_AXE_RUSTED] = SKO_Item(12, 31, 250, "Rusty Hatchet", 0, 1, 3);
-	Item[ITEM_AXE_STEEL] = SKO_Item(12, 31, 8000, "Steel Hatchet", 0, 3, 5);
-	Item[ITEM_AXE_GOLD] = SKO_Item(21, 32, 40000, "Golden Axe", 0, 6, 10);
-	Item[ITEM_AXE_CRYSTAL] = SKO_Item(24, 32, 120000, "Crystal Axe", 1, 14, 18);
+	Item[ITEM_AXE_RUSTED] = SKO_Item(12, 31, 25, "Rusty Hatchet", 0, 1, 3);
+	Item[ITEM_AXE_STEEL] = SKO_Item(12, 31, 90, "Steel Hatchet", 0, 3, 5);
+	Item[ITEM_AXE_GOLD] = SKO_Item(21, 32, 6000, "Golden Axe", 0, 6, 10);
+	Item[ITEM_AXE_CRYSTAL] = SKO_Item(24, 32, 80000, "Crystal Axe", 1, 14, 18);
 
-	Item[ITEM_HAMMER_RUSTED] = SKO_Item(17, 32, 250, "Rusty Hammer", 0, 3, 1);
-	Item[ITEM_HAMMER_STEEL] = SKO_Item(17, 32, 8000, "Steel Hammer", 0, 5, 3);
-	Item[ITEM_HAMMER_GOLD] = SKO_Item(17, 32, 40000, "Golden Hammer", 0, 10, 6);
-	Item[ITEM_HAMMER_CRYSTAL] = SKO_Item(29, 32, 120000, "Crystal Hammer", 1, 18, 14);
+	Item[ITEM_HAMMER_RUSTED] = SKO_Item(17, 32, 25, "Rusty Hammer", 0, 3, 1);
+	Item[ITEM_HAMMER_STEEL] = SKO_Item(17, 32, 90, "Steel Hammer", 0, 5, 3);
+	Item[ITEM_HAMMER_GOLD] = SKO_Item(17, 32, 6000, "Golden Hammer", 0, 10, 6);
+	Item[ITEM_HAMMER_CRYSTAL] = SKO_Item(29, 32, 80000, "Crystal Hammer", 1, 18, 14);
 
 	Item[ITEM_SCYTHE] = SKO_Item(23, 25, 900, "Scythe", 0, 3, 3);
-	Item[ITEM_SCYTHE_REAPER] = SKO_Item(27, 32, 15, "Reaper's Scythe", 10, 10, 10);
+	Item[ITEM_SCYTHE_REAPER] = SKO_Item(27, 32, 18000, "Reaper's Scythe", 10, 10, 10);
 	Item[ITEM_HALLOWEEN_MASK] = SKO_Item(18, 21, 0, "Halloween Mask");
 	Item[ITEM_GUARD_HELM] = SKO_Item(18, 21, 2500, "Guard Helmet", 10, 1, 5);
 	Item[ITEM_JACK_OLANTERN] = SKO_Item(21, 23, 0, "Jack O' Lantern");
