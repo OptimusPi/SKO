@@ -174,7 +174,7 @@ void SKO_Network::sendPartyInvite(unsigned char playerId)
 
 void SKO_Network::acceptPartyInvite()
 {
-	send(TRADE, ACCEPT);
+	send(PARTY, ACCEPT);
 }
 
 void SKO_Network::cancelParty()
@@ -1575,8 +1575,8 @@ void SKO_Network::receivePacket(bool connectErr)
 				{
 
 				case INVITE:
+					printf("Trade invite..\n");
 					playerB = socket->Data[3];
-
 
 					ss << "Trade with ";
 					ss << Player[playerB].Nick;
