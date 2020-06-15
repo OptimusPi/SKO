@@ -5035,22 +5035,34 @@ void loadContent()
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLine, int nCmdShow)
 {
 
-#else
+#elseif MAC_OS
 
+int _SDL_main()
+{
+
+#else
+ 
 int main(int argc, char *argv[])
 {
 
 #endif
 
 	hasher = new OPI_Hasher();
+	printf("Hasher initialized.\n");
 	if (!hasher->verifyHash(toLower("pASsWoRD"), "Quq6He1Ku8vXTw4hd0cXeEZAw0nqbpwPxZn50NcOVbk="))
+	{
+	printf("it failed to hash right\n");
 		return 1;
+	}
 
 	if (SDL_Init(SDL_INIT_EVERYTHING) == -1)
 	{
+		printf("Cannot init SDL.\n");
 		SDL_Quit();
 		return 1;
 	}
+
+	printf("SDL has initialized.\n");
 	std::ifstream optionFile("DAT/options.dat", std::ios::in | std::ios::binary | std::ios::ate);
 
 	if (optionFile.is_open())
